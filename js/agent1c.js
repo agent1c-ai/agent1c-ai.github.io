@@ -730,7 +730,6 @@ function refreshUi(){
   if (els.heartbeatDocInput) els.heartbeatDocInput.disabled = !canUse
   if (els.startLoopBtn) els.startLoopBtn.disabled = !canUse || appState.running
   if (els.stopLoopBtn) els.stopLoopBtn.disabled = !appState.running
-  if (els.lockBtn) els.lockBtn.disabled = !canUse
   renderChat()
   renderEvents()
   loadInputsFromState()
@@ -861,7 +860,6 @@ function openAiWindowHtml(){
           <div class="agent-row">
             <button class="btn" type="submit">Save Encrypted Key</button>
             <button id="openaiTestBtn" class="btn" type="button">Test Connection</button>
-            <button id="lockBtn" class="btn" type="button">Lock Vault</button>
           </div>
         </form>
       </div>
@@ -945,9 +943,6 @@ function configWindowHtml(){
       <div class="agent-meta-row">
         <span>Agent status: <strong id="agentStatus">idle</strong></span>
       </div>
-      <div class="agent-row">
-        <button id="lockBtn" class="btn" type="button">Lock Vault</button>
-      </div>
     </div>
   `
 }
@@ -996,7 +991,6 @@ function cacheElements(){
     openaiStoredRow: byId("openaiStoredRow"),
     openaiControls: byId("openaiControls"),
     openaiEditBtn: byId("openaiEditBtn"),
-    lockBtn: byId("lockBtn"),
     openaiBadge: byId("openaiBadge"),
     telegramForm: byId("telegramForm"),
     telegramTokenInput: byId("telegramTokenInput"),
@@ -1445,17 +1439,6 @@ function wireMainDom(){
     stopLoop()
   })
 
-  els.lockBtn?.addEventListener("click", async () => {
-    lockVault()
-    await addEvent("vault_locked", "Vault locked")
-    if (!unlockWin) {
-      unlockWin = wmRef.createAgentPanelWindow("Unlock Vault", { panelId: "unlock", left: 280, top: 100, width: 420, height: 210 })
-      if (unlockWin?.panelRoot) unlockWin.panelRoot.innerHTML = unlockWindowHtml()
-      cacheElements()
-      wireUnlockDom()
-    }
-    refreshUi()
-  })
 }
 
 function createSetupWindow(){
