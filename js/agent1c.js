@@ -626,6 +626,23 @@ function scheduleDocsAutosave(docKey){
   }, 500)
 }
 
+function scheduleLoopTimingAutosave(){
+  if (loopTimingSaveTimer) clearTimeout(loopTimingSaveTimer)
+  loopTimingSaveTimer = setTimeout(async () => {
+    try {
+      saveDraftFromInputs()
+      await persistState()
+      if (appState.running) {
+        stopLoop()
+        startLoop()
+      }
+      setStatus("Loop heartbeat timing saved.")
+    } catch (err) {
+      setStatus(err instanceof Error ? `Loop timing save failed: ${err.message}` : "Loop timing save failed")
+    }
+  }, 250)
+}
+
 function setStatus(text){
   if (els.setupStatus) els.setupStatus.textContent = text
   if (els.unlockStatus) els.unlockStatus.textContent = text
@@ -978,7 +995,13 @@ function configWindowHtml(){
     <div class="agent-stack">
       <label class="agent-form-label">
         <span>Heartbeat every (min)</span>
-        <input id="loopHeartbeatMinInput" class="field" type="number" min="1" step="1" />
+        <div class="agent-stepper">
+          <input id="loopHeartbeatMinInput" class="field" type="number" min="1" step="1" />
+          <div class="agent-stepper-buttons">
+            <button id="loopHeartbeatUpBtn" class="btn agent-stepper-btn" type="button" aria-label="Increase heartbeat minutes">+</button>
+            <button id="loopHeartbeatDownBtn" class="btn agent-stepper-btn" type="button" aria-label="Decrease heartbeat minutes">-</button>
+          </div>
+        </div>
       </label>
       <div class="agent-row agent-wrap-row">
         <button id="startLoopBtn" class="btn" type="button">Start Agent Loop</button>
@@ -1052,6 +1075,8 @@ function cacheElements(){
     modelInput: byId("modelInput"),
     heartbeatInput: byId("heartbeatInput"),
     loopHeartbeatMinInput: byId("loopHeartbeatMinInput"),
+    loopHeartbeatUpBtn: byId("loopHeartbeatUpBtn"),
+    loopHeartbeatDownBtn: byId("loopHeartbeatDownBtn"),
     contextInput: byId("contextInput"),
     temperatureInput: byId("temperatureInput"),
     telegramPollInput: byId("telegramPollInput"),
@@ -1304,14 +1329,21 @@ function wireMainDom(){
   els.heartbeatDocInput?.addEventListener("input", () => {
     scheduleDocsAutosave("heartbeat")
   })
-  els.loopHeartbeatMinInput?.addEventListener("change", async () => {
-    saveDraftFromInputs()
-    await persistState()
-    if (appState.running) {
-      stopLoop()
-      startLoop()
-    }
-    setStatus("Loop heartbeat timing saved.")
+  els.loopHeartbeatMinInput?.addEventListener("input", () => {
+    scheduleLoopTimingAutosave()
+  })
+  els.loopHeartbeatMinInput?.addEventListener("change", () => {
+    scheduleLoopTimingAutosave()
+  })
+  els.loopHeartbeatUpBtn?.addEventListener("click", () => {
+    if (!els.loopHeartbeatMinInput) return
+    els.loopHeartbeatMinInput.stepUp(1)
+    scheduleLoopTimingAutosave()
+  })
+  els.loopHeartbeatDownBtn?.addEventListener("click", () => {
+    if (!els.loopHeartbeatMinInput) return
+    els.loopHeartbeatMinInput.stepDown(1)
+    scheduleLoopTimingAutosave()
   })
 
   if (els.chatForm) {
