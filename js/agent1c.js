@@ -83,6 +83,7 @@ let onboardingOpenAiTested = false
 let onboardingOpenAiSettingsSaved = false
 let openAiEditing = false
 let telegramEditing = false
+let docsAutosaveTimer = null
 const wins = {
   chat: null,
   openai: null,
@@ -558,6 +559,18 @@ function syncNotepadGutters(){
   const heartLines = els.heartbeatLineNums || byId("heartbeatLineNums")
   updateLineNumbers(soulInput, soulLines)
   updateLineNumbers(heartInput, heartLines)
+}
+
+function scheduleDocsAutosave(){
+  if (docsAutosaveTimer) clearTimeout(docsAutosaveTimer)
+  docsAutosaveTimer = setTimeout(async () => {
+    try {
+      saveDraftFromInputs()
+      await persistState()
+    } catch (err) {
+      setStatus(err instanceof Error ? `Doc autosave failed: ${err.message}` : "Doc autosave failed")
+    }
+  }, 500)
 }
 
 function setStatus(text){
@@ -1242,6 +1255,12 @@ function wireMainDom(){
 
   bindNotepad(els.soulInput, els.soulLineNums)
   bindNotepad(els.heartbeatDocInput, els.heartbeatLineNums)
+  els.soulInput?.addEventListener("input", () => {
+    scheduleDocsAutosave()
+  })
+  els.heartbeatDocInput?.addEventListener("input", () => {
+    scheduleDocsAutosave()
+  })
 
   if (els.chatForm) {
     els.chatForm.addEventListener("submit", async (e) => {
