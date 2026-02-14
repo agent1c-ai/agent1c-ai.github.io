@@ -980,6 +980,23 @@ async function refreshModelDropdown(providedKey){
   }
 }
 
+async function validateOpenAiKey(key){
+  const candidate = (key || "").trim()
+  if (!candidate) throw new Error("No OpenAI key available.")
+  await testOpenAIKey(candidate, appState.config.model)
+  await refreshModelDropdown(candidate)
+  onboardingOpenAiTested = true
+  localStorage.setItem(ONBOARDING_OPENAI_TEST_KEY, "1")
+  return candidate
+}
+
+async function validateTelegramToken(token){
+  const candidate = (token || "").trim()
+  if (!candidate) throw new Error("No Telegram token available.")
+  const username = await testTelegramToken(candidate)
+  return { token: candidate, username }
+}
+
 async function sendChat(text){
   const apiKey = await readProviderKey("openai")
   if (!apiKey) throw new Error("No OpenAI key stored.")
@@ -1239,9 +1256,13 @@ function wireMainDom(){
       localStorage.removeItem(ONBOARDING_OPENAI_TEST_KEY)
       localStorage.removeItem(ONBOARDING_OPENAI_SETTINGS_KEY)
       await addEvent("provider_key_saved", "OpenAI key stored in encrypted vault")
+      await validateOpenAiKey(key)
       await refreshBadges()
-      setStatus("OpenAI key saved. Next: test connection and save OpenAI settings.")
+      const completed = await maybeCompleteOnboarding()
+      setStatus(completed ? "OpenAI key saved and validated. Onboarding continued." : "OpenAI key saved and validated. Save OpenAI settings to continue.")
     } catch (err) {
+      openAiEditing = true
+      await refreshBadges()
       setStatus(err instanceof Error ? err.message : "Could not save OpenAI key")
     }
   })
@@ -1249,11 +1270,7 @@ function wireMainDom(){
   els.openaiTestBtn?.addEventListener("click", async () => {
     try {
       const key = (els.openaiKeyInput.value || "").trim() || (await readProviderKey("openai"))
-      if (!key) throw new Error("No OpenAI key available.")
-      await testOpenAIKey(key, appState.config.model)
-      await refreshModelDropdown(key)
-      onboardingOpenAiTested = true
-      localStorage.setItem(ONBOARDING_OPENAI_TEST_KEY, "1")
+      await validateOpenAiKey(key)
       const completed = await maybeCompleteOnboarding()
       setStatus(completed ? "OpenAI key test succeeded. Onboarding continued." : "OpenAI key test succeeded. Save OpenAI settings to continue.")
     } catch (err) {
@@ -1265,13 +1282,17 @@ function wireMainDom(){
     e.preventDefault()
     try {
       await saveProviderKey("telegram", els.telegramTokenInput.value)
+      const token = els.telegramTokenInput.value.trim()
       els.telegramTokenInput.value = ""
       telegramEditing = false
       await addEvent("provider_key_saved", "Telegram token stored in encrypted vault")
+      const { username } = await validateTelegramToken(token)
       await refreshBadges()
-      setStatus("Telegram token saved.")
+      setStatus(`Telegram token saved and validated for @${username}.`)
       refreshTelegramLoop()
     } catch (err) {
+      telegramEditing = true
+      await refreshBadges()
       setStatus(err instanceof Error ? err.message : "Could not save Telegram token")
     }
   })
@@ -1279,8 +1300,7 @@ function wireMainDom(){
   els.telegramTestBtn?.addEventListener("click", async () => {
     try {
       const token = (els.telegramTokenInput.value || "").trim() || (await readProviderKey("telegram"))
-      if (!token) throw new Error("No Telegram token available.")
-      const username = await testTelegramToken(token)
+      const { username } = await validateTelegramToken(token)
       setStatus(`Telegram token works for @${username}.`)
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Telegram token test failed")
@@ -1300,20 +1320,38 @@ function wireMainDom(){
   })
 
   els.saveSettingsBtn?.addEventListener("click", async () => {
-    saveDraftFromInputs()
-    await persistState()
-    onboardingOpenAiSettingsSaved = true
-    localStorage.setItem(ONBOARDING_OPENAI_SETTINGS_KEY, "1")
-    const completed = await maybeCompleteOnboarding()
-    setStatus(completed ? "OpenAI settings saved. Onboarding continued." : "OpenAI settings saved. Test OpenAI connection to continue.")
-    refreshUi()
+    try {
+      saveDraftFromInputs()
+      await persistState()
+      onboardingOpenAiSettingsSaved = true
+      localStorage.setItem(ONBOARDING_OPENAI_SETTINGS_KEY, "1")
+      await validateOpenAiKey(await readProviderKey("openai"))
+      const completed = await maybeCompleteOnboarding()
+      if (!completed) minimizeWindow(wins.openai)
+      setStatus("OpenAI settings saved. OpenAI window minimized.")
+      refreshUi()
+    } catch (err) {
+      onboardingOpenAiSettingsSaved = false
+      localStorage.removeItem(ONBOARDING_OPENAI_SETTINGS_KEY)
+      openAiEditing = true
+      await refreshBadges()
+      setStatus(err instanceof Error ? err.message : "OpenAI settings save failed")
+    }
   })
 
   els.saveTelegramSettingsBtn?.addEventListener("click", async () => {
-    saveDraftFromInputs()
-    await persistState()
-    refreshTelegramLoop()
-    setStatus("Telegram settings saved.")
+    try {
+      saveDraftFromInputs()
+      await persistState()
+      const { username } = await validateTelegramToken(await readProviderKey("telegram"))
+      refreshTelegramLoop()
+      minimizeWindow(wins.telegram)
+      setStatus(`Telegram settings saved. Telegram window minimized for @${username}.`)
+    } catch (err) {
+      telegramEditing = true
+      await refreshBadges()
+      setStatus(err instanceof Error ? err.message : "Telegram settings save failed")
+    }
   })
 
   els.startLoopBtn?.addEventListener("click", async () => {
