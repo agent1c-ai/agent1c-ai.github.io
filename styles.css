@@ -1699,6 +1699,9 @@
   background: #fffbd8;
   box-shadow: 0 2px 8px rgba(0,0,0,0.25);
   padding: 8px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 6px;
 }
 .clippy-bubble::before{
   content: "";
@@ -1725,7 +1728,7 @@
 .clippy-bubble-title{
   font-size: 11px;
   font-weight: 700;
-  margin-bottom: 4px;
+  margin-bottom: 0;
 }
 .clippy-bubble-content{
   font-size: 11px;
@@ -1733,7 +1736,7 @@
   display: grid;
   grid-template-rows: 1fr auto;
   gap: 6px;
-  height: 100%;
+  min-height: 0;
 }
 .clippy-log{
   min-height: 0;
