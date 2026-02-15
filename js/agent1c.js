@@ -63,6 +63,11 @@ Parameters:
 - id: file id (optional fallback)
 Description: Returns text content for text files. For large files returns head/tail excerpt.
 Use when: User asks to open, inspect, summarize, or extract data from a specific file.
+
+Policy:
+- You can access local files via these tools. Do not claim you cannot access files without trying the tools first.
+- If user asks what files exist, call list_files.
+- If user asks to open/read/summarize a specific file, call read_file with exact name or id from list_files.
 `
 
 const FALLBACK_OPENAI_MODELS = [
@@ -380,7 +385,12 @@ async function openAiChat({ apiKey, model, temperature, systemPrompt, messages }
 function buildSystemPrompt(){
   const soul = String(appState.agent.soulMd || "").trim()
   const tools = String(appState.agent.toolsMd || "").trim()
-  if (soul && tools) return `${soul}\n\n${tools}`
+  const hardPolicy = [
+    "Tool policy:",
+    "- You can inspect local files through tool calls.",
+    "- Never claim you cannot access local files before attempting list_files/read_file when relevant.",
+  ].join("\n")
+  if (soul && tools) return `${soul}\n\n${tools}\n\n${hardPolicy}`
   return soul || tools || "You are a helpful assistant."
 }
 
@@ -422,6 +432,28 @@ function extensionFromName(name){
   return n.slice(i + 1).toLowerCase()
 }
 
+function normalizeText(value){
+  return String(value || "").toLowerCase()
+}
+
+function latestUserText(messages){
+  const list = Array.isArray(messages) ? messages : []
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    if (list[i]?.role === "user") return String(list[i]?.content || "")
+  }
+  return ""
+}
+
+function asksForFileList(text){
+  const t = normalizeText(text)
+  return /(list|show|what|which|see|display)\b[\s\S]{0,40}\b(files?|filenames?|docs?|documents?)/i.test(t)
+}
+
+function asksToReadFile(text){
+  const t = normalizeText(text)
+  return /(open|read|view|inspect|summarize|analy[sz]e|echo|print)\b[\s\S]{0,60}\b(file|doc|document|script|csv|txt|md|xlsx|docx|json|xml|log)/i.test(t)
+}
+
 function isLikelyText(record){
   const type = String(record?.type || "").toLowerCase()
   if (type.startsWith("text/")) return true
@@ -455,6 +487,22 @@ async function findFileFromToolArgs(args){
     if (caseInsensitive) return caseInsensitive
   }
   return null
+}
+
+async function inferReadTargetFromUser(messages){
+  const userText = latestUserText(messages)
+  if (!userText) return null
+  const files = await listFiles()
+  const textLower = userText.toLowerCase()
+  for (const file of files) {
+    const name = String(file?.name || "").trim()
+    if (!name) continue
+    if (textLower.includes(name.toLowerCase())) return file
+  }
+  const m = /\b([a-z0-9._-]+\.[a-z0-9]{2,8})\b/i.exec(userText)
+  if (!m) return null
+  const wanted = String(m[1] || "").toLowerCase()
+  return files.find(file => String(file?.name || "").toLowerCase() === wanted) || null
 }
 
 function excerptTextForModel(text, fileLabel){
@@ -499,6 +547,20 @@ async function readFileForModel(file){
   return `TOOL_RESULT read_file (${fileLabel}): non-text file. Returning sampled base64 bytes.\n[HEAD_BASE64]\n${headB64}\n[...]\n[TAIL_BASE64]\n${tailB64}`
 }
 
+async function maybeInjectAutoToolResults(messages){
+  const text = latestUserText(messages).trim()
+  if (!text) return []
+  const out = []
+  if (asksForFileList(text)) {
+    out.push(await runToolCall({ name: "list_files", args: {} }))
+  }
+  const explicitTarget = await inferReadTargetFromUser(messages)
+  if (explicitTarget && asksToReadFile(text)) {
+    out.push(await readFileForModel(explicitTarget))
+  }
+  return out
+}
+
 async function runToolCall(call){
   if (call.name === "list_files") {
     const files = await listFiles()
@@ -520,6 +582,13 @@ async function runToolCall(call){
 async function openAiChatWithTools({ apiKey, model, temperature, messages }){
   const working = (messages || []).map(m => ({ role: m.role, content: m.content }))
   const systemPrompt = buildSystemPrompt()
+  const autoResults = await maybeInjectAutoToolResults(working)
+  if (autoResults.length) {
+    working.push({
+      role: "user",
+      content: `${autoResults.join("\n\n")}\n\nUse the available tool results directly in your answer.`,
+    })
+  }
   for (let i = 0; i < 3; i++) {
     const reply = await openAiChat({ apiKey, model, temperature, systemPrompt, messages: working })
     const calls = parseToolCalls(reply)

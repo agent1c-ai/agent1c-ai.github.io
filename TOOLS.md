@@ -18,3 +18,8 @@ Parameters:
 - `id`: file id (optional fallback)
 Description: Returns text content for text files. For large files returns head/tail excerpt.
 Use when: User asks to open, inspect, summarize, or extract data from a specific file.
+
+Policy:
+- You can access local files via these tools. Do not claim you cannot access files without trying tools first.
+- If user asks what files exist, call `list_files`.
+- If user asks to open/read/summarize a specific file, call `read_file` with exact `name` or `id` from `list_files`.
