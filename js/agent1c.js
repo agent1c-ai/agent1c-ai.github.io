@@ -170,6 +170,7 @@ let fsScanRunning = false
 let knownFilesystemFiles = new Map()
 let clippyMode = false
 let clippyUi = null
+let clippyLastAssistantKey = ""
 const pendingDocSaves = new Set()
 const LEGACY_SOUL_MARKERS = [
   "You are opinionated, independent, and freedom-focused.",
@@ -1160,6 +1161,18 @@ function refreshThreadPickerSoon(){
   setTimeout(() => renderLocalThreadPicker(), 0)
 }
 
+function latestAssistantMessageKey(messages){
+  const list = Array.isArray(messages) ? messages : []
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    const msg = list[i]
+    if (msg?.role !== "assistant") continue
+    const created = Number(msg?.createdAt || 0)
+    const content = String(msg?.content || "")
+    return `${created}:${content}`
+  }
+  return ""
+}
+
 function getClippyChatHtml(){
   const thread = getActiveLocalThread()
   const messages = Array.isArray(thread?.messages) ? thread.messages : []
@@ -1332,6 +1345,9 @@ function setClippyMode(next){
   ui.root.classList.toggle("clippy-hidden", !clippyMode)
   if (ui.menu) ui.menu.classList.add("clippy-hidden")
   if (clippyMode) {
+    const thread = getActiveLocalThread()
+    const messages = Array.isArray(thread?.messages) ? thread.messages : []
+    clippyLastAssistantKey = latestAssistantMessageKey(messages)
     hideClippyBubble()
     minimizeWindow(wins.chat)
     setStatus("Clippy mode enabled.")
@@ -1367,6 +1383,14 @@ function renderChat(){
     }).join("")
   }
   if (clippyMode) renderClippyBubble()
+  if (clippyMode && clippyUi?.root && !clippyUi.root.classList.contains("clippy-hidden")) {
+    const latestKey = latestAssistantMessageKey(messages)
+    const bubbleHidden = clippyUi?.bubble?.classList.contains("clippy-hidden")
+    if (latestKey && latestKey !== clippyLastAssistantKey && bubbleHidden) {
+      showClippyBubble()
+    }
+    clippyLastAssistantKey = latestKey || clippyLastAssistantKey
+  }
   scrollChatToBottom()
 }
 
