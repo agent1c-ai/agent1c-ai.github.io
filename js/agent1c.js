@@ -378,16 +378,38 @@ function buildSystemPrompt(){
 
 function parseToolCalls(text){
   const calls = []
-  const re = /\{\{\s*tool:([a-z_][a-z0-9_]*)\s*\}\}/gi
+  const re = /\{\{?\s*tool\s*:\s*([a-z_][a-z0-9_]*)\s*\}?\}/gi
   let m
   while ((m = re.exec(text))) {
+    calls.push({ name: String(m[1] || "").toLowerCase() })
+  }
+  const fallback = /\btool\s*:\s*([a-z_][a-z0-9_]*)\b/gi
+  while ((m = fallback.exec(String(text || "")))) {
     calls.push({ name: String(m[1] || "").toLowerCase() })
   }
   return calls
 }
 
 function stripToolCalls(text){
-  return String(text || "").replace(/\{\{\s*tool:[^}]+\}\}/gi, "").trim()
+  return String(text || "")
+    .replace(/\{\{?\s*tool\s*:[^}]+\}?\}/gi, "")
+    .replace(/\btool\s*:[a-z_][a-z0-9_]*\b/gi, "")
+    .trim()
+}
+
+function latestUserText(messages){
+  const list = Array.isArray(messages) ? messages : []
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    if (list[i]?.role === "user") return String(list[i]?.content || "")
+  }
+  return ""
+}
+
+function looksLikeFileListRequest(messages){
+  const text = latestUserText(messages).toLowerCase()
+  if (!text) return false
+  return /(?:what|which|show|list|see|display).*(?:files?|filenames?|documents?|docs?)/i.test(text)
+    || /(?:local|filesystem|storage|vault).*(?:files?|filenames?)/i.test(text)
 }
 
 async function runToolCall(call){
@@ -406,10 +428,22 @@ async function runToolCall(call){
 async function openAiChatWithTools({ apiKey, model, temperature, messages }){
   const working = (messages || []).map(m => ({ role: m.role, content: m.content }))
   const systemPrompt = buildSystemPrompt()
+  let retryHintUsed = false
   for (let i = 0; i < 3; i++) {
     const reply = await openAiChat({ apiKey, model, temperature, systemPrompt, messages: working })
     const calls = parseToolCalls(reply)
-    if (!calls.length) return stripToolCalls(reply)
+    if (!calls.length) {
+      if (!retryHintUsed && looksLikeFileListRequest(working)) {
+        retryHintUsed = true
+        working.push({ role: "assistant", content: reply })
+        working.push({
+          role: "user",
+          content: "If you need local filesystem data, emit exactly {{tool:list_files}} and wait for TOOL_RESULT before finalizing your answer.",
+        })
+        continue
+      }
+      return stripToolCalls(reply)
+    }
     const results = []
     for (const call of calls) {
       try {
