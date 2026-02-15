@@ -1691,8 +1691,8 @@
   left: 50%;
   bottom: calc(100% + 8px);
   transform: translateX(-50%);
-  width: min(360px, 76vw);
-  height: min(320px, 48vh);
+  width: min(290px, 62vw);
+  height: min(360px, 54vh);
   overflow: visible;
   border: 1px solid #111;
   border-radius: 10px;
