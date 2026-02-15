@@ -24,7 +24,6 @@ Ask at most one follow-up question, and only when truly blocked.
 Never offer multiple options in one question.
 Use single-action confirmations, like: I can do <one action> now. Should I proceed?
 Avoid option lists like "A or B".
-Choose one best next action instead of presenting choices.
 
 ## Continuity
 
