@@ -853,10 +853,35 @@ function getPrimaryLocalThread(){
   return chatOne || locals[0]
 }
 
+function getChatOneThread(){
+  ensureLocalThreadsInitialized()
+  const locals = getLocalThreadEntries().filter(thread => (thread.source || "local") === "local")
+  if (!locals.length) return null
+  return locals.find(thread => String(thread.label || "").trim().toLowerCase() === "chat 1") || locals[0]
+}
+
 function isChatOneLocalThread(thread){
   if (!thread) return false
   if ((thread.source || "local") !== "local") return false
   return String(thread.label || "").trim().toLowerCase() === "chat 1"
+}
+
+function getChatWindowThreads(){
+  ensureLocalThreadsInitialized()
+  return getLocalThreadEntries().filter(thread => !isChatOneLocalThread(thread))
+}
+
+function ensureChatWindowThreadAvailable(){
+  let threads = getChatWindowThreads()
+  if (!threads.length) {
+    createNewLocalThread()
+    threads = getChatWindowThreads()
+  }
+  const active = getActiveLocalThread()
+  if (active && isChatOneLocalThread(active) && threads.length) {
+    appState.agent.activeLocalThreadId = threads[0].id
+  }
+  return threads
 }
 
 async function buildChatOneBootSystemMessage(){
@@ -1141,8 +1166,7 @@ function scrollChatToBottom(){
 
 function renderLocalThreadPicker(){
   if (!els.chatThreadSelect) return
-  ensureLocalThreadsInitialized()
-  const threads = getLocalThreadEntries()
+  const threads = ensureChatWindowThreadAvailable()
   const active = appState.agent.activeLocalThreadId
   els.chatThreadSelect.innerHTML = threads
     .map(thread => {
@@ -1174,7 +1198,7 @@ function latestAssistantMessageKey(messages){
 }
 
 function getClippyChatHtml(){
-  const thread = getActiveLocalThread()
+  const thread = getChatOneThread()
   const messages = Array.isArray(thread?.messages) ? thread.messages : []
   if (!messages.length) return `<div class="clippy-line">No messages yet.</div>`
   const tail = messages.slice(-16)
@@ -1310,7 +1334,9 @@ function ensureClippyAssistant(){
     try {
       saveDraftFromInputs()
       setStatus("Thinking...")
-      await sendChat(text)
+      const chatOne = getChatOneThread()
+      if (!chatOne?.id) throw new Error("Chat 1 not available.")
+      await sendChat(text, { threadId: chatOne.id })
       setStatus("Reply received.")
       renderClippyBubble()
       showClippyBubble()
@@ -1345,11 +1371,10 @@ function setClippyMode(next){
   ui.root.classList.toggle("clippy-hidden", !clippyMode)
   if (ui.menu) ui.menu.classList.add("clippy-hidden")
   if (clippyMode) {
-    const thread = getActiveLocalThread()
+    const thread = getChatOneThread()
     const messages = Array.isArray(thread?.messages) ? thread.messages : []
     clippyLastAssistantKey = latestAssistantMessageKey(messages)
     hideClippyBubble()
-    minimizeWindow(wins.chat)
     setStatus("Clippy mode enabled.")
   } else {
     hideClippyBubble()
@@ -1384,7 +1409,9 @@ function renderChat(){
   }
   if (clippyMode) renderClippyBubble()
   if (clippyMode && clippyUi?.root && !clippyUi.root.classList.contains("clippy-hidden")) {
-    const latestKey = latestAssistantMessageKey(messages)
+    const chatOne = getChatOneThread()
+    const chatOneMessages = Array.isArray(chatOne?.messages) ? chatOne.messages : []
+    const latestKey = latestAssistantMessageKey(chatOneMessages)
     const bubbleHidden = clippyUi?.bubble?.classList.contains("clippy-hidden")
     if (latestKey && latestKey !== clippyLastAssistantKey && bubbleHidden) {
       showClippyBubble()
@@ -1545,6 +1572,7 @@ function revealPostOpenAiWindows(){
   minimizeWindow(wins.tools)
   minimizeWindow(wins.heartbeat)
   focusWindow(wins.chat)
+  setClippyMode(true)
 }
 
 async function maybeCompleteOnboarding(){
@@ -1845,11 +1873,11 @@ async function validateTelegramToken(token){
   return { token: candidate, username }
 }
 
-async function sendChat(text){
+async function sendChat(text, { threadId } = {}){
   const apiKey = await readProviderKey("openai")
   if (!apiKey) throw new Error("No OpenAI key stored.")
   appState.lastUserSeenAt = Date.now()
-  const thread = getActiveLocalThread()
+  const thread = threadId ? appState.agent.localThreads?.[threadId] : getActiveLocalThread()
   if (!thread) throw new Error("No active chat thread.")
   pushLocalMessage(thread.id, "user", text)
   const promptMessages = appState.agent.localThreads[thread.id]?.messages || []
@@ -2022,6 +2050,7 @@ function wireUnlockDom(){
         applyOnboardingWindowState()
         setStatus("Now connect OpenAI to start chatting.")
       } else {
+        setClippyMode(true)
         setStatus("Vault unlocked.")
       }
     } catch (err) {
