@@ -171,6 +171,7 @@ let knownFilesystemFiles = new Map()
 let clippyMode = false
 let clippyUi = null
 let clippyLastAssistantKey = ""
+let hitomiDesktopIcon = null
 const pendingDocSaves = new Set()
 const LEGACY_SOUL_MARKERS = [
   "You are opinionated, independent, and freedom-focused.",
@@ -1208,6 +1209,78 @@ function getClippyChatHtml(){
   }).join("")
 }
 
+function computeNextDesktopIconPosition(extra = 0){
+  const desktop = document.getElementById("desktop")
+  if (!desktop) return { x: 10, y: 10 }
+  const iconLayer = document.getElementById("iconLayer")
+  const cs = getComputedStyle(document.documentElement)
+  const cellW = parseInt(cs.getPropertyValue("--icon-cell-w"), 10) || 92
+  const cellH = parseInt(cs.getPropertyValue("--icon-cell-h"), 10) || 86
+  const pad = parseInt(cs.getPropertyValue("--icon-pad"), 10) || 10
+  const dw = desktop.clientWidth || 0
+  const dh = desktop.clientHeight || 0
+  const baseCount = iconLayer?.querySelectorAll(".desk-icon")?.length || 0
+  const idx = Math.max(0, baseCount + extra)
+  const cols = Math.max(1, Math.floor((Math.max(1, dw) - pad) / cellW))
+  const col = idx % cols
+  const row = Math.floor(idx / cols)
+  return {
+    x: pad + col * cellW,
+    y: dh - pad - cellH - row * cellH,
+  }
+}
+
+function ensureHitomiDesktopIcon(){
+  const iconLayer = document.getElementById("iconLayer")
+  if (!iconLayer) return null
+  if (hitomiDesktopIcon && hitomiDesktopIcon.isConnected) return hitomiDesktopIcon
+  const el = document.createElement("div")
+  el.className = "desk-icon hitomi-desk-icon"
+  el.dataset.hitomiIcon = "1"
+  el.innerHTML = `
+    <div class="glyph"><img src="assets/hedgey1.png" alt="Hitomi icon" /></div>
+    <div class="label">
+      <div class="line">Hitomi</div>
+      <div class="line"></div>
+    </div>
+  `
+  el.addEventListener("click", (e) => {
+    e.stopPropagation()
+    setClippyMode(true)
+  })
+  iconLayer.appendChild(el)
+  hitomiDesktopIcon = el
+  return el
+}
+
+function removeHitomiDesktopIcon(){
+  if (hitomiDesktopIcon && hitomiDesktopIcon.isConnected) hitomiDesktopIcon.remove()
+  hitomiDesktopIcon = null
+}
+
+function positionHitomiDesktopIcon(){
+  if (!hitomiDesktopIcon || !hitomiDesktopIcon.isConnected) return
+  const pos = computeNextDesktopIconPosition(-1)
+  hitomiDesktopIcon.style.left = `${pos.x}px`
+  hitomiDesktopIcon.style.top = `${pos.y}px`
+}
+
+async function hasAnyAiProviderKey(){
+  // Decentricity: expand this as non-OpenAI/local providers are added.
+  return Boolean(await getSecret("openai"))
+}
+
+async function refreshHitomiDesktopIcon(){
+  const hasAiKey = await hasAnyAiProviderKey()
+  if (!hasAiKey) {
+    removeHitomiDesktopIcon()
+    setClippyMode(false)
+    return
+  }
+  ensureHitomiDesktopIcon()
+  positionHitomiDesktopIcon()
+}
+
 function hideClippyBubble(){
   if (!clippyUi?.bubble) return
   clippyUi.bubble.classList.add("clippy-hidden")
@@ -1356,6 +1429,7 @@ function ensureClippyAssistant(){
     hideClippyBubble()
   }, true)
   window.addEventListener("resize", () => {
+    positionHitomiDesktopIcon()
     if (!clippyUi?.root) return
     baseLeft = parseFloat(clippyUi.root.style.left) || 0
     baseTop = parseFloat(clippyUi.root.style.top) || 0
@@ -1365,7 +1439,7 @@ function ensureClippyAssistant(){
 }
 
 function setClippyMode(next){
-  const ui = ensureClippyAssistant()
+  const ui = next ? ensureClippyAssistant() : clippyUi
   if (!ui) return
   clippyMode = !!next
   ui.root.classList.toggle("clippy-hidden", !clippyMode)
@@ -1378,8 +1452,6 @@ function setClippyMode(next){
     setStatus("Clippy mode enabled.")
   } else {
     hideClippyBubble()
-    restoreWindow(wins.chat)
-    focusWindow(wins.chat)
     setStatus("Clippy mode disabled.")
   }
 }
@@ -1499,6 +1571,7 @@ async function refreshBadges(){
     els.telegramStoredRow.classList.toggle("agent-hidden", !hideTelegramControls)
     els.telegramControls.classList.toggle("agent-hidden", hideTelegramControls)
   }
+  await refreshHitomiDesktopIcon()
 }
 
 function refreshUi(){
@@ -1628,7 +1701,6 @@ function chatWindowHtml(){
         <select id="chatThreadSelect" class="field"></select>
         <button id="chatNewBtn" class="btn" type="button">New Chat</button>
         <button id="chatClearBtn" class="btn" type="button">Clear Chat</button>
-        <button id="chatClippyBtn" class="btn" type="button">Clippy mode</button>
       </div>
       <div id="chatLog" class="agent-log"></div>
       <form id="chatForm" class="agent-row">
@@ -1795,7 +1867,6 @@ function cacheElements(){
     chatThreadSelect: byId("chatThreadSelect"),
     chatNewBtn: byId("chatNewBtn"),
     chatClearBtn: byId("chatClearBtn"),
-    chatClippyBtn: byId("chatClippyBtn"),
     chatLog: byId("chatLog"),
     chatForm: byId("chatForm"),
     chatInput: byId("chatInput"),
@@ -2153,10 +2224,6 @@ function wireMainDom(){
     await addEvent("chat_cleared", `Cleared context for ${thread.label}`)
     renderChat()
   })
-  els.chatClippyBtn?.addEventListener("click", () => {
-    setClippyMode(true)
-  })
-
   els.openaiForm?.addEventListener("submit", async (e) => {
     e.preventDefault()
     try {
