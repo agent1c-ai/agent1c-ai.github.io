@@ -1,4 +1,4 @@
-import { listFiles } from "./filesystem.js"
+import { listFiles, readFileBlob, readNoteText } from "./filesystem.js"
 
 const DEFAULT_SOUL = `# SOUL.md - Who You Are
 
@@ -47,6 +47,7 @@ Heartbeat intent: check whether user is present at each loop trigger.
 const DEFAULT_TOOLS = `# TOOLS.md
 Tool call format:
 - Use inline token format: {{tool:list_files}}
+- For reading one file use: {{tool:read_file|name=example.txt}}
 - Do not use JSON unless explicitly asked by the user.
 - Emit tool tokens only when needed to answer the user.
 - After tool results are returned, answer naturally for the user.
@@ -55,6 +56,13 @@ Available tools:
 1. list_files
 Description: Returns filenames from the local HedgeyOS encrypted filesystem bucket.
 Use when: User asks what files are available locally.
+
+2. read_file
+Parameters:
+- name: filename from list_files output (preferred)
+- id: file id (optional fallback)
+Description: Returns text content for text files. For large files returns head/tail excerpt.
+Use when: User asks to open, inspect, summarize, or extract data from a specific file.
 `
 
 const FALLBACK_OPENAI_MODELS = [
@@ -378,10 +386,13 @@ function buildSystemPrompt(){
 
 function parseToolCalls(text){
   const calls = []
-  const re = /\{\{\s*tool:([a-z_][a-z0-9_]*)\s*\}\}/gi
+  const re = /\{\{\s*tool:([a-z_][a-z0-9_]*)(?:\|([^}]+))?\s*\}\}/gi
   let m
   while ((m = re.exec(text))) {
-    calls.push({ name: String(m[1] || "").toLowerCase() })
+    calls.push({
+      name: String(m[1] || "").toLowerCase(),
+      args: parseToolArgs(m[2] || ""),
+    })
   }
   return calls
 }
@@ -390,15 +401,118 @@ function stripToolCalls(text){
   return String(text || "").replace(/\{\{\s*tool:[^}]+\}\}/gi, "").trim()
 }
 
+function parseToolArgs(raw){
+  const args = {}
+  const source = String(raw || "").trim()
+  if (!source) return args
+  for (const token of source.split("|")) {
+    const [k, ...rest] = token.split("=")
+    const key = String(k || "").trim().toLowerCase()
+    const value = rest.join("=").trim()
+    if (!key || !value) continue
+    args[key] = value.replace(/^["']|["']$/g, "")
+  }
+  return args
+}
+
+function extensionFromName(name){
+  const n = String(name || "")
+  const i = n.lastIndexOf(".")
+  if (i < 0 || i === n.length - 1) return ""
+  return n.slice(i + 1).toLowerCase()
+}
+
+function isLikelyText(record){
+  const type = String(record?.type || "").toLowerCase()
+  if (type.startsWith("text/")) return true
+  if (type.includes("json") || type.includes("xml") || type.includes("yaml") || type.includes("csv")) return true
+  const ext = extensionFromName(record?.name || "")
+  return ["md", "txt", "csv", "json", "xml", "yaml", "yml", "log", "js", "ts", "jsx", "tsx", "html", "css", "py", "sh"].includes(ext)
+}
+
+function toBase64FromBytes(bytes){
+  let raw = ""
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    raw += String.fromCharCode(...bytes.subarray(i, i + chunk))
+  }
+  return btoa(raw)
+}
+
+async function findFileFromToolArgs(args){
+  const files = await listFiles()
+  const id = String(args?.id || "").trim()
+  const name = String(args?.name || "").trim()
+  if (id) {
+    const byId = files.find(file => String(file?.id || "") === id)
+    if (byId) return byId
+  }
+  if (name) {
+    const exact = files.find(file => String(file?.name || "") === name)
+    if (exact) return exact
+    const folded = name.toLowerCase()
+    const caseInsensitive = files.find(file => String(file?.name || "").toLowerCase() === folded)
+    if (caseInsensitive) return caseInsensitive
+  }
+  return null
+}
+
+function excerptTextForModel(text, fileLabel){
+  const maxChars = 12000
+  const headChars = 6000
+  const tailChars = 4000
+  const full = String(text || "")
+  if (full.length <= maxChars) {
+    return `TOOL_RESULT read_file (${fileLabel}):\n${full}`
+  }
+  const head = full.slice(0, headChars)
+  const tail = full.slice(-tailChars)
+  return `TOOL_RESULT read_file (${fileLabel}): file is large (${full.length} chars). Showing head/tail excerpt.\n[HEAD]\n${head}\n[...]\n[TAIL]\n${tail}`
+}
+
+async function readFileForModel(file){
+  if (!file?.id) return "TOOL_RESULT read_file: file not found"
+  const fileLabel = `${String(file.name || "unnamed")} | id=${String(file.id)} | type=${String(file.type || "unknown")} | size=${Number(file.size || 0)}`
+  if (file.kind === "note") {
+    const noteText = await readNoteText(file.id)
+    return excerptTextForModel(noteText || "", fileLabel)
+  }
+  const loaded = await readFileBlob(file.id)
+  if (!loaded?.blob || !loaded?.record) return "TOOL_RESULT read_file: could not load file blob"
+  const { record, blob } = loaded
+  if (isLikelyText(record)) {
+    const text = await blob.text()
+    return excerptTextForModel(text, fileLabel)
+  }
+  const size = Number(record.size || blob.size || 0)
+  const headBytes = 2048
+  const tailBytes = 2048
+  const headBuf = await blob.slice(0, Math.min(size, headBytes)).arrayBuffer()
+  const tailStart = Math.max(0, size - tailBytes)
+  const tailBuf = await blob.slice(tailStart, size).arrayBuffer()
+  const headB64 = toBase64FromBytes(new Uint8Array(headBuf))
+  const tailB64 = toBase64FromBytes(new Uint8Array(tailBuf))
+  const ext = extensionFromName(record.name || "")
+  if (ext === "xlsx") {
+    return `TOOL_RESULT read_file (${fileLabel}): binary XLSX container. Returning sampled base64 bytes for model-side interpretation.\n[HEAD_BASE64]\n${headB64}\n[...]\n[TAIL_BASE64]\n${tailB64}`
+  }
+  return `TOOL_RESULT read_file (${fileLabel}): non-text file. Returning sampled base64 bytes.\n[HEAD_BASE64]\n${headB64}\n[...]\n[TAIL_BASE64]\n${tailB64}`
+}
+
 async function runToolCall(call){
   if (call.name === "list_files") {
     const files = await listFiles()
-    const names = files
-      .map(file => String(file?.name || "").trim())
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b))
-    if (!names.length) return "TOOL_RESULT list_files: no files"
-    return `TOOL_RESULT list_files:\n${names.map((name, i) => `${i + 1}. ${name}`).join("\n")}`
+    const rows = files
+      .filter(file => String(file?.name || "").trim())
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
+      .map((file, i) => `${i + 1}. ${file.name} | id=${file.id} | kind=${file.kind || "file"} | type=${file.type || "unknown"} | size=${Number(file.size || 0)}`)
+    if (!rows.length) return "TOOL_RESULT list_files: no files"
+    return `TOOL_RESULT list_files:\n${rows.join("\n")}`
+  }
+  if (call.name === "read_file") {
+    const file = await findFileFromToolArgs(call.args || {})
+    if (!file) return "TOOL_RESULT read_file: file not found. Run list_files and retry with exact name or id."
+    return readFileForModel(file)
   }
   return `TOOL_RESULT ${call.name}: unsupported`
 }
