@@ -435,15 +435,23 @@ function parseToolArgs(raw){
   const args = {}
   const source = String(raw || "").trim()
   if (!source) return args
-  const normalized = source.includes("|")
-    ? source
-    : source.replace(/\s+/g, "|")
-  for (const token of normalized.split("|")) {
-    const [k, ...rest] = token.split("=")
-    const key = String(k || "").trim().toLowerCase()
-    const value = rest.join("=").trim()
+  const pattern = /([a-z_][a-z0-9_]*)\s*=\s*("([^"]*)"|'([^']*)'|[^|]+)/gi
+  let matched = false
+  let m
+  while ((m = pattern.exec(source))) {
+    const key = String(m[1] || "").trim().toLowerCase()
+    const value = String(m[3] ?? m[4] ?? m[2] ?? "")
+      .trim()
+      .replace(/^["']|["']$/g, "")
     if (!key || !value) continue
-    args[key] = value.replace(/^["']|["']$/g, "")
+    args[key] = value
+    matched = true
+  }
+  if (!matched && source.includes("=")) {
+    const [k, ...rest] = source.split("=")
+    const key = String(k || "").trim().toLowerCase()
+    const value = rest.join("=").trim().replace(/^["']|["']$/g, "")
+    if (key && value) args[key] = value
   }
   return args
 }
@@ -605,10 +613,9 @@ async function runToolCall(call){
 async function openAiChatWithTools({ apiKey, model, temperature, messages }){
   const working = (messages || []).map(m => ({ role: m.role, content: m.content }))
   const systemPrompt = buildSystemPrompt()
-  const trace = []
   const autoResults = await maybeInjectAutoToolResults(working)
   if (autoResults.length) {
-    trace.push(`[SYSTEM TOOL RESULTS]\n${autoResults.join("\n\n")}`)
+    await addEvent("tool_results_generated", autoResults.map(line => String(line).split("\n")[0]).join(" | "))
     working.push({
       role: "user",
       content: `${autoResults.join("\n\n")}\n\nUse the available tool results directly in your answer.`,
@@ -616,9 +623,8 @@ async function openAiChatWithTools({ apiKey, model, temperature, messages }){
   }
   for (let i = 0; i < 3; i++) {
     const reply = await openAiChat({ apiKey, model, temperature, systemPrompt, messages: working })
-    trace.push(`[ASSISTANT]\n${reply}`)
     const calls = parseToolCalls(reply)
-    if (!calls.length) return trace.length ? trace.join("\n\n") : reply
+    if (!calls.length) return stripToolCalls(reply) || reply
     await addEvent("tool_calls_detected", calls.map(call => call.name).join(", "))
     const results = []
     for (const call of calls) {
@@ -629,14 +635,23 @@ async function openAiChatWithTools({ apiKey, model, temperature, messages }){
       }
     }
     await addEvent("tool_results_generated", results.map(line => String(line).split("\n")[0]).join(" | "))
-    trace.push(`[SYSTEM TOOL RESULTS]\n${results.join("\n\n")}`)
     working.push({ role: "assistant", content: reply })
     working.push({
       role: "user",
       content: `${results.join("\n\n")}\n\nUse the tool results and respond naturally. Do not present multiple options. Do not emit another tool call unless required.`,
     })
   }
-  return `${trace.join("\n\n")}\n\nI could not complete tool execution in time.`
+  const finalReply = await openAiChat({
+    apiKey,
+    model,
+    temperature,
+    systemPrompt,
+    messages: working.concat({
+      role: "user",
+      content: "Provide a final user-facing answer now without emitting tool tokens.",
+    }),
+  })
+  return stripToolCalls(finalReply) || "I could not complete tool execution in time."
 }
 
 async function testOpenAIKey(apiKey, model){
@@ -833,6 +848,7 @@ async function buildChatOneBootSystemMessage(){
     "Current local filesystem files:",
     filesText,
     "This file inventory is current context. Use it directly.",
+    "Do not suggest listing files unless the user asks for a listing.",
     "Acknowledge this context naturally.",
   ].join("\n")
 }
@@ -916,6 +932,7 @@ async function handleFilesystemUploadNotice(uploadedFiles){
     "System Message: User has uploaded new file(s) into your filesystem.",
     ...files.map(file => `- ${fileMetaLabel(file)}`),
     "This upload summary is current context. Use it directly.",
+    "Do not suggest listing files unless the user asks for a listing.",
     "For now, reply normally to acknowledge this.",
   ].join("\n")
   pushRolling("user", prompt)
