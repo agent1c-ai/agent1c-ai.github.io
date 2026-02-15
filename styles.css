@@ -1832,6 +1832,48 @@
   color: inherit;
 }
 .agent-text:focus{ outline: none; }
+
+body.dark .agent-notepad{
+  background: #1a1d23;
+  border-color: #555d6b;
+}
+body.dark .agent-lines{
+  background: #151920;
+  border-right-color: #555d6b;
+  color: #aeb7c8;
+}
+body.dark .agent-text{
+  color: #e9edf7;
+}
+body.dark .clippy-bubble{
+  background: #1f2530;
+  border-color: #6a7488;
+  color: #eef2ff;
+}
+body.dark .clippy-bubble::before{
+  border-top-color: #6a7488;
+}
+body.dark .clippy-bubble::after{
+  border-top-color: #1f2530;
+}
+body.dark .clippy-log{
+  background: #141922;
+  border-color: #5d6678;
+  color: #eef2ff;
+}
+body.dark .clippy-input{
+  background: #141922;
+  border-color: #5d6678;
+  color: #eef2ff;
+}
+body.dark .clippy-input::placeholder{
+  color: #99a3b8;
+}
+body.dark .clippy-send{
+  background: #2b3445;
+  border-color: #5d6678;
+  color: #eef2ff;
+}
 .agent-doc-state{
   margin-top: 4px;
   font-size: 10px;
