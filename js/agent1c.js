@@ -143,6 +143,9 @@ let openAiEditing = false
 let telegramEditing = false
 let docsAutosaveTimer = null
 let loopTimingSaveTimer = null
+let fsScanDebounceTimer = null
+let fsScanRunning = false
+let knownFilesystemFiles = new Map()
 const pendingDocSaves = new Set()
 const wins = {
   chat: null,
@@ -830,6 +833,81 @@ function ensureTelegramThread(chat){
 
 function formatTime(ts){
   try { return new Date(ts).toLocaleString() } catch { return "" }
+}
+
+function fileMetaLabel(file){
+  return `"${String(file?.name || "")}" (id=${String(file?.id || "")}, type=${String(file?.type || "unknown")}, size=${Number(file?.size || 0)} bytes)`
+}
+
+async function refreshKnownFilesystemFiles(){
+  try {
+    const files = await listFiles()
+    const next = new Map()
+    for (const file of files || []) {
+      if (!file?.id) continue
+      next.set(String(file.id), file)
+    }
+    knownFilesystemFiles = next
+  } catch {}
+}
+
+async function handleFilesystemUploadNotice(uploadedFiles){
+  const files = (uploadedFiles || []).filter(file => String(file?.name || "").trim())
+  if (!files.length) return
+  const summary = files.map(fileMetaLabel).join("; ")
+  await addEvent("filesystem_upload_detected", `New uploaded file(s): ${summary}`)
+  if (!appState.unlocked) return
+  const apiKey = await readProviderKey("openai")
+  if (!apiKey) return
+  const prompt = [
+    "System Message: User has uploaded new file(s) into your filesystem.",
+    ...files.map(file => `- ${fileMetaLabel(file)}`),
+    "For now, reply normally to acknowledge this and suggest a next action.",
+  ].join("\n")
+  pushRolling("user", prompt)
+  const reply = await openAiChatWithTools({
+    apiKey,
+    model: appState.config.model,
+    temperature: Math.min(0.7, appState.config.temperature),
+    messages: appState.agent.rollingMessages,
+  })
+  pushRolling("assistant", reply)
+  const primaryThread = getPrimaryLocalThread()
+  if (primaryThread?.id) pushLocalMessage(primaryThread.id, "assistant", reply)
+  await addEvent("filesystem_upload_replied", "Hitomi replied to upload system message")
+  await persistState()
+  renderChat()
+}
+
+async function scanFilesystemForNewUploads(){
+  if (fsScanRunning) return
+  fsScanRunning = true
+  try {
+    const files = await listFiles()
+    const current = new Map()
+    const newlyUploaded = []
+    for (const file of files || []) {
+      if (!file?.id) continue
+      const id = String(file.id)
+      current.set(id, file)
+      const isUpload = String(file.kind || "").toLowerCase() === "file"
+      if (isUpload && !knownFilesystemFiles.has(id)) newlyUploaded.push(file)
+    }
+    knownFilesystemFiles = current
+    if (newlyUploaded.length) {
+      await handleFilesystemUploadNotice(newlyUploaded)
+    }
+  } catch {}
+  finally {
+    fsScanRunning = false
+  }
+}
+
+function scheduleFilesystemScan(){
+  if (fsScanDebounceTimer) clearTimeout(fsScanDebounceTimer)
+  fsScanDebounceTimer = setTimeout(() => {
+    scanFilesystemForNewUploads().catch(() => {})
+  }, 300)
 }
 
 function wrappedRowCount(line, availableWidth, font){
@@ -1826,6 +1904,10 @@ function wireMainDom(){
     stopLoop()
   })
 
+  window.addEventListener("hedgey:docs-changed", () => {
+    scheduleFilesystemScan()
+  })
+
 }
 
 function createSetupWindow(){
@@ -1879,6 +1961,7 @@ async function createWorkspace({ showUnlock, onboarding }) {
   renderChat()
   renderEvents()
   refreshUi()
+  await refreshKnownFilesystemFiles()
 
   if (onboarding) {
     applyOnboardingWindowState()
