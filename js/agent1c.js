@@ -784,6 +784,32 @@ function getPrimaryLocalThread(){
   return chatOne || locals[0]
 }
 
+function isChatOneLocalThread(thread){
+  if (!thread) return false
+  if ((thread.source || "local") !== "local") return false
+  return String(thread.label || "").trim().toLowerCase() === "chat 1"
+}
+
+async function buildChatOneBootSystemMessage(){
+  let filesText = "No files found in local filesystem."
+  try {
+    const files = await listFiles()
+    const rows = (files || [])
+      .filter(file => String(file?.name || "").trim())
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
+      .map((file, i) => `${i + 1}. ${file.name} | id=${file.id} | kind=${file.kind || "file"} | type=${file.type || "unknown"} | size=${Number(file.size || 0)}`)
+    if (rows.length) filesText = rows.join("\n")
+  } catch {}
+  return [
+    "System Message: Chat 1 has been reset.",
+    "You are Hitomi, an autonomous agent living inside Agent1c.me on HedgeyOS.",
+    "This environment is local-first and runs inside a browser tab.",
+    "Current local filesystem files:",
+    filesText,
+    "Acknowledge this context naturally and continue helping.",
+  ].join("\n")
+}
+
 function pushLocalMessage(threadId, role, content){
   ensureLocalThreadsInitialized()
   const thread = appState.agent.localThreads[threadId]
@@ -1771,6 +1797,10 @@ function wireMainDom(){
     if (!thread) return
     thread.messages = []
     thread.updatedAt = Date.now()
+    if (isChatOneLocalThread(thread)) {
+      const bootMsg = await buildChatOneBootSystemMessage()
+      pushLocalMessage(thread.id, "user", bootMsg)
+    }
     await setState({ ...appState.agent })
     await addEvent("chat_cleared", `Cleared context for ${thread.label}`)
     renderChat()
