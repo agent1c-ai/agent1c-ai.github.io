@@ -1176,9 +1176,18 @@ function hideClippyBubble(){
   clippyUi.bubble.classList.add("clippy-hidden")
 }
 
+function scrollClippyToBottom(){
+  if (!clippyUi?.log) return
+  const apply = () => { clippyUi.log.scrollTop = clippyUi.log.scrollHeight }
+  apply()
+  requestAnimationFrame(apply)
+  setTimeout(apply, 0)
+}
+
 function renderClippyBubble(){
-  if (!clippyUi?.content) return
-  clippyUi.content.innerHTML = getClippyChatHtml()
+  if (!clippyUi?.log) return
+  clippyUi.log.innerHTML = getClippyChatHtml()
+  scrollClippyToBottom()
 }
 
 function showClippyBubble(){
@@ -1194,18 +1203,31 @@ function ensureClippyAssistant(){
   const root = document.createElement("div")
   root.className = "clippy-assistant clippy-hidden"
   root.style.left = "28px"
-  root.style.top = "420px"
+  root.style.top = "390px"
   root.innerHTML = `
     <div class="clippy-bubble clippy-hidden">
       <div class="clippy-bubble-title">Hitomi</div>
-      <div class="clippy-bubble-content"></div>
+      <div class="clippy-bubble-content">
+        <div class="clippy-log"></div>
+        <form class="clippy-form">
+          <input class="clippy-input" type="text" placeholder="Write a message..." />
+          <button class="clippy-send" type="submit">Send</button>
+        </form>
+      </div>
     </div>
-    <img class="clippy-body" src="assets/hedgey-clippy.jpg" alt="Hitomi hedgehog assistant" />
+    <img class="clippy-body" src="assets/hedgey1.png" alt="Hitomi hedgehog assistant" />
   `
   desktop.appendChild(root)
   const body = root.querySelector(".clippy-body")
   const bubble = root.querySelector(".clippy-bubble")
-  const content = root.querySelector(".clippy-bubble-content")
+  const log = root.querySelector(".clippy-log")
+  const form = root.querySelector(".clippy-form")
+  const input = root.querySelector(".clippy-input")
+  const menu = document.createElement("div")
+  menu.className = "clippy-menu clippy-hidden"
+  menu.innerHTML = `<button class="clippy-menu-item" type="button">Close</button>`
+  desktop.appendChild(menu)
+  const closeBtn = menu.querySelector(".clippy-menu-item")
   let dragging = false
   let moved = false
   let startX = 0
@@ -1255,9 +1277,41 @@ function ensureClippyAssistant(){
     body.releasePointerCapture?.(e.pointerId)
   })
   body?.addEventListener("pointercancel", endDrag)
-  clippyUi = { root, body, bubble, content }
+  body?.addEventListener("contextmenu", (e) => {
+    e.preventDefault()
+    const dr = desktop.getBoundingClientRect()
+    menu.style.left = `${Math.max(0, e.clientX - dr.left)}px`
+    menu.style.top = `${Math.max(0, e.clientY - dr.top)}px`
+    menu.classList.remove("clippy-hidden")
+  })
+  closeBtn?.addEventListener("click", (e) => {
+    e.preventDefault()
+    menu.classList.add("clippy-hidden")
+    setClippyMode(false)
+  })
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault()
+    const text = (input?.value || "").trim()
+    if (!text) return
+    if (input) input.value = ""
+    try {
+      saveDraftFromInputs()
+      setStatus("Thinking...")
+      await sendChat(text)
+      setStatus("Reply received.")
+      renderClippyBubble()
+      showClippyBubble()
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Chat failed")
+    }
+  })
+  clippyUi = { root, body, bubble, log, form, input, menu }
   document.addEventListener("pointerdown", (e) => {
     if (!clippyMode) return
+    if (clippyUi?.menu && !clippyUi.menu.classList.contains("clippy-hidden")) {
+      if (!clippyUi.menu.contains(e.target)) clippyUi.menu.classList.add("clippy-hidden")
+      else return
+    }
     if (!clippyUi?.bubble || clippyUi.bubble.classList.contains("clippy-hidden")) return
     if (clippyUi.root.contains(e.target)) return
     hideClippyBubble()
@@ -1276,12 +1330,15 @@ function setClippyMode(next){
   if (!ui) return
   clippyMode = !!next
   ui.root.classList.toggle("clippy-hidden", !clippyMode)
+  if (ui.menu) ui.menu.classList.add("clippy-hidden")
   if (clippyMode) {
     hideClippyBubble()
     minimizeWindow(wins.chat)
     setStatus("Clippy mode enabled.")
   } else {
     hideClippyBubble()
+    restoreWindow(wins.chat)
+    focusWindow(wins.chat)
     setStatus("Clippy mode disabled.")
   }
 }
@@ -1300,7 +1357,7 @@ function renderChat(){
       if (msg.role === "assistant") {
         return `<div class="agent-bubble ${cls}">
           <div class="agent-bubble-head">
-            <img class="agent-avatar" src="assets/hedgey-clippy.jpg" alt="Hitomi avatar" />
+            <img class="agent-avatar" src="assets/hedgey1.png" alt="Hitomi avatar" />
             <div class="agent-bubble-role">Hitomi</div>
           </div>
           <div>${escapeHtml(msg.content)}</div>
