@@ -416,12 +416,12 @@ function buildSystemPrompt(){
 
 function parseToolCalls(text){
   const calls = []
-  const re = /\{\{\s*tool:([a-z_][a-z0-9_]*)(?:\|([^}]+))?\s*\}\}/gi
+  const re = /\{\{\s*tool:([a-z_][a-z0-9_]*)(?:(?:\|([^}]+))|(?:\s+([^}]+)))?\s*\}\}/gi
   let m
   while ((m = re.exec(text))) {
     calls.push({
       name: String(m[1] || "").toLowerCase(),
-      args: parseToolArgs(m[2] || ""),
+      args: parseToolArgs(m[2] || m[3] || ""),
     })
   }
   return calls
@@ -435,7 +435,10 @@ function parseToolArgs(raw){
   const args = {}
   const source = String(raw || "").trim()
   if (!source) return args
-  for (const token of source.split("|")) {
+  const normalized = source.includes("|")
+    ? source
+    : source.replace(/\s+/g, "|")
+  for (const token of normalized.split("|")) {
     const [k, ...rest] = token.split("=")
     const key = String(k || "").trim().toLowerCase()
     const value = rest.join("=").trim()
@@ -493,7 +496,7 @@ function toBase64FromBytes(bytes){
 
 async function findFileFromToolArgs(args){
   const files = await listFiles()
-  const id = String(args?.id || "").trim()
+  const id = String(args?.id || "").trim().replace(/^\{+|\}+$/g, "")
   const name = String(args?.name || "").trim()
   if (id) {
     const byId = files.find(file => String(file?.id || "") === id)
@@ -616,6 +619,7 @@ async function openAiChatWithTools({ apiKey, model, temperature, messages }){
     trace.push(`[ASSISTANT]\n${reply}`)
     const calls = parseToolCalls(reply)
     if (!calls.length) return trace.length ? trace.join("\n\n") : reply
+    await addEvent("tool_calls_detected", calls.map(call => call.name).join(", "))
     const results = []
     for (const call of calls) {
       try {
@@ -624,6 +628,7 @@ async function openAiChatWithTools({ apiKey, model, temperature, messages }){
         results.push(`TOOL_RESULT ${call.name}: failed (${err instanceof Error ? err.message : "unknown"})`)
       }
     }
+    await addEvent("tool_results_generated", results.map(line => String(line).split("\n")[0]).join(" | "))
     trace.push(`[SYSTEM TOOL RESULTS]\n${results.join("\n\n")}`)
     working.push({ role: "assistant", content: reply })
     working.push({
