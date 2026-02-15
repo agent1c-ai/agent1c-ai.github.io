@@ -1714,6 +1714,46 @@ function chatWindowHtml(){
 function openAiWindowHtml(){
   return `
     <div class="agent-stack">
+      <div class="agent-provider-preview">
+        <div class="agent-note"><strong>AI APIs (Preview UI)</strong></div>
+        <div class="agent-grid2">
+          <label class="agent-form-label">
+            <span>Active provider</span>
+            <select class="field" disabled>
+              <option>OpenAI (wired)</option>
+              <option>Anthropic (preview)</option>
+              <option>z.ai (preview)</option>
+              <option>Ollama Local (preview)</option>
+            </select>
+          </label>
+          <label class="agent-form-label">
+            <span>Transport profile</span>
+            <select class="field" disabled>
+              <option>Direct browser call</option>
+              <option>Local proxy (preview)</option>
+              <option>Cloud proxy (preview)</option>
+            </select>
+          </label>
+        </div>
+        <div class="agent-provider-cards">
+          <div class="agent-provider-card">
+            <div class="agent-provider-head"><strong>OpenAI</strong><span class="agent-provider-pill ok">Wired</span></div>
+            <div class="agent-note">Current production provider. Uses existing key/test/save flow below.</div>
+          </div>
+          <div class="agent-provider-card">
+            <div class="agent-provider-head"><strong>Anthropic</strong><span class="agent-provider-pill">Preview</span></div>
+            <div class="agent-note">Planned fields: API key, model selection, test connection.</div>
+          </div>
+          <div class="agent-provider-card">
+            <div class="agent-provider-head"><strong>z.ai</strong><span class="agent-provider-pill">Preview</span></div>
+            <div class="agent-note">Planned fields: API key, endpoint/base URL, model mapping.</div>
+          </div>
+          <div class="agent-provider-card">
+            <div class="agent-provider-head"><strong>Ollama (Local)</strong><span class="agent-provider-pill">Preview</span></div>
+            <div class="agent-note">Planned fields: local endpoint, model list, CORS/local proxy profile.</div>
+          </div>
+        </div>
+      </div>
       <div id="openaiStoredRow" class="agent-row agent-hidden">
         <span class="agent-note">OpenAI API Key Stored in Vault</span>
         <button id="openaiEditBtn" class="btn agent-icon-btn" type="button" aria-label="Edit OpenAI key">✎</button>
@@ -2374,7 +2414,7 @@ async function createWorkspace({ showUnlock, onboarding }) {
   wins.chat = wmRef.createAgentPanelWindow("Chat", { panelId: "chat", left: 20, top: 28, width: 480, height: 320 })
   if (wins.chat?.panelRoot) wins.chat.panelRoot.innerHTML = chatWindowHtml()
 
-  wins.openai = wmRef.createAgentPanelWindow("OpenAI API", { panelId: "openai", left: 510, top: 28, width: 500, height: 320 })
+  wins.openai = wmRef.createAgentPanelWindow("AI APIs", { panelId: "openai", left: 510, top: 28, width: 500, height: 320 })
   if (wins.openai?.panelRoot) wins.openai.panelRoot.innerHTML = openAiWindowHtml()
 
   wins.telegram = wmRef.createAgentPanelWindow("Telegram API", { panelId: "telegram", left: 510, top: 360, width: 500, height: 280 })

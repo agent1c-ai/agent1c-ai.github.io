@@ -1653,6 +1653,41 @@
   height: 24px;
 }
 .agent-grid2{ display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; }
+.agent-provider-preview{
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.32);
+  padding: 6px;
+  display: grid;
+  gap: 6px;
+}
+.agent-provider-cards{
+  display: grid;
+  gap: 5px;
+  max-height: 120px;
+  overflow: auto;
+}
+.agent-provider-card{
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.28);
+  padding: 5px;
+}
+.agent-provider-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 3px;
+  font-size: 11px;
+}
+.agent-provider-pill{
+  border: 1px solid var(--line);
+  padding: 0 5px;
+  font-size: 10px;
+  background: rgba(255,255,255,0.45);
+}
+.agent-provider-pill.ok{
+  background: #d8e9d8;
+}
 .agent-meta-row{
   display: flex;
   gap: 10px;
@@ -1852,6 +1887,19 @@ body.dark .agent-lines{
 }
 body.dark .agent-text{
   color: #e9edf7;
+}
+body.dark .agent-provider-preview{
+  background: #1c2230;
+  border-color: #555d6b;
+}
+body.dark .agent-provider-card{
+  background: #161b25;
+  border-color: #555d6b;
+}
+body.dark .agent-provider-pill{
+  background: #2b3445;
+  border-color: #5d6678;
+  color: #eef2ff;
 }
 body.dark .clippy-bubble{
   background: #1f2530;
