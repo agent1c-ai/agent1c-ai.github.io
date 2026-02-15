@@ -168,6 +168,8 @@ let configAutosaveTimer = null
 let fsScanDebounceTimer = null
 let fsScanRunning = false
 let knownFilesystemFiles = new Map()
+let clippyMode = false
+let clippyUi = null
 const pendingDocSaves = new Set()
 const LEGACY_SOUL_MARKERS = [
   "You are opinionated, independent, and freedom-focused.",
@@ -1158,6 +1160,132 @@ function refreshThreadPickerSoon(){
   setTimeout(() => renderLocalThreadPicker(), 0)
 }
 
+function getClippyChatHtml(){
+  const thread = getActiveLocalThread()
+  const messages = Array.isArray(thread?.messages) ? thread.messages : []
+  if (!messages.length) return `<div class="clippy-line">No messages yet.</div>`
+  const tail = messages.slice(-16)
+  return tail.map(msg => {
+    const who = msg.role === "assistant" ? "Hitomi" : "User"
+    return `<div class="clippy-line"><strong>${who}:</strong> ${escapeHtml(msg.content)}</div>`
+  }).join("")
+}
+
+function hideClippyBubble(){
+  if (!clippyUi?.bubble) return
+  clippyUi.bubble.classList.add("clippy-hidden")
+}
+
+function renderClippyBubble(){
+  if (!clippyUi?.content) return
+  clippyUi.content.innerHTML = getClippyChatHtml()
+}
+
+function showClippyBubble(){
+  if (!clippyUi?.bubble) return
+  renderClippyBubble()
+  clippyUi.bubble.classList.remove("clippy-hidden")
+}
+
+function ensureClippyAssistant(){
+  if (clippyUi?.root && clippyUi.root.isConnected) return clippyUi
+  const desktop = document.getElementById("desktop")
+  if (!desktop) return null
+  const root = document.createElement("div")
+  root.className = "clippy-assistant clippy-hidden"
+  root.style.left = "28px"
+  root.style.top = "420px"
+  root.innerHTML = `
+    <div class="clippy-bubble clippy-hidden">
+      <div class="clippy-bubble-title">Hitomi</div>
+      <div class="clippy-bubble-content"></div>
+    </div>
+    <img class="clippy-body" src="assets/hedgey-clippy.jpg" alt="Hitomi hedgehog assistant" />
+  `
+  desktop.appendChild(root)
+  const body = root.querySelector(".clippy-body")
+  const bubble = root.querySelector(".clippy-bubble")
+  const content = root.querySelector(".clippy-bubble-content")
+  let dragging = false
+  let moved = false
+  let startX = 0
+  let startY = 0
+  let baseLeft = 0
+  let baseTop = 0
+  function clampPos(){
+    const dw = desktop.clientWidth || 0
+    const dh = desktop.clientHeight || 0
+    const rw = root.offsetWidth || 64
+    const rh = root.offsetHeight || 64
+    const left = Math.max(0, Math.min(baseLeft, Math.max(0, dw - rw)))
+    const top = Math.max(0, Math.min(baseTop, Math.max(0, dh - rh)))
+    root.style.left = `${left}px`
+    root.style.top = `${top}px`
+  }
+  body?.addEventListener("pointerdown", (e) => {
+    e.preventDefault()
+    dragging = true
+    moved = false
+    startX = e.clientX
+    startY = e.clientY
+    baseLeft = parseFloat(root.style.left) || 0
+    baseTop = parseFloat(root.style.top) || 0
+    body.setPointerCapture(e.pointerId)
+  })
+  body?.addEventListener("pointermove", (e) => {
+    if (!dragging) return
+    const dx = e.clientX - startX
+    const dy = e.clientY - startY
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true
+    baseLeft += dx
+    baseTop += dy
+    startX = e.clientX
+    startY = e.clientY
+    clampPos()
+  })
+  function endDrag(){
+    dragging = false
+  }
+  body?.addEventListener("pointerup", (e) => {
+    if (!moved) {
+      if (bubble?.classList.contains("clippy-hidden")) showClippyBubble()
+      else hideClippyBubble()
+    }
+    endDrag()
+    body.releasePointerCapture?.(e.pointerId)
+  })
+  body?.addEventListener("pointercancel", endDrag)
+  clippyUi = { root, body, bubble, content }
+  document.addEventListener("pointerdown", (e) => {
+    if (!clippyMode) return
+    if (!clippyUi?.bubble || clippyUi.bubble.classList.contains("clippy-hidden")) return
+    if (clippyUi.root.contains(e.target)) return
+    hideClippyBubble()
+  }, true)
+  window.addEventListener("resize", () => {
+    if (!clippyUi?.root) return
+    baseLeft = parseFloat(clippyUi.root.style.left) || 0
+    baseTop = parseFloat(clippyUi.root.style.top) || 0
+    clampPos()
+  })
+  return clippyUi
+}
+
+function setClippyMode(next){
+  const ui = ensureClippyAssistant()
+  if (!ui) return
+  clippyMode = !!next
+  ui.root.classList.toggle("clippy-hidden", !clippyMode)
+  if (clippyMode) {
+    hideClippyBubble()
+    minimizeWindow(wins.chat)
+    setStatus("Clippy mode enabled.")
+  } else {
+    hideClippyBubble()
+    setStatus("Clippy mode disabled.")
+  }
+}
+
 function renderChat(){
   if (!els.chatLog) return
   ensureLocalThreadsInitialized()
@@ -1172,7 +1300,7 @@ function renderChat(){
       if (msg.role === "assistant") {
         return `<div class="agent-bubble ${cls}">
           <div class="agent-bubble-head">
-            <img class="agent-avatar" src="assets/hedgey1.png" alt="Hitomi avatar" />
+            <img class="agent-avatar" src="assets/hedgey-clippy.jpg" alt="Hitomi avatar" />
             <div class="agent-bubble-role">Hitomi</div>
           </div>
           <div>${escapeHtml(msg.content)}</div>
@@ -1181,6 +1309,7 @@ function renderChat(){
       return `<div class="agent-bubble ${cls}"><div class="agent-bubble-role">User</div><div>${escapeHtml(msg.content)}</div></div>`
     }).join("")
   }
+  if (clippyMode) renderClippyBubble()
   scrollChatToBottom()
 }
 
@@ -1390,6 +1519,7 @@ function chatWindowHtml(){
         <select id="chatThreadSelect" class="field"></select>
         <button id="chatNewBtn" class="btn" type="button">New Chat</button>
         <button id="chatClearBtn" class="btn" type="button">Clear Chat</button>
+        <button id="chatClippyBtn" class="btn" type="button">Clippy mode</button>
       </div>
       <div id="chatLog" class="agent-log"></div>
       <form id="chatForm" class="agent-row">
@@ -1556,6 +1686,7 @@ function cacheElements(){
     chatThreadSelect: byId("chatThreadSelect"),
     chatNewBtn: byId("chatNewBtn"),
     chatClearBtn: byId("chatClearBtn"),
+    chatClippyBtn: byId("chatClippyBtn"),
     chatLog: byId("chatLog"),
     chatForm: byId("chatForm"),
     chatInput: byId("chatInput"),
@@ -1910,6 +2041,9 @@ function wireMainDom(){
     await setState({ ...appState.agent })
     await addEvent("chat_cleared", `Cleared context for ${thread.label}`)
     renderChat()
+  })
+  els.chatClippyBtn?.addEventListener("click", () => {
+    setClippyMode(true)
   })
 
   els.openaiForm?.addEventListener("submit", async (e) => {
