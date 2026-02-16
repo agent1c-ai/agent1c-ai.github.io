@@ -2480,6 +2480,34 @@ async function copyTextToClipboard(text){
 function wireOllamaSetupWindowDom(winObj){
   const root = winObj?.panelRoot
   if (!root) return
+  const setupModels = {
+    tiny: { label: "Tiny", model: "qwen2.5:0.5b" },
+    small: { label: "Small", model: "qwen2.5:1.5b" },
+    medium: { label: "Medium", model: "qwen2.5:7b" },
+    large: { label: "Large", model: "mistral:7b" },
+    xl: { label: "XL", model: "glm4:9b" },
+  }
+  const modelSelect = root.querySelector("#ollamaSetupSizeSelect")
+  const inferSizeFromModel = (value) => {
+    const modelText = String(value || "").trim().toLowerCase()
+    const entry = Object.entries(setupModels).find(([, meta]) => meta.model.toLowerCase() === modelText)
+    return entry ? entry[0] : "tiny"
+  }
+  const applySelectedModel = () => {
+    const key = String(modelSelect?.value || "tiny").toLowerCase()
+    const choice = setupModels[key] || setupModels.tiny
+    root.querySelectorAll("[data-ollama-model-command]").forEach(node => {
+      node.textContent = `ollama pull ${choice.model}`
+    })
+    root.querySelectorAll("[data-ollama-model-inline]").forEach(node => {
+      node.textContent = choice.model
+    })
+    previewProviderState.ollamaModel = choice.model
+    if (els?.ollamaModelInput) els.ollamaModelInput.value = choice.model
+    if (els?.ollamaModelStored) els.ollamaModelStored.value = choice.model
+    persistPreviewProviderState()
+    refreshProviderPreviewUi()
+  }
 
   const setDevice = (device) => {
     const current = String(device || "").trim().toLowerCase()
@@ -2520,6 +2548,16 @@ function wireOllamaSetupWindowDom(winObj){
       window.open(url, "_blank", "noopener,noreferrer")
     })
   })
+
+  if (modelSelect) {
+    modelSelect.value = inferSizeFromModel(previewProviderState.ollamaModel)
+    modelSelect.addEventListener("change", () => {
+      applySelectedModel()
+      const selected = setupModels[String(modelSelect.value || "tiny").toLowerCase()] || setupModels.tiny
+      setStatus(`Ollama setup model selected: ${selected.label} (${selected.model}).`)
+    })
+  }
+  applySelectedModel()
 
   const ua = String(navigator.userAgent || "").toLowerCase()
   if (ua.includes("android")) setDevice("android")
@@ -2804,6 +2842,19 @@ function ollamaSetupWindowHtml(){
       <div class="agent-setup-intro">
         <div class="agent-setup-title">Ollama Setup Guide</div>
         <div class="agent-note"><strong>Hi, I am Hitomi.</strong> Pick your device and I will walk you through setup with copy-ready commands.</div>
+        <div class="agent-setup-toolbar">
+          <label class="agent-form-label">
+            <span>Model size preset</span>
+            <select id="ollamaSetupSizeSelect" class="field">
+              <option value="tiny">Tiny (qwen2.5:0.5b)</option>
+              <option value="small">Small (qwen2.5:1.5b)</option>
+              <option value="medium">Medium (qwen2.5:7b)</option>
+              <option value="large">Large (mistral:7b)</option>
+              <option value="xl">XL (glm4:9b)</option>
+            </select>
+          </label>
+        </div>
+        <div class="agent-note">Power users: you are not limited to these presets. You can set any Ollama model manually in AI APIs.</div>
       </div>
       <div class="agent-device-tabs" role="tablist" aria-label="Device selector">
         <button class="btn agent-device-tab" type="button" data-device-tab="linux" aria-selected="false">Linux</button>
@@ -2830,7 +2881,7 @@ function ollamaSetupWindowHtml(){
           </div>
           <div class="agent-code-card">
             <div class="agent-code-head"><span class="agent-code-label">Pull small model</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupPullLinux">Copy</button></div>
-            <pre id="ollamaSetupPullLinux" class="agent-setup-code"><code>ollama pull qwen2.5:0.5b</code></pre>
+            <pre id="ollamaSetupPullLinux" class="agent-setup-code"><code data-ollama-model-command>ollama pull qwen2.5:0.5b</code></pre>
           </div>
           <div class="agent-code-card">
             <div class="agent-code-head"><span class="agent-code-label">Verify models</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupTagsLinux">Copy</button></div>
@@ -2869,7 +2920,7 @@ sudo systemctl restart ollama</code></pre>
           <div class="agent-note">Open Terminal and run:</div>
           <div class="agent-code-card">
             <div class="agent-code-head"><span class="agent-code-label">Pull small model</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupPullMac">Copy</button></div>
-            <pre id="ollamaSetupPullMac" class="agent-setup-code"><code>ollama pull qwen2.5:0.5b</code></pre>
+            <pre id="ollamaSetupPullMac" class="agent-setup-code"><code data-ollama-model-command>ollama pull qwen2.5:0.5b</code></pre>
           </div>
           <div class="agent-code-card">
             <div class="agent-code-head"><span class="agent-code-label">Verify models</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupTagsMac">Copy</button></div>
@@ -2908,18 +2959,30 @@ pkg install curl -y</code></pre>
           </div>
           <div class="agent-code-card">
             <div class="agent-code-head"><span class="agent-code-label">Pull small model</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupAndroidPull">Copy</button></div>
-            <pre id="ollamaSetupAndroidPull" class="agent-setup-code"><code>ollama pull qwen2.5:0.5b</code></pre>
+            <pre id="ollamaSetupAndroidPull" class="agent-setup-code"><code data-ollama-model-command>ollama pull qwen2.5:0.5b</code></pre>
           </div>
         </div>
         <div class="agent-setup-section">
-          <div class="agent-setup-title">Step 2: Configure Agent1c</div>
-          <div class="agent-note">In AI APIs, set Ollama URL to your local endpoint and model to <code>qwen2.5:0.5b</code>, then save.</div>
+          <div class="agent-setup-title">Step 2: Allow browser CORS in Termux</div>
+          <div class="agent-code-card">
+            <div class="agent-code-head"><span class="agent-code-label">Export runtime env vars</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupAndroidCors">Copy</button></div>
+            <pre id="ollamaSetupAndroidCors" class="agent-setup-code"><code>export OLLAMA_ORIGINS="https://agent1c.me,https://www.agent1c.me,http://localhost:8000,http://127.0.0.1:8000"
+export OLLAMA_HOST="127.0.0.1:11434"</code></pre>
+          </div>
+          <div class="agent-code-card">
+            <div class="agent-code-head"><span class="agent-code-label">Restart server after export</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupAndroidRestart">Copy</button></div>
+            <pre id="ollamaSetupAndroidRestart" class="agent-setup-code"><code>ollama serve</code></pre>
+          </div>
+        </div>
+        <div class="agent-setup-section">
+          <div class="agent-setup-title">Step 3: Configure Agent1c</div>
+          <div class="agent-note">In AI APIs, set Ollama URL to your local endpoint and model to <code data-ollama-model-inline>qwen2.5:0.5b</code>, then save.</div>
         </div>
       </div>
 
       <div class="agent-setup-section">
         <div class="agent-setup-title">Final step in Agent1c</div>
-        <div class="agent-note">Back in AI APIs, set Ollama URL to <code>http://127.0.0.1:11434</code>, set your model, then save/test.</div>
+        <div class="agent-note">Back in AI APIs, set Ollama URL to <code>http://127.0.0.1:11434</code>, set model to <code data-ollama-model-inline>qwen2.5:0.5b</code>, then save/test.</div>
       </div>
     </div>
   `

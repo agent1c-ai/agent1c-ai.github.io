@@ -1816,6 +1816,11 @@
   display: grid;
   gap: 4px;
 }
+.agent-setup-toolbar{
+  display: grid;
+  grid-template-columns: minmax(220px, 320px);
+  gap: 6px;
+}
 .agent-device-tabs{
   display: flex;
   gap: 6px;
@@ -2114,6 +2119,11 @@ body.dark .agent-setup-intro,
 body.dark .agent-setup-section{
   background: #161b25;
   border-color: #555d6b;
+}
+body.dark .agent-setup-toolbar .field{
+  background: #121720;
+  color: #e9edf7;
+  border-color: #5d6678;
 }
 body.dark .agent-device-tab.active{
   background: #2a3a56;
