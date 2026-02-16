@@ -1899,8 +1899,8 @@ function openAiWindowHtml(){
             </label>
           </div>
           <div id="anthropicControls">
-            <div class="agent-row agent-wrap-row">
-              <span class="agent-note">Anthropic API key</span>
+            <div class="agent-row agent-row-tight">
+              <span class="agent-note">Anthropic key</span>
               <div class="agent-inline-key agent-inline-key-wide">
                 <input id="anthropicKeyInput" class="field" type="password" placeholder="sk-ant-..." />
                 <button id="anthropicSavePreviewBtn" class="btn agent-inline-key-btn" type="button" aria-label="Test Anthropic key">></button>
@@ -1922,7 +1922,7 @@ function openAiWindowHtml(){
             </label>
           </div>
           <div id="zaiControls">
-            <div class="agent-row agent-wrap-row">
+            <div class="agent-row agent-row-tight">
               <span class="agent-note">z.ai API key</span>
               <div class="agent-inline-key agent-inline-key-wide">
                 <input id="zaiKeyInput" class="field" type="password" placeholder="zai-..." />
