@@ -112,6 +112,12 @@ const FALLBACK_ANTHROPIC_MODELS = [
   "claude-3-5-haiku-latest",
 ]
 
+const FALLBACK_XAI_MODELS = [
+  "grok-4",
+  "grok-3",
+  "grok-3-mini",
+]
+
 const FALLBACK_ZAI_MODELS = [
   "glm-5",
   "glm-4.7",
@@ -180,6 +186,7 @@ let onboardingOpenAiTested = false
 let openAiEditing = false
 let telegramEditing = false
 let anthropicEditing = false
+let xaiEditing = false
 let zaiEditing = false
 let ollamaEditing = false
 let docsAutosaveTimer = null
@@ -219,6 +226,9 @@ const previewProviderState = {
   anthropicKey: "",
   anthropicModel: "claude-opus-4-1",
   anthropicValidated: false,
+  xaiKey: "",
+  xaiModel: "grok-4",
+  xaiValidated: false,
   zaiKey: "",
   zaiModel: "glm-5",
   zaiValidated: false,
@@ -235,14 +245,17 @@ function loadPreviewProviderState(){
     if (!raw) return
     const parsed = JSON.parse(raw)
     if (!parsed || typeof parsed !== "object") return
-    previewProviderState.active = ["openai", "anthropic", "zai", "ollama"].includes(parsed.active) ? parsed.active : previewProviderState.active
-    previewProviderState.editor = parsed.editor === "" || ["openai", "anthropic", "zai", "ollama"].includes(parsed.editor)
+    previewProviderState.active = ["openai", "anthropic", "xai", "zai", "ollama"].includes(parsed.active) ? parsed.active : previewProviderState.active
+    previewProviderState.editor = parsed.editor === "" || ["openai", "anthropic", "xai", "zai", "ollama"].includes(parsed.editor)
       ? parsed.editor
       : previewProviderState.editor
     previewProviderState.openaiValidated = parsed.openaiValidated !== false
     previewProviderState.anthropicKey = ""
     previewProviderState.anthropicModel = String(parsed.anthropicModel || previewProviderState.anthropicModel)
     previewProviderState.anthropicValidated = Boolean(parsed.anthropicValidated)
+    previewProviderState.xaiKey = ""
+    previewProviderState.xaiModel = String(parsed.xaiModel || previewProviderState.xaiModel)
+    previewProviderState.xaiValidated = Boolean(parsed.xaiValidated)
     previewProviderState.zaiKey = ""
     previewProviderState.zaiModel = String(parsed.zaiModel || previewProviderState.zaiModel)
     previewProviderState.zaiValidated = Boolean(parsed.zaiValidated)
@@ -257,6 +270,7 @@ function persistPreviewProviderState(){
     localStorage.setItem(PREVIEW_PROVIDER_KEY, JSON.stringify({
       ...previewProviderState,
       anthropicKey: "",
+      xaiKey: "",
       zaiKey: "",
     }))
   } catch {}
@@ -266,12 +280,16 @@ function refreshProviderPreviewUi(){
   const active = previewProviderState.active
   const editor = previewProviderState.editor
   const hasAnthropic = Boolean(previewProviderState.anthropicValidated)
+  const hasXai = Boolean(previewProviderState.xaiValidated)
   const hasZai = Boolean(previewProviderState.zaiValidated)
   const hasOllama = Boolean(previewProviderState.ollamaValidated && String(previewProviderState.ollamaBaseUrl || "").trim())
   if (els.aiActiveProviderSelect) els.aiActiveProviderSelect.value = active
   if (els.anthropicKeyInput) els.anthropicKeyInput.value = previewProviderState.anthropicKey
   if (els.anthropicModelInput) els.anthropicModelInput.value = previewProviderState.anthropicModel
   if (els.anthropicModelStored) els.anthropicModelStored.value = previewProviderState.anthropicModel
+  if (els.xaiKeyInput) els.xaiKeyInput.value = previewProviderState.xaiKey
+  if (els.xaiModelInput) els.xaiModelInput.value = previewProviderState.xaiModel
+  if (els.xaiModelStored) els.xaiModelStored.value = previewProviderState.xaiModel
   if (els.zaiKeyInput) els.zaiKeyInput.value = previewProviderState.zaiKey
   if (els.zaiModelInput) els.zaiModelInput.value = previewProviderState.zaiModel
   if (els.zaiModelStored) els.zaiModelStored.value = previewProviderState.zaiModel
@@ -280,20 +298,28 @@ function refreshProviderPreviewUi(){
   if (els.ollamaModelStored) els.ollamaModelStored.value = previewProviderState.ollamaModel
   if (els.providerCardOpenai) els.providerCardOpenai.classList.toggle("active", editor === "openai")
   if (els.providerCardAnthropic) els.providerCardAnthropic.classList.toggle("active", editor === "anthropic")
+  if (els.providerCardXai) els.providerCardXai.classList.toggle("active", editor === "xai")
   if (els.providerCardZai) els.providerCardZai.classList.toggle("active", editor === "zai")
   if (els.providerCardOllama) els.providerCardOllama.classList.toggle("active", editor === "ollama")
   if (els.providerNoteOpenai) els.providerNoteOpenai.classList.toggle("agent-hidden", editor === "openai")
   if (els.providerNoteAnthropic) els.providerNoteAnthropic.classList.toggle("agent-hidden", editor === "anthropic")
+  if (els.providerNoteXai) els.providerNoteXai.classList.toggle("agent-hidden", editor === "xai")
   if (els.providerNoteZai) els.providerNoteZai.classList.toggle("agent-hidden", editor === "zai")
   if (els.providerNoteOllama) els.providerNoteOllama.classList.toggle("agent-hidden", editor === "ollama")
   if (els.providerSectionOpenai) els.providerSectionOpenai.classList.toggle("agent-hidden", editor !== "openai")
   if (els.providerSectionAnthropic) els.providerSectionAnthropic.classList.toggle("agent-hidden", editor !== "anthropic")
+  if (els.providerSectionXai) els.providerSectionXai.classList.toggle("agent-hidden", editor !== "xai")
   if (els.providerSectionZai) els.providerSectionZai.classList.toggle("agent-hidden", editor !== "zai")
   if (els.providerSectionOllama) els.providerSectionOllama.classList.toggle("agent-hidden", editor !== "ollama")
   if (els.anthropicStoredRow && els.anthropicControls) {
     const showStored = hasAnthropic && !anthropicEditing
     els.anthropicStoredRow.classList.toggle("agent-hidden", !showStored)
     els.anthropicControls.classList.toggle("agent-hidden", showStored)
+  }
+  if (els.xaiStoredRow && els.xaiControls) {
+    const showStored = hasXai && !xaiEditing
+    els.xaiStoredRow.classList.toggle("agent-hidden", !showStored)
+    els.xaiControls.classList.toggle("agent-hidden", showStored)
   }
   if (els.zaiStoredRow && els.zaiControls) {
     const showStored = hasZai && !zaiEditing
@@ -527,6 +553,7 @@ async function readProviderKey(provider){
   return decryptText(appState.sessionKey, record.encrypted, record.iv)
 }
 
+const XAI_BASE_URL = "https://api.x.ai/v1"
 const ZAI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
 
 async function openAiChat({ apiKey, model, temperature, systemPrompt, messages }){
@@ -580,6 +607,26 @@ async function anthropicChat({ apiKey, model, temperature, systemPrompt, message
   return text
 }
 
+async function xaiChat({ apiKey, model, temperature, systemPrompt, messages }){
+  const response = await fetch(`${XAI_BASE_URL}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      temperature,
+      messages: [{ role: "system", content: systemPrompt }, ...messages.map(m => ({ role: m.role, content: m.content }))],
+    }),
+  })
+  if (!response.ok) throw new Error(`xAI call failed (${response.status})`)
+  const json = await response.json()
+  const text = json?.choices?.[0]?.message?.content
+  if (!text) throw new Error("xAI returned no message.")
+  return String(text).trim()
+}
+
 async function zaiChat({ apiKey, model, temperature, systemPrompt, messages }){
   const response = await fetch(`${ZAI_BASE_URL}/chat/completions`, {
     method: "POST",
@@ -602,11 +649,12 @@ async function zaiChat({ apiKey, model, temperature, systemPrompt, messages }){
 
 function normalizeProvider(value){
   const provider = String(value || "").toLowerCase()
-  return ["openai", "anthropic", "zai", "ollama"].includes(provider) ? provider : "openai"
+  return ["openai", "anthropic", "xai", "zai", "ollama"].includes(provider) ? provider : "openai"
 }
 
 function activeProviderModel(provider){
   if (provider === "anthropic") return previewProviderState.anthropicModel || FALLBACK_ANTHROPIC_MODELS[0]
+  if (provider === "xai") return previewProviderState.xaiModel || FALLBACK_XAI_MODELS[0]
   if (provider === "zai") return previewProviderState.zaiModel || FALLBACK_ZAI_MODELS[0]
   if (provider === "ollama") return previewProviderState.ollamaModel || "llama3.1"
   return appState.config.model
@@ -614,6 +662,7 @@ function activeProviderModel(provider){
 
 function providerDisplayName(provider){
   if (provider === "anthropic") return "Anthropic"
+  if (provider === "xai") return "xAI (Grok)"
   if (provider === "zai") return "z.ai"
   if (provider === "ollama") return "Ollama"
   return "OpenAI"
@@ -622,7 +671,7 @@ function providerDisplayName(provider){
 async function resolveActiveProviderRuntime(){
   const provider = normalizeProvider(previewProviderState.active || "openai")
   const model = activeProviderModel(provider)
-  const secretKey = provider === "openai" || provider === "anthropic" || provider === "zai"
+  const secretKey = provider === "openai" || provider === "anthropic" || provider === "xai" || provider === "zai"
     ? await readProviderKey(provider)
     : ""
   return {
@@ -635,7 +684,7 @@ async function resolveActiveProviderRuntime(){
 
 async function providerHasKey(provider){
   const kind = normalizeProvider(provider)
-  if (kind === "anthropic" || kind === "zai" || kind === "openai") {
+  if (kind === "anthropic" || kind === "xai" || kind === "zai" || kind === "openai") {
     return Boolean((await readProviderKey(kind)).trim())
   }
   return Boolean(previewProviderState.ollamaValidated && String(previewProviderState.ollamaBaseUrl || "").trim())
@@ -644,6 +693,9 @@ async function providerHasKey(provider){
 async function providerChat({ provider, apiKey, model, temperature, systemPrompt, messages }){
   if (provider === "anthropic") {
     return anthropicChat({ apiKey, model, temperature, systemPrompt, messages })
+  }
+  if (provider === "xai") {
+    return xaiChat({ apiKey, model, temperature, systemPrompt, messages })
   }
   if (provider === "zai") {
     return zaiChat({ apiKey, model, temperature, systemPrompt, messages })
@@ -927,6 +979,16 @@ async function testOpenAIKey(apiKey, model){
 
 async function testAnthropicKey(apiKey, model){
   await anthropicChat({
+    apiKey,
+    model,
+    temperature: 0,
+    systemPrompt: "Respond with exactly: ok",
+    messages: [{ role: "user", content: "ok" }],
+  })
+}
+
+async function testXaiKey(apiKey, model){
+  await xaiChat({
     apiKey,
     model,
     temperature: 0,
@@ -1519,12 +1581,13 @@ function positionHitomiDesktopIcon(){
 }
 
 async function hasAnyAiProviderKey(){
-  const [openai, anthropic, zai] = await Promise.all([
+  const [openai, anthropic, xai, zai] = await Promise.all([
     getSecret("openai"),
     getSecret("anthropic"),
+    getSecret("xai"),
     getSecret("zai"),
   ])
-  return Boolean(openai || anthropic || zai)
+  return Boolean(openai || anthropic || xai || zai)
 }
 
 async function refreshHitomiDesktopIcon(){
@@ -1811,17 +1874,20 @@ async function persistState(){
 }
 
 async function refreshBadges(){
-  const [openAiSecret, anthropicSecret, zaiSecret] = await Promise.all([
+  const [openAiSecret, anthropicSecret, xaiSecret, zaiSecret] = await Promise.all([
     getSecret("openai"),
     getSecret("anthropic"),
+    getSecret("xai"),
     getSecret("zai"),
   ])
   const hasOpenAi = Boolean(openAiSecret)
   const hasTelegram = Boolean(await getSecret("telegram"))
   const selectedProvider = previewProviderState.editor
   if (anthropicSecret) previewProviderState.anthropicValidated = true
+  if (xaiSecret) previewProviderState.xaiValidated = true
   if (zaiSecret) previewProviderState.zaiValidated = true
   const hasAnthropic = Boolean(anthropicSecret || previewProviderState.anthropicValidated)
+  const hasXai = Boolean(xaiSecret || previewProviderState.xaiValidated)
   const hasZai = Boolean(zaiSecret || previewProviderState.zaiValidated)
   const hasOllama = Boolean(previewProviderState.ollamaValidated && String(previewProviderState.ollamaBaseUrl || "").trim())
   if (els.openaiBadge) {
@@ -1836,6 +1902,10 @@ async function refreshBadges(){
     els.zaiBadge.className = `agent-badge ${hasZai ? "ok" : "warn"}`
     els.zaiBadge.textContent = hasZai ? "Stored" : "Missing key"
   }
+  if (els.xaiBadge) {
+    els.xaiBadge.className = `agent-badge ${hasXai ? "ok" : "warn"}`
+    els.xaiBadge.textContent = hasXai ? "Stored" : "Missing key"
+  }
   if (els.ollamaBadge) {
     els.ollamaBadge.className = `agent-badge ${hasOllama ? "ok" : "warn"}`
     els.ollamaBadge.textContent = hasOllama ? "Stored" : "Missing URL"
@@ -1847,6 +1917,10 @@ async function refreshBadges(){
   if (els.providerPillAnthropic) {
     els.providerPillAnthropic.className = `agent-provider-pill ${hasAnthropic ? "ok" : "warn"}`
     els.providerPillAnthropic.textContent = hasAnthropic ? "Ready" : "Missing key"
+  }
+  if (els.providerPillXai) {
+    els.providerPillXai.className = `agent-provider-pill ${hasXai ? "ok" : "warn"}`
+    els.providerPillXai.textContent = hasXai ? "Ready" : "Missing key"
   }
   if (els.providerPillZai) {
     els.providerPillZai.className = `agent-provider-pill ${hasZai ? "ok" : "warn"}`
@@ -1891,6 +1965,9 @@ function refreshUi(){
   if (els.anthropicKeyInput) els.anthropicKeyInput.disabled = !canUse
   if (els.anthropicModelInput) els.anthropicModelInput.disabled = !canUse
   if (els.anthropicModelStored) els.anthropicModelStored.disabled = !canUse
+  if (els.xaiKeyInput) els.xaiKeyInput.disabled = !canUse
+  if (els.xaiModelInput) els.xaiModelInput.disabled = !canUse
+  if (els.xaiModelStored) els.xaiModelStored.disabled = !canUse
   if (els.zaiKeyInput) els.zaiKeyInput.disabled = !canUse
   if (els.zaiModelInput) els.zaiModelInput.disabled = !canUse
   if (els.zaiModelStored) els.zaiModelStored.disabled = !canUse
@@ -1899,6 +1976,8 @@ function refreshUi(){
   if (els.ollamaModelStored) els.ollamaModelStored.disabled = !canUse
   if (els.anthropicSavePreviewBtn) els.anthropicSavePreviewBtn.disabled = !canUse
   if (els.anthropicEditBtn) els.anthropicEditBtn.disabled = !canUse
+  if (els.xaiSavePreviewBtn) els.xaiSavePreviewBtn.disabled = !canUse
+  if (els.xaiEditBtn) els.xaiEditBtn.disabled = !canUse
   if (els.zaiSavePreviewBtn) els.zaiSavePreviewBtn.disabled = !canUse
   if (els.zaiEditBtn) els.zaiEditBtn.disabled = !canUse
   if (els.ollamaSavePreviewBtn) els.ollamaSavePreviewBtn.disabled = !canUse
@@ -2044,6 +2123,7 @@ function openAiWindowHtml(){
             <select id="aiActiveProviderSelect" class="field">
               <option value="openai">OpenAI (wired)</option>
               <option value="anthropic">Anthropic</option>
+              <option value="xai">xAI (Grok)</option>
               <option value="zai">z.ai</option>
               <option value="ollama">Ollama Local</option>
             </select>
@@ -2099,6 +2179,33 @@ function openAiWindowHtml(){
                   <label class="agent-inline-mini">
                     <span>Model</span>
                     <select id="anthropicModelInput" class="field">${renderModelOptions(FALLBACK_ANTHROPIC_MODELS)}</select>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="providerCardXai" class="agent-provider-card" data-provider="xai">
+            <div class="agent-provider-head"><strong>xAI (Grok)</strong><span id="providerPillXai" class="agent-provider-pill warn">Missing key</span></div>
+            <div id="providerNoteXai" class="agent-note">Tap to configure xAI API key.</div>
+            <div id="providerSectionXai" class="agent-provider-inline agent-hidden">
+              <div id="xaiStoredRow" class="agent-row agent-row-tight agent-hidden">
+                <span class="agent-note">xAI API Key Stored in Vault</span>
+                <button id="xaiEditBtn" class="btn agent-icon-btn" type="button" aria-label="Edit xAI key">✎</button>
+                <label class="agent-inline-mini">
+                  <span>Model</span>
+                  <select id="xaiModelStored" class="field">${renderModelOptions(FALLBACK_XAI_MODELS)}</select>
+                </label>
+              </div>
+              <div id="xaiControls">
+                <div class="agent-row agent-row-tight">
+                  <span class="agent-note">xAI API key <span id="xaiBadge" class="agent-badge warn">Missing key</span></span>
+                  <div class="agent-inline-key agent-inline-key-wide">
+                    <input id="xaiKeyInput" class="field" type="password" placeholder="xai-..." />
+                    <button id="xaiSavePreviewBtn" class="btn agent-inline-key-btn" type="button" aria-label="Save xAI key">></button>
+                  </div>
+                  <label class="agent-inline-mini">
+                    <span>Model</span>
+                    <select id="xaiModelInput" class="field">${renderModelOptions(FALLBACK_XAI_MODELS)}</select>
                   </label>
                 </div>
               </div>
@@ -2296,18 +2403,22 @@ function cacheElements(){
     aiActiveProviderSelect: byId("aiActiveProviderSelect"),
     providerCardOpenai: byId("providerCardOpenai"),
     providerCardAnthropic: byId("providerCardAnthropic"),
+    providerCardXai: byId("providerCardXai"),
     providerCardZai: byId("providerCardZai"),
     providerCardOllama: byId("providerCardOllama"),
     providerNoteOpenai: byId("providerNoteOpenai"),
     providerNoteAnthropic: byId("providerNoteAnthropic"),
+    providerNoteXai: byId("providerNoteXai"),
     providerNoteZai: byId("providerNoteZai"),
     providerNoteOllama: byId("providerNoteOllama"),
     providerPillOpenai: byId("providerPillOpenai"),
     providerPillAnthropic: byId("providerPillAnthropic"),
+    providerPillXai: byId("providerPillXai"),
     providerPillZai: byId("providerPillZai"),
     providerPillOllama: byId("providerPillOllama"),
     providerSectionOpenai: byId("providerSectionOpenai"),
     providerSectionAnthropic: byId("providerSectionAnthropic"),
+    providerSectionXai: byId("providerSectionXai"),
     providerSectionZai: byId("providerSectionZai"),
     providerSectionOllama: byId("providerSectionOllama"),
     anthropicStoredRow: byId("anthropicStoredRow"),
@@ -2318,6 +2429,14 @@ function cacheElements(){
     anthropicModelStored: byId("anthropicModelStored"),
     anthropicSavePreviewBtn: byId("anthropicSavePreviewBtn"),
     anthropicEditBtn: byId("anthropicEditBtn"),
+    xaiStoredRow: byId("xaiStoredRow"),
+    xaiControls: byId("xaiControls"),
+    xaiKeyInput: byId("xaiKeyInput"),
+    xaiBadge: byId("xaiBadge"),
+    xaiModelInput: byId("xaiModelInput"),
+    xaiModelStored: byId("xaiModelStored"),
+    xaiSavePreviewBtn: byId("xaiSavePreviewBtn"),
+    xaiEditBtn: byId("xaiEditBtn"),
     zaiStoredRow: byId("zaiStoredRow"),
     zaiControls: byId("zaiControls"),
     zaiKeyInput: byId("zaiKeyInput"),
@@ -2392,6 +2511,8 @@ async function validateProviderKey(provider, key){
   if (!candidate) throw new Error(`No ${providerDisplayName(kind)} key available.`)
   if (kind === "anthropic") {
     await testAnthropicKey(candidate, activeProviderModel("anthropic"))
+  } else if (kind === "xai") {
+    await testXaiKey(candidate, activeProviderModel("xai"))
   } else if (kind === "zai") {
     await testZaiKey(candidate, activeProviderModel("zai"))
   } else {
@@ -2600,7 +2721,7 @@ function wireUnlockDom(){
 }
 
 function setPreviewProviderEditor(provider){
-  if (!["openai", "anthropic", "zai", "ollama"].includes(provider)) return
+  if (!["openai", "anthropic", "xai", "zai", "ollama"].includes(provider)) return
   previewProviderState.editor = provider
   persistPreviewProviderState()
   refreshProviderPreviewUi()
@@ -2608,7 +2729,7 @@ function setPreviewProviderEditor(provider){
 }
 
 function setActivePreviewProvider(provider){
-  if (!["openai", "anthropic", "zai", "ollama"].includes(provider)) return
+  if (!["openai", "anthropic", "xai", "zai", "ollama"].includes(provider)) return
   previewProviderState.active = provider
   previewProviderState.editor = provider
   persistPreviewProviderState()
@@ -2620,6 +2741,7 @@ function wireProviderPreviewDom(){
   const cardHandlers = [
     [els.providerCardOpenai, "openai"],
     [els.providerCardAnthropic, "anthropic"],
+    [els.providerCardXai, "xai"],
     [els.providerCardZai, "zai"],
     [els.providerCardOllama, "ollama"],
   ]
@@ -2683,6 +2805,44 @@ function wireProviderPreviewDom(){
     els.anthropicKeyInput?.focus()
   })
 
+  els.xaiSavePreviewBtn?.addEventListener("click", async () => {
+    try {
+      previewProviderState.xaiKey = String(els.xaiKeyInput?.value || "").trim()
+      if (!previewProviderState.xaiKey) {
+        previewProviderState.xaiValidated = false
+        xaiEditing = true
+        persistPreviewProviderState()
+        refreshProviderPreviewUi()
+        setStatus("xAI key missing.")
+        return
+      }
+      await saveProviderKey("xai", previewProviderState.xaiKey)
+      await validateProviderKey("xai", previewProviderState.xaiKey)
+      previewProviderState.xaiValidated = true
+      previewProviderState.xaiKey = ""
+      if (els.xaiKeyInput) els.xaiKeyInput.value = ""
+      xaiEditing = false
+      setActivePreviewProvider("xai")
+      persistPreviewProviderState()
+      refreshProviderPreviewUi()
+      await addEvent("provider_key_saved", "xAI key stored and validated.")
+      const completed = await maybeCompleteOnboarding()
+      setStatus(completed
+        ? `xAI key saved. Onboarding continued (${previewProviderState.xaiModel}).`
+        : `xAI key saved. Active provider switched to xAI (${previewProviderState.xaiModel}).`)
+    } catch (err) {
+      previewProviderState.xaiValidated = false
+      xaiEditing = true
+      refreshProviderPreviewUi()
+      setStatus(err instanceof Error ? err.message : "Could not save xAI key")
+    }
+  })
+  els.xaiEditBtn?.addEventListener("click", () => {
+    xaiEditing = true
+    setPreviewProviderEditor("xai")
+    els.xaiKeyInput?.focus()
+  })
+
   els.zaiSavePreviewBtn?.addEventListener("click", async () => {
     try {
       previewProviderState.zaiKey = String(els.zaiKeyInput?.value || "").trim()
@@ -2735,6 +2895,13 @@ function wireProviderPreviewDom(){
     if (els.zaiModelStored) els.zaiModelStored.value = previewProviderState.zaiModel
     persistPreviewProviderState()
   }
+  const syncXaiModel = () => {
+    const chosen = String(els.xaiModelInput?.value || els.xaiModelStored?.value || previewProviderState.xaiModel).trim()
+    previewProviderState.xaiModel = chosen || FALLBACK_XAI_MODELS[0]
+    if (els.xaiModelInput) els.xaiModelInput.value = previewProviderState.xaiModel
+    if (els.xaiModelStored) els.xaiModelStored.value = previewProviderState.xaiModel
+    persistPreviewProviderState()
+  }
   const syncOllamaModel = () => {
     const chosen = String(els.ollamaModelInput?.value || els.ollamaModelStored?.value || previewProviderState.ollamaModel).trim()
     previewProviderState.ollamaModel = chosen || "llama3.1"
@@ -2758,6 +2925,14 @@ function wireProviderPreviewDom(){
     syncZaiModel()
     setStatus(`z.ai model saved: ${previewProviderState.zaiModel}.`)
   })
+  els.xaiModelInput?.addEventListener("change", () => {
+    syncXaiModel()
+    setStatus(`xAI model saved: ${previewProviderState.xaiModel}.`)
+  })
+  els.xaiModelStored?.addEventListener("change", () => {
+    syncXaiModel()
+    setStatus(`xAI model saved: ${previewProviderState.xaiModel}.`)
+  })
   els.ollamaModelInput?.addEventListener("change", () => {
     syncOllamaModel()
     setStatus(`Ollama model saved: ${previewProviderState.ollamaModel}.`)
@@ -2767,6 +2942,7 @@ function wireProviderPreviewDom(){
     setStatus(`Ollama model saved: ${previewProviderState.ollamaModel}.`)
   })
   syncAnthropicModel()
+  syncXaiModel()
   syncZaiModel()
   syncOllamaModel()
 
