@@ -159,8 +159,8 @@ export function animateWindowOpenMatrix(win, opts = {}){
 
   const color = String(opts.color || "#ff4fb8");
   const glow = String(opts.glow || "rgba(255, 79, 184, 0.65)");
-  const duration = Math.max(360, Math.min(1100, Number(opts.durationMs) || 620));
-  const revealAt = Math.max(120, Math.floor(duration * 0.88));
+  const duration = Math.max(300, Math.min(900, Number(opts.durationMs) || 520));
+  const revealAt = Math.max(100, Math.floor(duration * 0.76));
 
   const layer = document.createElement("div");
   layer.style.position = "fixed";
@@ -251,7 +251,7 @@ export function animateWindowOpenMatrix(win, opts = {}){
       layer.remove();
       resolve();
     };
-    const t = setTimeout(finish, duration + 40);
+    const t = setTimeout(finish, duration + 16);
     layerAnim.addEventListener("finish", () => {
       clearTimeout(t);
       finish();
