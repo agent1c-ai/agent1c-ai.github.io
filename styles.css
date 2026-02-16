@@ -1622,6 +1622,7 @@
 }
 .agent-row{ display: flex; gap: 6px; align-items: center; }
 .agent-wrap-row{ flex-wrap: wrap; }
+.agent-row-tight{ flex-wrap: nowrap; }
 .agent-row .btn{ white-space: nowrap; }
 .agent-row .field{ flex: 1 1 200px; min-width: 0; }
 .agent-inline-key{
@@ -1633,8 +1634,8 @@
   flex: 1 1 auto;
 }
 .agent-inline-key-wide{
-  flex: 1 1 240px;
-  min-width: 180px;
+  flex: 1 1 200px;
+  min-width: 120px;
 }
 .agent-inline-key-btn{
   min-width: 22px;
@@ -1652,8 +1653,8 @@
   white-space: nowrap;
 }
 .agent-inline-mini .field{
-  min-width: 140px;
-  width: 160px;
+  min-width: 96px;
+  width: 120px;
 }
 .agent-stepper{ display: flex; align-items: stretch; gap: 4px; }
 .agent-stepper .field{ flex: 1 1 auto; }

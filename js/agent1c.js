@@ -104,6 +104,24 @@ const FALLBACK_OPENAI_MODELS = [
   "gpt-3.5-turbo",
 ]
 
+const FALLBACK_ANTHROPIC_MODELS = [
+  "claude-opus-4-1",
+  "claude-opus-4",
+  "claude-3-7-sonnet",
+  "claude-3-5-sonnet-latest",
+  "claude-3-5-haiku-latest",
+]
+
+const FALLBACK_ZAI_MODELS = [
+  "glm-5",
+  "glm-4.7",
+  "glm-4.6",
+  "glm-4.6v",
+  "glm-4.5",
+  "glm-4.5v",
+  "glm-4-32b-0414-128k",
+]
+
 const DB_NAME = "agent1c-db"
 const DB_VERSION = 1
 const ONBOARDING_KEY = "agent1c_onboarding_complete_v1"
@@ -198,8 +216,10 @@ const previewProviderState = {
   editor: "openai",
   openaiValidated: true,
   anthropicKey: "",
+  anthropicModel: "claude-opus-4-1",
   anthropicValidated: false,
   zaiKey: "",
+  zaiModel: "glm-5",
   zaiValidated: false,
   ollamaBaseUrl: "http://localhost:11434",
   ollamaValidated: false,
@@ -217,8 +237,10 @@ function loadPreviewProviderState(){
     previewProviderState.editor = ["openai", "anthropic", "zai", "ollama"].includes(parsed.editor) ? parsed.editor : previewProviderState.active
     previewProviderState.openaiValidated = parsed.openaiValidated !== false
     previewProviderState.anthropicKey = String(parsed.anthropicKey || "")
+    previewProviderState.anthropicModel = String(parsed.anthropicModel || previewProviderState.anthropicModel)
     previewProviderState.anthropicValidated = Boolean(parsed.anthropicValidated)
     previewProviderState.zaiKey = String(parsed.zaiKey || "")
+    previewProviderState.zaiModel = String(parsed.zaiModel || previewProviderState.zaiModel)
     previewProviderState.zaiValidated = Boolean(parsed.zaiValidated)
     previewProviderState.ollamaBaseUrl = String(parsed.ollamaBaseUrl || previewProviderState.ollamaBaseUrl)
     previewProviderState.ollamaValidated = Boolean(parsed.ollamaValidated)
@@ -236,7 +258,11 @@ function refreshProviderPreviewUi(){
   const editor = previewProviderState.editor
   if (els.aiActiveProviderSelect) els.aiActiveProviderSelect.value = active
   if (els.anthropicKeyInput) els.anthropicKeyInput.value = previewProviderState.anthropicKey
+  if (els.anthropicModelInput) els.anthropicModelInput.value = previewProviderState.anthropicModel
+  if (els.anthropicModelStored) els.anthropicModelStored.value = previewProviderState.anthropicModel
   if (els.zaiKeyInput) els.zaiKeyInput.value = previewProviderState.zaiKey
+  if (els.zaiModelInput) els.zaiModelInput.value = previewProviderState.zaiModel
+  if (els.zaiModelStored) els.zaiModelStored.value = previewProviderState.zaiModel
   if (els.ollamaBaseUrlInput) els.ollamaBaseUrlInput.value = previewProviderState.ollamaBaseUrl
   if (els.providerCardOpenai) els.providerCardOpenai.classList.toggle("active", editor === "openai")
   if (els.providerCardAnthropic) els.providerCardAnthropic.classList.toggle("active", editor === "anthropic")
@@ -266,6 +292,10 @@ function getSelectedModelValue(){
 function syncModelSelectors(value){
   if (els.modelInput && els.modelInput.value !== value) els.modelInput.value = value
   if (els.modelInputEdit && els.modelInputEdit.value !== value) els.modelInputEdit.value = value
+}
+
+function renderModelOptions(list){
+  return list.map(id => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`).join("")
 }
 
 function escapeHtml(value){
@@ -1683,7 +1713,11 @@ function refreshUi(){
   if (els.telegramTokenInput) els.telegramTokenInput.disabled = !canUse
   if (els.aiActiveProviderSelect) els.aiActiveProviderSelect.disabled = !canUse
   if (els.anthropicKeyInput) els.anthropicKeyInput.disabled = !canUse
+  if (els.anthropicModelInput) els.anthropicModelInput.disabled = !canUse
+  if (els.anthropicModelStored) els.anthropicModelStored.disabled = !canUse
   if (els.zaiKeyInput) els.zaiKeyInput.disabled = !canUse
+  if (els.zaiModelInput) els.zaiModelInput.disabled = !canUse
+  if (els.zaiModelStored) els.zaiModelStored.disabled = !canUse
   if (els.ollamaBaseUrlInput) els.ollamaBaseUrlInput.disabled = !canUse
   if (els.anthropicSavePreviewBtn) els.anthropicSavePreviewBtn.disabled = !canUse
   if (els.anthropicEditBtn) els.anthropicEditBtn.disabled = !canUse
@@ -1859,30 +1893,46 @@ function openAiWindowHtml(){
           <div id="anthropicStoredRow" class="agent-row agent-hidden">
             <span class="agent-note">Anthropic API Key Stored (Preview)</span>
             <button id="anthropicEditBtn" class="btn agent-icon-btn" type="button" aria-label="Edit Anthropic key">✎</button>
+            <label class="agent-inline-mini">
+              <span>Model</span>
+              <select id="anthropicModelStored" class="field">${renderModelOptions(FALLBACK_ANTHROPIC_MODELS)}</select>
+            </label>
           </div>
           <div id="anthropicControls">
-          <label class="agent-form-label">
-            <span>Anthropic API key</span>
-            <div class="agent-inline-key">
-              <input id="anthropicKeyInput" class="field" type="password" placeholder="sk-ant-..." />
-              <button id="anthropicSavePreviewBtn" class="btn agent-inline-key-btn" type="button" aria-label="Test Anthropic key">></button>
+            <div class="agent-row agent-wrap-row">
+              <span class="agent-note">Anthropic API key</span>
+              <div class="agent-inline-key agent-inline-key-wide">
+                <input id="anthropicKeyInput" class="field" type="password" placeholder="sk-ant-..." />
+                <button id="anthropicSavePreviewBtn" class="btn agent-inline-key-btn" type="button" aria-label="Test Anthropic key">></button>
+              </div>
+              <label class="agent-inline-mini">
+                <span>Model</span>
+                <select id="anthropicModelInput" class="field">${renderModelOptions(FALLBACK_ANTHROPIC_MODELS)}</select>
+              </label>
             </div>
-          </label>
           </div>
         </div>
         <div id="providerSectionZai" class="agent-provider-section agent-hidden">
           <div id="zaiStoredRow" class="agent-row agent-hidden">
             <span class="agent-note">z.ai API Key Stored (Preview)</span>
             <button id="zaiEditBtn" class="btn agent-icon-btn" type="button" aria-label="Edit z.ai key">✎</button>
+            <label class="agent-inline-mini">
+              <span>Model</span>
+              <select id="zaiModelStored" class="field">${renderModelOptions(FALLBACK_ZAI_MODELS)}</select>
+            </label>
           </div>
           <div id="zaiControls">
-          <label class="agent-form-label">
-            <span>z.ai API key</span>
-            <div class="agent-inline-key">
-              <input id="zaiKeyInput" class="field" type="password" placeholder="zai-..." />
-              <button id="zaiSavePreviewBtn" class="btn agent-inline-key-btn" type="button" aria-label="Test z.ai key">></button>
+            <div class="agent-row agent-wrap-row">
+              <span class="agent-note">z.ai API key</span>
+              <div class="agent-inline-key agent-inline-key-wide">
+                <input id="zaiKeyInput" class="field" type="password" placeholder="zai-..." />
+                <button id="zaiSavePreviewBtn" class="btn agent-inline-key-btn" type="button" aria-label="Test z.ai key">></button>
+              </div>
+              <label class="agent-inline-mini">
+                <span>Model</span>
+                <select id="zaiModelInput" class="field">${renderModelOptions(FALLBACK_ZAI_MODELS)}</select>
+              </label>
             </div>
-          </label>
           </div>
         </div>
         <div id="providerSectionOllama" class="agent-provider-section agent-hidden">
@@ -1906,8 +1956,8 @@ function openAiWindowHtml(){
         </label>
       </div>
       <div id="openaiControls">
-        <form id="openaiForm" class="agent-row agent-wrap-row">
-          <span class="agent-note">OpenAI API Key <span id="openaiBadge" class="agent-badge warn">Missing key</span></span>
+        <form id="openaiForm" class="agent-row agent-row-tight">
+          <span class="agent-note">OpenAI key <span id="openaiBadge" class="agent-badge warn">Missing</span></span>
           <div class="agent-inline-key agent-inline-key-wide">
             <input id="openaiKeyInput" class="field" type="password" placeholder="sk-..." required />
             <button id="openaiSaveBtn" class="btn agent-inline-key-btn" type="submit" aria-label="Save OpenAI key">></button>
@@ -2066,11 +2116,15 @@ function cacheElements(){
     anthropicStoredRow: byId("anthropicStoredRow"),
     anthropicControls: byId("anthropicControls"),
     anthropicKeyInput: byId("anthropicKeyInput"),
+    anthropicModelInput: byId("anthropicModelInput"),
+    anthropicModelStored: byId("anthropicModelStored"),
     anthropicSavePreviewBtn: byId("anthropicSavePreviewBtn"),
     anthropicEditBtn: byId("anthropicEditBtn"),
     zaiStoredRow: byId("zaiStoredRow"),
     zaiControls: byId("zaiControls"),
     zaiKeyInput: byId("zaiKeyInput"),
+    zaiModelInput: byId("zaiModelInput"),
+    zaiModelStored: byId("zaiModelStored"),
     zaiSavePreviewBtn: byId("zaiSavePreviewBtn"),
     zaiEditBtn: byId("zaiEditBtn"),
     ollamaBaseUrlInput: byId("ollamaBaseUrlInput"),
@@ -2400,7 +2454,7 @@ function wireProviderPreviewDom(){
     persistPreviewProviderState()
     refreshProviderPreviewUi()
     await addEvent("provider_preview_saved", "Anthropic key tested (preview validation accepted).")
-    setStatus("Anthropic key tested. Active provider switched to anthropic.")
+    setStatus(`Anthropic key tested. Active provider switched to anthropic (${previewProviderState.anthropicModel}).`)
   })
   els.anthropicEditBtn?.addEventListener("click", () => {
     anthropicEditing = true
@@ -2416,13 +2470,46 @@ function wireProviderPreviewDom(){
     persistPreviewProviderState()
     refreshProviderPreviewUi()
     await addEvent("provider_preview_saved", "z.ai key tested (preview validation accepted).")
-    setStatus("z.ai key tested. Active provider switched to z.ai.")
+    setStatus(`z.ai key tested. Active provider switched to z.ai (${previewProviderState.zaiModel}).`)
   })
   els.zaiEditBtn?.addEventListener("click", () => {
     zaiEditing = true
     setPreviewProviderEditor("zai")
     els.zaiKeyInput?.focus()
   })
+
+  const syncAnthropicModel = () => {
+    const chosen = String(els.anthropicModelInput?.value || els.anthropicModelStored?.value || previewProviderState.anthropicModel).trim()
+    previewProviderState.anthropicModel = chosen || FALLBACK_ANTHROPIC_MODELS[0]
+    if (els.anthropicModelInput) els.anthropicModelInput.value = previewProviderState.anthropicModel
+    if (els.anthropicModelStored) els.anthropicModelStored.value = previewProviderState.anthropicModel
+    persistPreviewProviderState()
+  }
+  const syncZaiModel = () => {
+    const chosen = String(els.zaiModelInput?.value || els.zaiModelStored?.value || previewProviderState.zaiModel).trim()
+    previewProviderState.zaiModel = chosen || FALLBACK_ZAI_MODELS[0]
+    if (els.zaiModelInput) els.zaiModelInput.value = previewProviderState.zaiModel
+    if (els.zaiModelStored) els.zaiModelStored.value = previewProviderState.zaiModel
+    persistPreviewProviderState()
+  }
+  els.anthropicModelInput?.addEventListener("change", () => {
+    syncAnthropicModel()
+    setStatus(`Anthropic model saved: ${previewProviderState.anthropicModel}.`)
+  })
+  els.anthropicModelStored?.addEventListener("change", () => {
+    syncAnthropicModel()
+    setStatus(`Anthropic model saved: ${previewProviderState.anthropicModel}.`)
+  })
+  els.zaiModelInput?.addEventListener("change", () => {
+    syncZaiModel()
+    setStatus(`z.ai model saved: ${previewProviderState.zaiModel}.`)
+  })
+  els.zaiModelStored?.addEventListener("change", () => {
+    syncZaiModel()
+    setStatus(`z.ai model saved: ${previewProviderState.zaiModel}.`)
+  })
+  syncAnthropicModel()
+  syncZaiModel()
 
   els.ollamaSavePreviewBtn?.addEventListener("click", async () => {
     previewProviderState.ollamaBaseUrl = String(els.ollamaBaseUrlInput?.value || "").trim() || "http://localhost:11434"
