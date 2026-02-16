@@ -2121,7 +2121,7 @@ function openAiWindowHtml(){
           <label class="agent-form-label">
             <span>Active provider</span>
             <select id="aiActiveProviderSelect" class="field">
-              <option value="openai">OpenAI (wired)</option>
+              <option value="openai">OpenAI</option>
               <option value="anthropic">Anthropic</option>
               <option value="xai">xAI (Grok)</option>
               <option value="zai">z.ai</option>

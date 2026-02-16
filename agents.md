@@ -512,3 +512,81 @@ Deployment pattern used:
 - Arrange while tiled performs untile+arrange.
 - Vault lock protects key access but does not terminate loop intent.
 - Heartbeat runs on configured loop schedule; no implicit away/presence gating unless explicitly requested.
+
+---
+
+## 17) Provider Integration Record: xAI (Grok)
+
+What was implemented for xAI:
+- Added xAI as a first-class provider in `AI APIs`, positioned directly below Anthropic.
+- Added active-provider selector option for xAI.
+- Added encrypted vault key save + immediate validation flow for xAI.
+- Added per-provider model persistence for xAI.
+- Added runtime routing so local chat, heartbeat, and Telegram replies use xAI when xAI is active.
+- Added badge/pill status updates and lock-state disable handling for xAI controls.
+- Added onboarding key checks to include xAI as a valid AI-provider unlock path.
+
+Runtime endpoint and auth:
+- Base URL: `https://api.x.ai/v1`
+- Chat endpoint: `/chat/completions`
+- Auth header: `Authorization: Bearer <xai_key>`
+- Parsing model: OpenAI-compatible `choices[0].message.content`.
+
+Fallback model list used in UI:
+- `grok-4`
+- `grok-3`
+- `grok-3-mini`
+
+Primary code touchpoints used (pattern to reuse for future providers):
+- Provider constants and fallback model IDs:
+  - `FALLBACK_*_MODELS`
+- Preview/provider state:
+  - `previewProviderState.{provider}Key`
+  - `previewProviderState.{provider}Model`
+  - `previewProviderState.{provider}Validated`
+  - `loadPreviewProviderState()` / `persistPreviewProviderState()`
+- Provider UI state rendering:
+  - `refreshProviderPreviewUi()`
+- Provider API function:
+  - `{provider}Chat(...)`
+- Provider routing and naming:
+  - `normalizeProvider(...)`
+  - `activeProviderModel(...)`
+  - `providerDisplayName(...)`
+  - `resolveActiveProviderRuntime(...)`
+  - `providerHasKey(...)`
+  - `providerChat(...)`
+- Provider validation:
+  - `test{Provider}Key(...)`
+  - `validateProviderKey(...)`
+- UX/wiring:
+  - `openAiWindowHtml()` provider card markup
+  - `cacheElements()` IDs
+  - `refreshBadges()` pills and badges
+  - `refreshUi()` disable/enable on lock
+  - `wireProviderPreviewDom()` save/edit/model handlers
+- Onboarding/global key checks:
+  - `hasAnyAiProviderKey()`
+
+Future-provider integration checklist (do this in order):
+1. Add fallback model IDs and provider state fields.
+2. Add provider card UI and DOM IDs.
+3. Implement provider API call helper (`{provider}Chat`).
+4. Implement provider key test (`test{Provider}Key`) and validation branch.
+5. Include provider in all provider normalization/runtime/key checks.
+6. Add save/edit/model handlers in `wireProviderPreviewDom()`.
+7. Add provider badge/pill updates in `refreshBadges()`.
+8. Add lock-state disable rules in `refreshUi()`.
+9. Include provider in `hasAnyAiProviderKey()` so onboarding gates work.
+10. Confirm wording has no stale `Preview`/`Test` labels once wired.
+11. Run full regression path:
+   - lock/unlock
+   - onboarding gate
+   - local chat reply
+   - heartbeat reply
+   - Telegram reply
+
+Guardrails:
+- Keep provider integration inside `js/agent1c.js` unless absolutely required elsewhere.
+- Do not alter HedgeyOS core WM/theme behavior for provider work.
+- Avoid speculative UX rewrites; keep provider rows/cards behavior consistent.
