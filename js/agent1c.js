@@ -2338,8 +2338,6 @@ function wireUnlockDom(){
 function setPreviewProviderEditor(provider){
   if (!["openai", "anthropic", "zai", "ollama"].includes(provider)) return
   previewProviderState.editor = provider
-  if (provider === "anthropic") anthropicEditing = true
-  if (provider === "zai") zaiEditing = true
   persistPreviewProviderState()
   refreshProviderPreviewUi()
 }
