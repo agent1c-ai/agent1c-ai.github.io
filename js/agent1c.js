@@ -2481,6 +2481,28 @@ function wireOllamaSetupWindowDom(winObj){
   const root = winObj?.panelRoot
   if (!root) return
 
+  const setDevice = (device) => {
+    const current = String(device || "").trim().toLowerCase()
+    root.querySelectorAll("[data-device-tab]").forEach(btn => {
+      const target = String(btn.getAttribute("data-device-tab") || "").trim().toLowerCase()
+      const isActive = target === current
+      btn.classList.toggle("active", isActive)
+      btn.setAttribute("aria-selected", isActive ? "true" : "false")
+    })
+    root.querySelectorAll("[data-device-panel]").forEach(panel => {
+      const target = String(panel.getAttribute("data-device-panel") || "").trim().toLowerCase()
+      panel.classList.toggle("agent-hidden", target !== current)
+    })
+  }
+
+  root.querySelectorAll("[data-device-tab]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const target = String(btn.getAttribute("data-device-tab") || "").trim()
+      if (!target) return
+      setDevice(target)
+    })
+  })
+
   root.querySelectorAll("[data-copy-target]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const targetId = btn.getAttribute("data-copy-target")
@@ -2498,6 +2520,11 @@ function wireOllamaSetupWindowDom(winObj){
       window.open(url, "_blank", "noopener,noreferrer")
     })
   })
+
+  const ua = String(navigator.userAgent || "").toLowerCase()
+  if (ua.includes("android")) setDevice("android")
+  else if (ua.includes("mac os x") || ua.includes("macintosh")) setDevice("mac")
+  else setDevice("linux")
 }
 
 function openOllamaSetupWindow(){
@@ -2774,68 +2801,124 @@ function openAiWindowHtml(){
 function ollamaSetupWindowHtml(){
   return `
     <div class="agent-stack agent-setup-stack">
-      <div class="agent-note"><strong>Hi, I am Hitomi.</strong> I am your tiny hedgehog friend, and I will help you set up Ollama step by step.</div>
-
-      <div class="agent-setup-section">
-        <div class="agent-setup-title">1) Install Ollama</div>
-        <div class="agent-note">Install Ollama from the official website, then come back here.</div>
-        <div class="agent-row">
-          <button class="btn" type="button" data-open-url="https://ollama.com/download">Open Ollama Download Page</button>
-        </div>
-        <div class="agent-note">Linux quick install:</div>
-        <pre id="ollamaSetupInstallLinux" class="agent-setup-code">curl -fsSL https://ollama.com/install.sh | sh</pre>
-        <div class="agent-row">
-          <button class="btn" type="button" data-copy-target="ollamaSetupInstallLinux">Copy</button>
-        </div>
+      <div class="agent-setup-intro">
+        <div class="agent-setup-title">Ollama Setup Guide</div>
+        <div class="agent-note"><strong>Hi, I am Hitomi.</strong> Pick your device and I will walk you through setup with copy-ready commands.</div>
+      </div>
+      <div class="agent-device-tabs" role="tablist" aria-label="Device selector">
+        <button class="btn agent-device-tab" type="button" data-device-tab="linux" aria-selected="false">Linux</button>
+        <button class="btn agent-device-tab" type="button" data-device-tab="mac" aria-selected="false">macOS</button>
+        <button class="btn agent-device-tab" type="button" data-device-tab="android" aria-selected="false">Android</button>
       </div>
 
-      <div class="agent-setup-section">
-        <div class="agent-setup-title">2) Start Ollama and Pull a Model</div>
-        <div class="agent-note">Start the local server and install at least one model.</div>
-        <pre id="ollamaSetupStart" class="agent-setup-code">ollama serve</pre>
-        <div class="agent-row">
-          <button class="btn" type="button" data-copy-target="ollamaSetupStart">Copy</button>
+      <div class="agent-device-panel agent-hidden" data-device-panel="linux">
+        <div class="agent-setup-section">
+          <div class="agent-setup-title">Step 1: Install Ollama</div>
+          <div class="agent-row">
+            <button class="btn" type="button" data-open-url="https://ollama.com/download/linux">Open Linux Download</button>
+          </div>
+          <div class="agent-code-card">
+            <div class="agent-code-head"><span class="agent-code-label">Install command</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupInstallLinux">Copy</button></div>
+            <pre id="ollamaSetupInstallLinux" class="agent-setup-code"><code>curl -fsSL https://ollama.com/install.sh | sh</code></pre>
+          </div>
         </div>
-        <pre id="ollamaSetupPull" class="agent-setup-code">ollama pull llama3.2:3b</pre>
-        <div class="agent-row">
-          <button class="btn" type="button" data-copy-target="ollamaSetupPull">Copy</button>
+        <div class="agent-setup-section">
+          <div class="agent-setup-title">Step 2: Start and pull model</div>
+          <div class="agent-code-card">
+            <div class="agent-code-head"><span class="agent-code-label">Start server</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupStartLinux">Copy</button></div>
+            <pre id="ollamaSetupStartLinux" class="agent-setup-code"><code>ollama serve</code></pre>
+          </div>
+          <div class="agent-code-card">
+            <div class="agent-code-head"><span class="agent-code-label">Pull small model</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupPullLinux">Copy</button></div>
+            <pre id="ollamaSetupPullLinux" class="agent-setup-code"><code>ollama pull qwen2.5:0.5b</code></pre>
+          </div>
+          <div class="agent-code-card">
+            <div class="agent-code-head"><span class="agent-code-label">Verify models</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupTagsLinux">Copy</button></div>
+            <pre id="ollamaSetupTagsLinux" class="agent-setup-code"><code>curl http://127.0.0.1:11434/api/tags</code></pre>
+          </div>
         </div>
-        <pre id="ollamaSetupTags" class="agent-setup-code">curl http://127.0.0.1:11434/api/tags</pre>
-        <div class="agent-row">
-          <button class="btn" type="button" data-copy-target="ollamaSetupTags">Copy</button>
-        </div>
-      </div>
-
-      <div class="agent-setup-section">
-        <div class="agent-setup-title">3) Allow Browser Access (CORS)</div>
-        <div class="agent-note">Agent1c runs in your browser, so Ollama must allow origin access for this domain.</div>
-        <div class="agent-note"><strong>Linux (systemd)</strong></div>
-        <pre id="ollamaSetupLinuxEdit" class="agent-setup-code">sudo systemctl edit ollama.service</pre>
-        <div class="agent-row">
-          <button class="btn" type="button" data-copy-target="ollamaSetupLinuxEdit">Copy</button>
-        </div>
-        <pre id="ollamaSetupLinuxEnv" class="agent-setup-code">[Service]
+        <div class="agent-setup-section">
+          <div class="agent-setup-title">Step 3: Allow browser CORS</div>
+          <div class="agent-code-card">
+            <div class="agent-code-head"><span class="agent-code-label">Edit systemd service</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupLinuxEdit">Copy</button></div>
+            <pre id="ollamaSetupLinuxEdit" class="agent-setup-code"><code>sudo systemctl edit ollama.service</code></pre>
+          </div>
+          <div class="agent-code-card">
+            <div class="agent-code-head"><span class="agent-code-label">Add environment block</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupLinuxEnv">Copy</button></div>
+            <pre id="ollamaSetupLinuxEnv" class="agent-setup-code"><code>[Service]
 Environment="OLLAMA_ORIGINS=https://agent1c.me,https://www.agent1c.me,http://localhost:8000,http://127.0.0.1:8000"
-Environment="OLLAMA_HOST=127.0.0.1:11434"</pre>
-        <div class="agent-row">
-          <button class="btn" type="button" data-copy-target="ollamaSetupLinuxEnv">Copy</button>
+Environment="OLLAMA_HOST=127.0.0.1:11434"</code></pre>
+          </div>
+          <div class="agent-code-card">
+            <div class="agent-code-head"><span class="agent-code-label">Reload + restart</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupLinuxRestart">Copy</button></div>
+            <pre id="ollamaSetupLinuxRestart" class="agent-setup-code"><code>sudo systemctl daemon-reload
+sudo systemctl restart ollama</code></pre>
+          </div>
         </div>
-        <pre id="ollamaSetupLinuxRestart" class="agent-setup-code">sudo systemctl daemon-reload
-sudo systemctl restart ollama</pre>
-        <div class="agent-row">
-          <button class="btn" type="button" data-copy-target="ollamaSetupLinuxRestart">Copy</button>
+      </div>
+
+      <div class="agent-device-panel agent-hidden" data-device-panel="mac">
+        <div class="agent-setup-section">
+          <div class="agent-setup-title">Step 1: Install Ollama</div>
+          <div class="agent-row">
+            <button class="btn" type="button" data-open-url="https://ollama.com/download/mac">Open macOS Download</button>
+          </div>
         </div>
-        <div class="agent-note"><strong>macOS (Ollama app)</strong></div>
-        <pre id="ollamaSetupMacEnv" class="agent-setup-code">launchctl setenv OLLAMA_ORIGINS "https://agent1c.me,https://www.agent1c.me,http://localhost:8000,http://127.0.0.1:8000"
-launchctl setenv OLLAMA_HOST "127.0.0.1:11434"</pre>
-        <div class="agent-row">
-          <button class="btn" type="button" data-copy-target="ollamaSetupMacEnv">Copy</button>
+        <div class="agent-setup-section">
+          <div class="agent-setup-title">Step 2: Start and pull model</div>
+          <div class="agent-note">Open Terminal and run:</div>
+          <div class="agent-code-card">
+            <div class="agent-code-head"><span class="agent-code-label">Pull small model</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupPullMac">Copy</button></div>
+            <pre id="ollamaSetupPullMac" class="agent-setup-code"><code>ollama pull qwen2.5:0.5b</code></pre>
+          </div>
+          <div class="agent-code-card">
+            <div class="agent-code-head"><span class="agent-code-label">Verify models</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupTagsMac">Copy</button></div>
+            <pre id="ollamaSetupTagsMac" class="agent-setup-code"><code>curl http://127.0.0.1:11434/api/tags</code></pre>
+          </div>
         </div>
-        <div class="agent-note">After this, quit and reopen the Ollama app.</div>
+        <div class="agent-setup-section">
+          <div class="agent-setup-title">Step 3: Allow browser CORS</div>
+          <div class="agent-code-card">
+            <div class="agent-code-head"><span class="agent-code-label">Set launchctl env vars</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupMacEnv">Copy</button></div>
+            <pre id="ollamaSetupMacEnv" class="agent-setup-code"><code>launchctl setenv OLLAMA_ORIGINS "https://agent1c.me,https://www.agent1c.me,http://localhost:8000,http://127.0.0.1:8000"
+launchctl setenv OLLAMA_HOST "127.0.0.1:11434"</code></pre>
+          </div>
+          <div class="agent-note">Then quit and reopen the Ollama app.</div>
+        </div>
+      </div>
+
+      <div class="agent-device-panel agent-hidden" data-device-panel="android">
+        <div class="agent-setup-section">
+          <div class="agent-setup-title">Step 0: Install Termux (from F-Droid)</div>
+          <div class="agent-note">Install Termux from F-Droid first for best compatibility.</div>
+          <div class="agent-row">
+            <button class="btn" type="button" data-open-url="https://f-droid.org/packages/com.termux/">Open Termux on F-Droid</button>
+          </div>
+        </div>
+        <div class="agent-setup-section">
+          <div class="agent-setup-title">Step 1: Install and run Ollama in Termux</div>
+          <div class="agent-code-card">
+            <div class="agent-code-head"><span class="agent-code-label">Install basics</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupAndroidPrep">Copy</button></div>
+            <pre id="ollamaSetupAndroidPrep" class="agent-setup-code"><code>pkg update && pkg upgrade -y
+pkg install curl -y</code></pre>
+          </div>
+          <div class="agent-code-card">
+            <div class="agent-code-head"><span class="agent-code-label">Start server</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupAndroidStart">Copy</button></div>
+            <pre id="ollamaSetupAndroidStart" class="agent-setup-code"><code>ollama serve</code></pre>
+          </div>
+          <div class="agent-code-card">
+            <div class="agent-code-head"><span class="agent-code-label">Pull small model</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupAndroidPull">Copy</button></div>
+            <pre id="ollamaSetupAndroidPull" class="agent-setup-code"><code>ollama pull qwen2.5:0.5b</code></pre>
+          </div>
+        </div>
+        <div class="agent-setup-section">
+          <div class="agent-setup-title">Step 2: Configure Agent1c</div>
+          <div class="agent-note">In AI APIs, set Ollama URL to your local endpoint and model to <code>qwen2.5:0.5b</code>, then save.</div>
+        </div>
       </div>
 
       <div class="agent-setup-section">
-        <div class="agent-setup-title">4) Verify in Agent1c</div>
+        <div class="agent-setup-title">Final step in Agent1c</div>
         <div class="agent-note">Back in AI APIs, set Ollama URL to <code>http://127.0.0.1:11434</code>, set your model, then save/test.</div>
       </div>
     </div>

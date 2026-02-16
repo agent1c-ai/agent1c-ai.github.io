@@ -1807,27 +1807,79 @@
   overflow: auto;
   min-height: 0;
   padding-right: 2px;
+  gap: 8px;
+}
+.agent-setup-intro{
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.36);
+  padding: 8px;
+  display: grid;
+  gap: 4px;
+}
+.agent-device-tabs{
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.agent-device-tab{
+  min-width: 84px;
+}
+.agent-device-tab.active{
+  background: #dbe8ff;
+  border-color: #4069b3;
+}
+.agent-device-panel{
+  display: grid;
+  gap: 8px;
 }
 .agent-setup-section{
   border: 1px solid var(--line);
-  background: rgba(255,255,255,0.28);
-  padding: 6px;
+  background: rgba(255,255,255,0.38);
+  padding: 8px;
   display: grid;
-  gap: 5px;
+  gap: 7px;
 }
 .agent-setup-title{
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
+}
+.agent-code-card{
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.55);
+}
+.agent-code-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid rgba(0,0,0,0.12);
+  padding: 4px 6px;
+  background: rgba(0,0,0,0.04);
+}
+.agent-code-label{
+  font-size: 10px;
+  text-transform: uppercase;
+  opacity: 0.88;
+  letter-spacing: 0.2px;
+}
+.agent-copy-btn{
+  min-width: 42px;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 10px;
+  line-height: 1.1;
 }
 .agent-setup-code{
   margin: 0;
-  border: 1px solid var(--line);
-  background: rgba(255,255,255,0.45);
-  padding: 6px;
+  border: 0;
+  background: #f6f1de;
+  padding: 8px;
   font-size: 11px;
-  line-height: 1.28;
-  white-space: pre-wrap;
-  word-break: break-word;
+  line-height: 1.35;
+  white-space: pre;
+  overflow-x: auto;
+  overflow-y: hidden;
+  font-family: "Monaco", "Consolas", "Courier New", monospace;
 }
 .agent-meta-row{
   display: flex;
@@ -2057,6 +2109,27 @@ body.dark .agent-provider-section{
 }
 body.dark .agent-provider-inline{
   border-top-color: #555d6b;
+}
+body.dark .agent-setup-intro,
+body.dark .agent-setup-section{
+  background: #161b25;
+  border-color: #555d6b;
+}
+body.dark .agent-device-tab.active{
+  background: #2a3a56;
+  border-color: #89a7df;
+}
+body.dark .agent-code-card{
+  background: #1d2430;
+  border-color: #5d6678;
+}
+body.dark .agent-code-head{
+  background: #273146;
+  border-bottom-color: #5d6678;
+}
+body.dark .agent-setup-code{
+  background: #121720;
+  color: #e9edf7;
 }
 body.dark .clippy-bubble{
   background: #1f2530;
