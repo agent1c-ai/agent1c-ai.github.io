@@ -61,6 +61,9 @@ const DEFAULT_TOOLS = `# TOOLS.md
 Tool call format:
 - Use inline token format: {{tool:list_files}}
 - For reading one file use: {{tool:read_file|name=example.txt}}
+- For Wikipedia search use: {{tool:wiki_search|query=hedgehog}}
+- For Wikipedia summary use: {{tool:wiki_summary|title=Hedgehog}}
+- For GitHub public reads use: {{tool:github_repo_read|request=owner/repo issue 123}}
 - Do not use JSON unless explicitly asked by the user.
 - Emit tool tokens only when needed to answer the user.
 - After tool results are returned, answer naturally for the user.
@@ -77,6 +80,29 @@ Parameters:
 Description: Returns text content for text files. For large files returns head/tail excerpt.
 Use when: User asks to open, inspect, summarize, or extract data from a specific file.
 
+3. wiki_search
+Parameters:
+- query: topic or phrase
+Description: Searches Wikipedia titles and snippets.
+Use when: User asks factual questions and you need source grounding.
+
+4. wiki_summary
+Parameters:
+- title: exact or likely page title
+Description: Fetches a concise summary for one Wikipedia page.
+Use when: User asks for explanation/background on a topic.
+
+5. github_repo_read
+Parameters:
+- request: natural text (repo/path/issue/pr)
+- repo: owner/repo (optional structured override)
+- path: file path (optional)
+- issue: issue number (optional)
+- pr: pull request number (optional)
+- branch: ref name (optional)
+Description: Reads public GitHub repo metadata, issues, PRs, and file contents.
+Use when: User asks about public GitHub repos, files, issues, or pull requests.
+
 Policy:
 - You can access local files via these tools. Do not claim you cannot access files without trying the tools first.
 - Use list_files when you need current file inventory to answer a user request.
@@ -84,6 +110,8 @@ Policy:
 - Use list_files only when file target is unclear or lookup fails.
 - Do not narrate "I will read/open now" without emitting the tool call in the same reply.
 - Do not claim file contents were read unless a TOOL_RESULT read_file was returned.
+- If user asks factual web context, prefer Wikipedia tools before guessing.
+- If user asks GitHub repo/file/issue/PR questions, use github_repo_read before claiming details.
 `
 
 const FALLBACK_OPENAI_MODELS = [
@@ -1048,6 +1076,165 @@ async function readFileForModel(file){
   return `TOOL_RESULT read_file (${fileLabel}): non-text file. Returning sampled base64 bytes.\n[HEAD_BASE64]\n${headB64}\n[...]\n[TAIL_BASE64]\n${tailB64}`
 }
 
+function excerptForToolText(text, maxChars = 6000){
+  const full = String(text || "")
+  if (full.length <= maxChars) return full
+  const head = full.slice(0, 3500)
+  const tail = full.slice(-1800)
+  return `${head}\n[...]\n${tail}`
+}
+
+async function wikiSearchTool(query){
+  const q = String(query || "").trim()
+  if (!q) return "TOOL_RESULT wiki_search: missing query"
+  const url = `https://en.wikipedia.org/w/rest.php/v1/search/title?q=${encodeURIComponent(q)}&limit=5`
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+    },
+  })
+  if (!response.ok) return `TOOL_RESULT wiki_search: request failed (${response.status})`
+  const json = await response.json().catch(() => null)
+  const pages = Array.isArray(json?.pages) ? json.pages : []
+  if (!pages.length) return `TOOL_RESULT wiki_search (${q}): no results`
+  const rows = pages.slice(0, 5).map((page, i) => {
+    const title = String(page?.title || "untitled")
+    const desc = String(page?.description || page?.excerpt || "").replace(/<[^>]+>/g, "").trim()
+    return `${i + 1}. ${title}${desc ? ` - ${desc}` : ""}`
+  })
+  return `TOOL_RESULT wiki_search (${q}):\n${rows.join("\n")}`
+}
+
+async function wikiSummaryTool(title){
+  const t = String(title || "").trim()
+  if (!t) return "TOOL_RESULT wiki_summary: missing title"
+  const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(t)}`
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+    },
+  })
+  if (!response.ok) return `TOOL_RESULT wiki_summary (${t}): request failed (${response.status})`
+  const json = await response.json().catch(() => null)
+  const resolvedTitle = String(json?.title || t)
+  const extract = String(json?.extract || "").trim()
+  const pageUrl = String(json?.content_urls?.desktop?.page || "")
+  if (!extract) return `TOOL_RESULT wiki_summary (${resolvedTitle}): no summary text`
+  const body = excerptForToolText(extract, 5000)
+  return `TOOL_RESULT wiki_summary (${resolvedTitle}):\n${body}${pageUrl ? `\nSource: ${pageUrl}` : ""}`
+}
+
+function parseRepoParts(text){
+  const source = String(text || "")
+  const match = source.match(/\b([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\b/)
+  if (!match) return null
+  return { owner: match[1], repo: match[2] }
+}
+
+function parseFirstNumberAfter(text, keyword){
+  const source = String(text || "")
+  const re = new RegExp(`\\b(?:${keyword})\\b\\s*#?\\s*(\\d+)\\b`, "i")
+  const match = source.match(re)
+  return match ? Number(match[1]) : null
+}
+
+function parsePathAfterKeyword(text, keyword){
+  const source = String(text || "")
+  const re = new RegExp(`\\b(?:${keyword})\\b\\s*[:=]?\\s*([^\\n]+)$`, "i")
+  const match = source.match(re)
+  if (!match) return ""
+  return String(match[1] || "").trim().replace(/^["']|["']$/g, "")
+}
+
+function fromBase64Utf8(value){
+  const raw = atob(String(value || ""))
+  const bytes = new Uint8Array(raw.length)
+  for (let i = 0; i < raw.length; i += 1) bytes[i] = raw.charCodeAt(i)
+  return new TextDecoder().decode(bytes)
+}
+
+async function githubGetJson(path){
+  const response = await fetch(`https://api.github.com${path}`, {
+    headers: {
+      Accept: "application/vnd.github+json",
+    },
+  })
+  const json = await response.json().catch(() => null)
+  if (!response.ok) {
+    const message = String(json?.message || "").trim()
+    return { ok: false, status: response.status, json, message }
+  }
+  return { ok: true, status: response.status, json }
+}
+
+async function githubRepoReadTool(args){
+  const request = String(args?.request || "").trim()
+  const repoArg = String(args?.repo || "").trim()
+  const pathArg = String(args?.path || "").trim()
+  const branchArg = String(args?.branch || "").trim()
+  const issueArg = String(args?.issue || "").trim()
+  const prArg = String(args?.pr || "").trim()
+  const merged = [request, repoArg, pathArg].filter(Boolean).join(" ")
+  const repoParts = repoArg ? parseRepoParts(repoArg) : parseRepoParts(merged)
+  if (!repoParts) {
+    const q = request || repoArg || pathArg
+    if (!q) return "TOOL_RESULT github_repo_read: missing request"
+    const search = await githubGetJson(`/search/repositories?q=${encodeURIComponent(q)}&per_page=5`)
+    if (!search.ok) return `TOOL_RESULT github_repo_read: search failed (${search.status})${search.message ? `: ${search.message}` : ""}`
+    const rows = (Array.isArray(search.json?.items) ? search.json.items : []).slice(0, 5).map((item, i) => {
+      const full = String(item?.full_name || "unknown/unknown")
+      const desc = String(item?.description || "").trim()
+      return `${i + 1}. ${full}${desc ? ` - ${desc}` : ""}`
+    })
+    return rows.length
+      ? `TOOL_RESULT github_repo_read search (${q}):\n${rows.join("\n")}`
+      : `TOOL_RESULT github_repo_read search (${q}): no repositories found`
+  }
+  const repoFull = `${repoParts.owner}/${repoParts.repo}`
+  const issueNum = issueArg ? Number(issueArg) : parseFirstNumberAfter(request, "issue")
+  const prNum = prArg ? Number(prArg) : parseFirstNumberAfter(request, "pr|pull request|pull")
+  const pathText = pathArg || parsePathAfterKeyword(request, "path|file")
+  if (issueNum) {
+    const issue = await githubGetJson(`/repos/${repoFull}/issues/${issueNum}`)
+    if (!issue.ok) return `TOOL_RESULT github_repo_read (${repoFull} issue ${issueNum}): failed (${issue.status})${issue.message ? `: ${issue.message}` : ""}`
+    const title = String(issue.json?.title || "")
+    const state = String(issue.json?.state || "")
+    const body = excerptForToolText(String(issue.json?.body || "").trim(), 4500)
+    return `TOOL_RESULT github_repo_read (${repoFull} issue ${issueNum}): ${title} [${state}]\n${body}`
+  }
+  if (prNum) {
+    const pr = await githubGetJson(`/repos/${repoFull}/pulls/${prNum}`)
+    if (!pr.ok) return `TOOL_RESULT github_repo_read (${repoFull} PR ${prNum}): failed (${pr.status})${pr.message ? `: ${pr.message}` : ""}`
+    const title = String(pr.json?.title || "")
+    const state = String(pr.json?.state || "")
+    const body = excerptForToolText(String(pr.json?.body || "").trim(), 4500)
+    return `TOOL_RESULT github_repo_read (${repoFull} PR ${prNum}): ${title} [${state}]\n${body}`
+  }
+  if (pathText) {
+    const refQuery = branchArg ? `?ref=${encodeURIComponent(branchArg)}` : ""
+    const content = await githubGetJson(`/repos/${repoFull}/contents/${encodeURIComponent(pathText).replaceAll("%2F", "/")}${refQuery}`)
+    if (!content.ok) return `TOOL_RESULT github_repo_read (${repoFull} path ${pathText}): failed (${content.status})${content.message ? `: ${content.message}` : ""}`
+    if (Array.isArray(content.json)) {
+      const rows = content.json.slice(0, 20).map((item, i) => `${i + 1}. ${String(item?.name || "")} | type=${String(item?.type || "unknown")}`)
+      return `TOOL_RESULT github_repo_read (${repoFull} path ${pathText}): directory listing\n${rows.join("\n")}`
+    }
+    const name = String(content.json?.name || pathText)
+    const kind = String(content.json?.type || "file")
+    const enc = String(content.json?.encoding || "")
+    const rawContent = enc === "base64" ? fromBase64Utf8(String(content.json?.content || "").replace(/\s+/g, "")) : String(content.json?.content || "")
+    const excerpt = excerptForToolText(rawContent, 7000)
+    return `TOOL_RESULT github_repo_read (${repoFull} path ${name}): type=${kind}\n${excerpt}`
+  }
+  const repo = await githubGetJson(`/repos/${repoFull}`)
+  if (!repo.ok) return `TOOL_RESULT github_repo_read (${repoFull}): failed (${repo.status})${repo.message ? `: ${repo.message}` : ""}`
+  const desc = String(repo.json?.description || "").trim()
+  const stars = Number(repo.json?.stargazers_count || 0)
+  const forks = Number(repo.json?.forks_count || 0)
+  const lang = String(repo.json?.language || "unknown")
+  const updated = String(repo.json?.updated_at || "")
+  return `TOOL_RESULT github_repo_read (${repoFull}):\nDescription: ${desc || "none"}\nStars: ${stars}\nForks: ${forks}\nLanguage: ${lang}\nUpdated: ${updated}`
+}
+
 async function maybeInjectAutoToolResults(messages){
   const text = latestUserText(messages).trim()
   if (!text) return []
@@ -1076,6 +1263,15 @@ async function runToolCall(call){
     const file = await findFileFromToolArgs(call.args || {})
     if (!file) return "TOOL_RESULT read_file: file not found. Run list_files and retry with exact name or id."
     return readFileForModel(file)
+  }
+  if (call.name === "wiki_search") {
+    return wikiSearchTool(call.args?.query || "")
+  }
+  if (call.name === "wiki_summary") {
+    return wikiSummaryTool(call.args?.title || "")
+  }
+  if (call.name === "github_repo_read") {
+    return githubRepoReadTool(call.args || {})
   }
   return `TOOL_RESULT ${call.name}: unsupported`
 }
