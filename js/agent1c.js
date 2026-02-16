@@ -2841,7 +2841,7 @@ function ollamaSetupWindowHtml(){
     <div class="agent-stack agent-setup-stack">
       <div class="agent-setup-intro">
         <div class="agent-setup-title">Ollama Setup Guide</div>
-        <div class="agent-note"><strong>Hi, I am Hitomi.</strong> Pick your device and I will walk you through setup with copy-ready commands.</div>
+        <div class="agent-note"><strong>Hi, I am Hitomi.</strong> First choose a model size preset, then pick your device. I will walk you through setup with copy-ready commands.</div>
         <div class="agent-setup-toolbar">
           <label class="agent-form-label">
             <span>Model size preset</span>
