@@ -557,6 +557,12 @@ async function readProviderKey(provider){
 const XAI_BASE_URL = "https://api.x.ai/v1"
 const ZAI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
 
+function normalizeOllamaBaseUrl(value){
+  const source = String(value || "").trim()
+  if (!source) return ""
+  return source.replace(/\/+$/, "")
+}
+
 async function openAiChat({ apiKey, model, temperature, systemPrompt, messages }){
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -648,6 +654,27 @@ async function zaiChat({ apiKey, model, temperature, systemPrompt, messages }){
   return String(text).trim()
 }
 
+async function ollamaChat({ baseUrl, model, temperature, systemPrompt, messages }){
+  const endpoint = `${normalizeOllamaBaseUrl(baseUrl)}/api/chat`
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      stream: false,
+      options: { temperature },
+      messages: [{ role: "system", content: systemPrompt }, ...messages.map(m => ({ role: m.role, content: m.content }))],
+    }),
+  })
+  if (!response.ok) throw new Error(`Ollama call failed (${response.status})`)
+  const json = await response.json()
+  const text = json?.message?.content
+  if (!text) throw new Error("Ollama returned no message.")
+  return String(text).trim()
+}
+
 function normalizeProvider(value){
   const provider = String(value || "").toLowerCase()
   return ["openai", "anthropic", "xai", "zai", "ollama"].includes(provider) ? provider : "openai"
@@ -679,6 +706,7 @@ async function resolveActiveProviderRuntime(){
     provider,
     model,
     apiKey: String(secretKey || "").trim(),
+    ollamaBaseUrl: normalizeOllamaBaseUrl(previewProviderState.ollamaBaseUrl),
     name: providerDisplayName(provider),
   }
 }
@@ -691,7 +719,7 @@ async function providerHasKey(provider){
   return Boolean(previewProviderState.ollamaValidated && String(previewProviderState.ollamaBaseUrl || "").trim())
 }
 
-async function providerChat({ provider, apiKey, model, temperature, systemPrompt, messages }){
+async function providerChat({ provider, apiKey, model, temperature, systemPrompt, messages, ollamaBaseUrl }){
   if (provider === "anthropic") {
     return anthropicChat({ apiKey, model, temperature, systemPrompt, messages })
   }
@@ -700,6 +728,9 @@ async function providerChat({ provider, apiKey, model, temperature, systemPrompt
   }
   if (provider === "zai") {
     return zaiChat({ apiKey, model, temperature, systemPrompt, messages })
+  }
+  if (provider === "ollama") {
+    return ollamaChat({ baseUrl: ollamaBaseUrl, model, temperature, systemPrompt, messages })
   }
   return openAiChat({ apiKey, model, temperature, systemPrompt, messages })
 }
@@ -923,7 +954,7 @@ async function runToolCall(call){
   return `TOOL_RESULT ${call.name}: unsupported`
 }
 
-async function providerChatWithTools({ provider, apiKey, model, temperature, messages }){
+async function providerChatWithTools({ provider, apiKey, model, temperature, messages, ollamaBaseUrl }){
   const working = (messages || []).map(m => ({ role: m.role, content: m.content }))
   const systemPrompt = buildSystemPrompt()
   const autoResults = await maybeInjectAutoToolResults(working)
@@ -935,7 +966,15 @@ async function providerChatWithTools({ provider, apiKey, model, temperature, mes
     })
   }
   for (let i = 0; i < 3; i++) {
-    const reply = await providerChat({ provider, apiKey, model, temperature, systemPrompt, messages: working })
+    const reply = await providerChat({
+      provider,
+      apiKey,
+      model,
+      temperature,
+      systemPrompt,
+      messages: working,
+      ollamaBaseUrl: normalizeOllamaBaseUrl(ollamaBaseUrl || previewProviderState.ollamaBaseUrl),
+    })
     const calls = parseToolCalls(reply)
     if (!calls.length) return stripToolCalls(reply) || reply
     await addEvent("tool_calls_detected", calls.map(call => call.name).join(", "))
@@ -960,6 +999,7 @@ async function providerChatWithTools({ provider, apiKey, model, temperature, mes
     model,
     temperature,
     systemPrompt,
+    ollamaBaseUrl: normalizeOllamaBaseUrl(ollamaBaseUrl || previewProviderState.ollamaBaseUrl),
     messages: working.concat({
       role: "user",
       content: "Provide a final user-facing answer now without emitting tool tokens.",
@@ -1296,7 +1336,7 @@ async function handleFilesystemUploadNotice(uploadedFiles){
   await addEvent("filesystem_upload_detected", `New uploaded file(s): ${summary}`)
   if (!appState.unlocked) return
   const runtime = await resolveActiveProviderRuntime()
-  if (!runtime.apiKey) return
+  if (runtime.provider === "ollama" ? !runtime.ollamaBaseUrl : !runtime.apiKey) return
   const prompt = [
     "System Message: User has uploaded new file(s) into your filesystem.",
     ...files.map(file => `- ${fileMetaLabel(file)}`),
@@ -1309,6 +1349,7 @@ async function handleFilesystemUploadNotice(uploadedFiles){
     provider: runtime.provider,
     apiKey: runtime.apiKey,
     model: runtime.model,
+    ollamaBaseUrl: runtime.ollamaBaseUrl,
     temperature: Math.min(0.7, appState.config.temperature),
     messages: appState.agent.rollingMessages,
   })
@@ -1588,7 +1629,8 @@ async function hasAnyAiProviderKey(){
     getSecret("xai"),
     getSecret("zai"),
   ])
-  return Boolean(openai || anthropic || xai || zai)
+  const hasOllama = Boolean(previewProviderState.ollamaValidated && normalizeOllamaBaseUrl(previewProviderState.ollamaBaseUrl))
+  return Boolean(openai || anthropic || xai || zai || hasOllama)
 }
 
 async function refreshHitomiDesktopIcon(){
@@ -2676,7 +2718,11 @@ async function validateTelegramToken(token){
 
 async function sendChat(text, { threadId } = {}){
   const runtime = await resolveActiveProviderRuntime()
-  if (!runtime.apiKey) throw new Error(`No ${runtime.name} key stored.`)
+  if (runtime.provider === "ollama") {
+    if (!runtime.ollamaBaseUrl) throw new Error("No Ollama endpoint stored.")
+  } else if (!runtime.apiKey) {
+    throw new Error(`No ${runtime.name} key stored.`)
+  }
   appState.lastUserSeenAt = Date.now()
   const thread = threadId ? appState.agent.localThreads?.[threadId] : getActiveLocalThread()
   if (!thread) throw new Error("No active chat thread.")
@@ -2686,6 +2732,7 @@ async function sendChat(text, { threadId } = {}){
     provider: runtime.provider,
     apiKey: runtime.apiKey,
     model: runtime.model,
+    ollamaBaseUrl: runtime.ollamaBaseUrl,
     temperature: appState.config.temperature,
     messages: promptMessages,
   })
@@ -2701,8 +2748,8 @@ async function heartbeatTick(){
   appState.agent.lastTickAt = Date.now()
   if (els.lastTick) els.lastTick.textContent = formatTime(appState.agent.lastTickAt)
   const runtime = await resolveActiveProviderRuntime()
-  if (!runtime.apiKey) {
-    await addEvent("heartbeat_skipped", `No ${runtime.name} key`)
+  if (runtime.provider === "ollama" ? !runtime.ollamaBaseUrl : !runtime.apiKey) {
+    await addEvent("heartbeat_skipped", runtime.provider === "ollama" ? "No Ollama endpoint" : `No ${runtime.name} key`)
     return
   }
   const prompt = `${appState.agent.heartbeatMd.trim()}\n\nTime: ${new Date().toISOString()}\nRespond with a short check-in.`
@@ -2711,6 +2758,7 @@ async function heartbeatTick(){
     provider: runtime.provider,
     apiKey: runtime.apiKey,
     model: runtime.model,
+    ollamaBaseUrl: runtime.ollamaBaseUrl,
     temperature: Math.min(0.7, appState.config.temperature),
     messages: appState.agent.rollingMessages,
   })
@@ -2767,7 +2815,7 @@ async function pollTelegram(){
   appState.telegramPolling = true
   try {
     const [token, runtime] = await Promise.all([readProviderKey("telegram"), resolveActiveProviderRuntime()])
-    if (!token || !runtime.apiKey) return
+    if (!token || (runtime.provider === "ollama" ? !runtime.ollamaBaseUrl : !runtime.apiKey)) return
     const botProfile = await getTelegramBotProfile(token)
     const offset = typeof appState.agent.telegramLastUpdateId === "number" ? appState.agent.telegramLastUpdateId + 1 : undefined
     const updates = await getTelegramUpdates(token, offset)
@@ -2794,6 +2842,7 @@ async function pollTelegram(){
         provider: runtime.provider,
         apiKey: runtime.apiKey,
         model: runtime.model,
+        ollamaBaseUrl: runtime.ollamaBaseUrl,
         temperature: appState.config.temperature,
         messages: promptMessages,
       })
