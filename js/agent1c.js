@@ -231,26 +231,6 @@ function persistPreviewProviderState(){
   } catch {}
 }
 
-function getPreviewProviderSummary(provider){
-  if (provider === "openai") return "Wired via current OpenAI vault flow."
-  if (provider === "anthropic") {
-    return previewProviderState.anthropicKey.trim()
-      ? "Anthropic key saved locally (preview)."
-      : "No Anthropic key saved yet."
-  }
-  if (provider === "zai") {
-    return previewProviderState.zaiKey.trim()
-      ? "z.ai key saved locally (preview)."
-      : "No z.ai key saved yet."
-  }
-  if (provider === "ollama") {
-    return previewProviderState.ollamaBaseUrl.trim()
-      ? `Ollama endpoint: ${previewProviderState.ollamaBaseUrl.trim()}`
-      : "No Ollama endpoint saved yet."
-  }
-  return ""
-}
-
 function refreshProviderPreviewUi(){
   const active = previewProviderState.active
   const editor = previewProviderState.editor
@@ -262,7 +242,6 @@ function refreshProviderPreviewUi(){
   if (els.providerCardAnthropic) els.providerCardAnthropic.classList.toggle("active", editor === "anthropic")
   if (els.providerCardZai) els.providerCardZai.classList.toggle("active", editor === "zai")
   if (els.providerCardOllama) els.providerCardOllama.classList.toggle("active", editor === "ollama")
-  if (els.providerSectionOpenai) els.providerSectionOpenai.classList.toggle("agent-hidden", editor !== "openai")
   if (els.providerSectionAnthropic) els.providerSectionAnthropic.classList.toggle("agent-hidden", editor !== "anthropic")
   if (els.providerSectionZai) els.providerSectionZai.classList.toggle("agent-hidden", editor !== "zai")
   if (els.providerSectionOllama) els.providerSectionOllama.classList.toggle("agent-hidden", editor !== "ollama")
@@ -276,7 +255,6 @@ function refreshProviderPreviewUi(){
     els.zaiStoredRow.classList.toggle("agent-hidden", !showStored)
     els.zaiControls.classList.toggle("agent-hidden", showStored)
   }
-  if (els.openaiPreviewStatus) els.openaiPreviewStatus.textContent = getPreviewProviderSummary("openai")
 }
 
 function getSelectedModelValue(){
@@ -1651,18 +1629,40 @@ async function persistState(){
 async function refreshBadges(){
   const hasOpenAi = Boolean(await getSecret("openai"))
   const hasTelegram = Boolean(await getSecret("telegram"))
+  const selectedProvider = previewProviderState.editor || "openai"
   if (els.openaiBadge) {
     els.openaiBadge.className = `agent-badge ${hasOpenAi ? "ok" : "warn"}`
     els.openaiBadge.textContent = hasOpenAi ? "Saved in vault" : "Missing key"
+  }
+  if (els.providerPillOpenai) {
+    els.providerPillOpenai.className = `agent-provider-pill ${hasOpenAi ? "ok" : "warn"}`
+    els.providerPillOpenai.textContent = hasOpenAi ? "Ready" : "Missing"
+  }
+  if (els.providerPillAnthropic) {
+    els.providerPillAnthropic.className = `agent-provider-pill ${previewProviderState.anthropicValidated ? "ok" : "warn"}`
+    els.providerPillAnthropic.textContent = previewProviderState.anthropicValidated ? "Ready" : "Preview"
+  }
+  if (els.providerPillZai) {
+    els.providerPillZai.className = `agent-provider-pill ${previewProviderState.zaiValidated ? "ok" : "warn"}`
+    els.providerPillZai.textContent = previewProviderState.zaiValidated ? "Ready" : "Preview"
+  }
+  if (els.providerPillOllama) {
+    els.providerPillOllama.className = `agent-provider-pill ${previewProviderState.ollamaValidated ? "ok" : "warn"}`
+    els.providerPillOllama.textContent = previewProviderState.ollamaValidated ? "Ready" : "Preview"
   }
   if (els.telegramBadge) {
     els.telegramBadge.className = `agent-badge ${hasTelegram ? "ok" : "warn"}`
     els.telegramBadge.textContent = hasTelegram ? "Saved in vault" : "Missing token"
   }
   if (els.openaiStoredRow && els.openaiControls) {
-    const hideOpenAiControls = hasOpenAi && !openAiEditing
-    els.openaiStoredRow.classList.toggle("agent-hidden", !hideOpenAiControls)
-    els.openaiControls.classList.toggle("agent-hidden", hideOpenAiControls)
+    if (selectedProvider !== "openai") {
+      els.openaiStoredRow.classList.add("agent-hidden")
+      els.openaiControls.classList.add("agent-hidden")
+    } else {
+      const showStored = hasOpenAi && !openAiEditing
+      els.openaiStoredRow.classList.toggle("agent-hidden", !showStored)
+      els.openaiControls.classList.toggle("agent-hidden", showStored)
+    }
   }
   if (els.telegramStoredRow && els.telegramControls) {
     const hideTelegramControls = hasTelegram && !telegramEditing
@@ -1839,24 +1839,21 @@ function openAiWindowHtml(){
         </div>
         <div class="agent-provider-cards">
           <button id="providerCardOpenai" class="agent-provider-card" data-provider="openai" type="button">
-            <div class="agent-provider-head"><strong>OpenAI</strong><span class="agent-provider-pill ok">Wired</span></div>
+            <div class="agent-provider-head"><strong>OpenAI</strong><span id="providerPillOpenai" class="agent-provider-pill warn">Missing</span></div>
             <div class="agent-note">Use OpenAI settings and key controls below.</div>
           </button>
           <button id="providerCardAnthropic" class="agent-provider-card" data-provider="anthropic" type="button">
-            <div class="agent-provider-head"><strong>Anthropic</strong><span class="agent-provider-pill">Preview</span></div>
+            <div class="agent-provider-head"><strong>Anthropic</strong><span id="providerPillAnthropic" class="agent-provider-pill warn">Preview</span></div>
             <div class="agent-note">Tap to configure Anthropic API key.</div>
           </button>
           <button id="providerCardZai" class="agent-provider-card" data-provider="zai" type="button">
-            <div class="agent-provider-head"><strong>z.ai</strong><span class="agent-provider-pill">Preview</span></div>
+            <div class="agent-provider-head"><strong>z.ai</strong><span id="providerPillZai" class="agent-provider-pill warn">Preview</span></div>
             <div class="agent-note">Tap to configure z.ai API key.</div>
           </button>
           <button id="providerCardOllama" class="agent-provider-card" data-provider="ollama" type="button">
-            <div class="agent-provider-head"><strong>Ollama (Local)</strong><span class="agent-provider-pill">Preview</span></div>
+            <div class="agent-provider-head"><strong>Ollama (Local)</strong><span id="providerPillOllama" class="agent-provider-pill warn">Preview</span></div>
             <div class="agent-note">Tap to configure local Ollama endpoint.</div>
           </button>
-        </div>
-        <div id="providerSectionOpenai" class="agent-provider-section">
-          <div class="agent-note" id="openaiPreviewStatus">Wired via current OpenAI vault flow.</div>
         </div>
         <div id="providerSectionAnthropic" class="agent-provider-section agent-hidden">
           <div id="anthropicStoredRow" class="agent-row agent-hidden">
@@ -2059,11 +2056,13 @@ function cacheElements(){
     providerCardAnthropic: byId("providerCardAnthropic"),
     providerCardZai: byId("providerCardZai"),
     providerCardOllama: byId("providerCardOllama"),
-    providerSectionOpenai: byId("providerSectionOpenai"),
+    providerPillOpenai: byId("providerPillOpenai"),
+    providerPillAnthropic: byId("providerPillAnthropic"),
+    providerPillZai: byId("providerPillZai"),
+    providerPillOllama: byId("providerPillOllama"),
     providerSectionAnthropic: byId("providerSectionAnthropic"),
     providerSectionZai: byId("providerSectionZai"),
     providerSectionOllama: byId("providerSectionOllama"),
-    openaiPreviewStatus: byId("openaiPreviewStatus"),
     anthropicStoredRow: byId("anthropicStoredRow"),
     anthropicControls: byId("anthropicControls"),
     anthropicKeyInput: byId("anthropicKeyInput"),
