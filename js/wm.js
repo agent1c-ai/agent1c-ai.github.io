@@ -3,7 +3,7 @@ import { NOTES_KEY } from "./constants.js";
 import { createDesktopIcons } from "./desktop-icons.js";
 import { loadSavedApps } from "./storage.js";
 import { listFiles, listNotes, getFileById, readNoteText, readFileBlob, saveNote, downloadFile, listDesktopTags, addDesktopTag } from "./filesystem.js";
-import { animateWindowCloseMatrix } from "./window-close-fx.js";
+import { animateWindowCloseMatrix, animateWindowOpenMatrix } from "./window-close-fx.js";
 
 export function createWindowManager({ desktop, iconLayer, templates, openWindowsList, saveDialog, appsMenu, appsMap, theme }){
   const { finderTpl, appTpl, browserTpl, notesTpl, themesTpl } = templates;
@@ -126,12 +126,12 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
       for (const rec of loadedLayoutSnapshot.windows) {
         const spawn = rec?.spawn || {};
         let id = null;
-        if (spawn.type === "files") id = createFilesWindow();
-        else if (spawn.type === "browser") id = createBrowserWindow();
-        else if (spawn.type === "themes") id = createThemesWindow();
-        else if (spawn.type === "terminal") id = createTerminalWindow();
-        else if (spawn.type === "notes") id = createNotesWindow(spawn.notesFileId ? { fileId: spawn.notesFileId } : null);
-        else if (spawn.type === "app" && spawn.url) id = createAppWindow(spawn.title || "App", spawn.url);
+        if (spawn.type === "files") id = createFilesWindow({ disableOpenFx: true });
+        else if (spawn.type === "browser") id = createBrowserWindow({ disableOpenFx: true });
+        else if (spawn.type === "themes") id = createThemesWindow({ disableOpenFx: true });
+        else if (spawn.type === "terminal") id = createTerminalWindow({ disableOpenFx: true });
+        else if (spawn.type === "notes") id = createNotesWindow(spawn.notesFileId ? { fileId: spawn.notesFileId } : null, { disableOpenFx: true });
+        else if (spawn.type === "app" && spawn.url) id = createAppWindow(spawn.title || "App", spawn.url, { disableOpenFx: true });
         if (!id) continue;
         applyLayoutToWindow(id, rec);
       }
@@ -1252,23 +1252,39 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     refreshIcons();
     scheduleLayoutSave();
 
+    if (!extra?.disableOpenFx) {
+      const prevVisibility = win.style.visibility;
+      win.style.visibility = "hidden";
+      Promise.resolve()
+        .then(() => animateWindowOpenMatrix(win, { color: "#ff4fb8" }))
+        .finally(() => {
+          if (!win.isConnected) return;
+          win.style.visibility = prevVisibility;
+        });
+    }
+
     return id;
   }
 
-  function createFilesWindow(){
-    return spawn(finderTpl, "Files", { kind: "files", restoreType: "files" });
+  function createFilesWindow(runtimeOpts = {}){
+    return spawn(finderTpl, "Files", { kind: "files", restoreType: "files", disableOpenFx: !!runtimeOpts.disableOpenFx });
   }
 
-  function createBrowserWindow(){
-    return spawn(browserTpl, "Browser", { kind: "browser", restoreType: "browser" });
+  function createBrowserWindow(runtimeOpts = {}){
+    return spawn(browserTpl, "Browser", { kind: "browser", restoreType: "browser", disableOpenFx: !!runtimeOpts.disableOpenFx });
   }
 
-  function createAppWindow(title, url){
-    return spawn(appTpl, title, { kind: "app", url, restoreType: "app" });
+  function createAppWindow(title, url, runtimeOpts = {}){
+    return spawn(appTpl, title, { kind: "app", url, restoreType: "app", disableOpenFx: !!runtimeOpts.disableOpenFx });
   }
 
-  function createNotesWindow(notesOpts){
-    return spawn(notesTpl, "Notes", { kind: "notes", notesOpts: notesOpts || null, restoreType: "notes" });
+  function createNotesWindow(notesOpts, runtimeOpts = {}){
+    return spawn(notesTpl, "Notes", {
+      kind: "notes",
+      notesOpts: notesOpts || null,
+      restoreType: "notes",
+      disableOpenFx: !!runtimeOpts.disableOpenFx,
+    });
   }
 
   async function openFileById(fileId){
@@ -1341,12 +1357,21 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     return true;
   }
 
-  function createTerminalWindow(){
-    return spawn(appTpl, "Terminal", { kind: "app", url: "apps/terminal/index.html", restoreType: "terminal" });
+  function createTerminalWindow(runtimeOpts = {}){
+    return spawn(appTpl, "Terminal", {
+      kind: "app",
+      url: "apps/terminal/index.html",
+      restoreType: "terminal",
+      disableOpenFx: !!runtimeOpts.disableOpenFx,
+    });
   }
 
-  function createThemesWindow(){
-    return spawn(themesTpl, "Themes", { kind: "app", restoreType: "themes" });
+  function createThemesWindow(runtimeOpts = {}){
+    return spawn(themesTpl, "Themes", {
+      kind: "app",
+      restoreType: "themes",
+      disableOpenFx: !!runtimeOpts.disableOpenFx,
+    });
   }
 
   function clearTileSnapshot(){

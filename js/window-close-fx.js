@@ -1,3 +1,5 @@
+const MATRIX_CHARS = "01アイウエオカキクケコサシスセソナニヌネノマミムメモラリルレロ🦔❤️🐷瞳";
+
 export function animateWindowCloseMatrix(win, opts = {}){
   if (!win || !(win instanceof HTMLElement)) return Promise.resolve();
   if (!document.body.contains(win)) return Promise.resolve();
@@ -41,7 +43,6 @@ export function animateWindowCloseMatrix(win, opts = {}){
   const prevVisibility = win.style.visibility;
   win.style.visibility = "hidden";
 
-  const chars = "01アイウエオカキクケコサシスセソナニヌネノマミムメモラリルレロ🦔❤️🐷瞳";
   const colWidth = 12;
   const cols = Math.max(8, Math.min(96, Math.floor(rect.width / colWidth)));
   const rain = document.createElement("div");
@@ -61,7 +62,7 @@ export function animateWindowCloseMatrix(win, opts = {}){
     const len = 14 + Math.floor(Math.random() * 26);
     let text = "";
     for (let j = 0; j < len; j += 1) {
-      text += chars[Math.floor(Math.random() * chars.length)];
+      text += MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)];
       if (j < len - 1) text += "\n";
     }
     stream.textContent = text;
@@ -141,6 +142,103 @@ export function animateWindowCloseMatrix(win, opts = {}){
       resolve();
     };
     const t = setTimeout(finish, duration + 240);
+    layerAnim.addEventListener("finish", () => {
+      clearTimeout(t);
+      finish();
+    }, { once: true });
+  });
+}
+
+export function animateWindowOpenMatrix(win, opts = {}){
+  if (!win || !(win instanceof HTMLElement)) return Promise.resolve();
+  if (!document.body.contains(win)) return Promise.resolve();
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) return Promise.resolve();
+
+  const rect = win.getBoundingClientRect();
+  if (!rect.width || !rect.height) return Promise.resolve();
+
+  const color = String(opts.color || "#ff4fb8");
+  const glow = String(opts.glow || "rgba(255, 79, 184, 0.65)");
+  const duration = Math.max(360, Math.min(1100, Number(opts.durationMs) || 620));
+
+  const layer = document.createElement("div");
+  layer.style.position = "fixed";
+  layer.style.left = `${rect.left}px`;
+  layer.style.top = `${rect.top}px`;
+  layer.style.width = `${rect.width}px`;
+  layer.style.height = `${rect.height}px`;
+  layer.style.zIndex = "10000";
+  layer.style.pointerEvents = "none";
+  layer.style.overflow = "hidden";
+  layer.style.background = "transparent";
+
+  const colWidth = 12;
+  const cols = Math.max(8, Math.min(96, Math.floor(rect.width / colWidth)));
+  const rain = document.createElement("div");
+  rain.style.position = "absolute";
+  rain.style.inset = "0";
+  rain.style.fontFamily = "monospace";
+  rain.style.fontSize = "13px";
+  rain.style.fontWeight = "700";
+  rain.style.lineHeight = "13px";
+  rain.style.color = color;
+  rain.style.textShadow = `0 0 2px ${glow}, 0 0 8px ${glow}`;
+  rain.style.mixBlendMode = "screen";
+  rain.style.opacity = "0.95";
+
+  for (let i = 0; i < cols; i += 1) {
+    const stream = document.createElement("div");
+    const len = 12 + Math.floor(Math.random() * 22);
+    let text = "";
+    for (let j = 0; j < len; j += 1) {
+      text += MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)];
+      if (j < len - 1) text += "\n";
+    }
+    stream.textContent = text;
+    stream.style.position = "absolute";
+    stream.style.left = `${Math.floor(i * (rect.width / cols))}px`;
+    stream.style.top = `${-Math.random() * (rect.height * 0.7)}px`;
+    stream.style.whiteSpace = "pre";
+    stream.style.width = `${colWidth}px`;
+    stream.style.textAlign = "center";
+    stream.style.opacity = `${0.78 + Math.random() * 0.22}`;
+    rain.appendChild(stream);
+
+    stream.animate(
+      [
+        { transform: "translateY(0px)", opacity: stream.style.opacity },
+        { transform: `translateY(${rect.height + 54}px)`, opacity: "0.1" },
+      ],
+      {
+        duration: duration * (0.75 + Math.random() * 0.55),
+        easing: "linear",
+        fill: "forwards",
+      },
+    );
+  }
+
+  layer.appendChild(rain);
+  document.body.appendChild(layer);
+
+  const layerAnim = layer.animate(
+    [
+      { opacity: 0.96, clipPath: "inset(0 0 100% 0)" },
+      { opacity: 1, clipPath: "inset(0 0 0 0)" },
+      { opacity: 0.78, clipPath: "inset(0 0 0 0)" },
+      { opacity: 0.0, clipPath: "inset(0 0 0 0)" },
+    ],
+    { duration, easing: "ease-out", fill: "forwards" },
+  );
+
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      layer.remove();
+      resolve();
+    };
+    const t = setTimeout(finish, duration + 160);
     layerAnim.addEventListener("finish", () => {
       clearTimeout(t);
       finish();
