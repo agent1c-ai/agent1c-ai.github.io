@@ -2007,6 +2007,82 @@ function hideClippyBubble(){
   clippyUi.bubble.classList.add("clippy-hidden")
 }
 
+function rectOverlapArea(a, b){
+  const x = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
+  const y = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top))
+  return x * y
+}
+
+function snapClippyOutOfBubble(opts = {}){
+  const ui = clippyUi
+  if (!ui?.root || !ui?.body || !ui?.bubble) return
+  if (ui.bubble.classList.contains("clippy-hidden")) return
+  const desktop = document.getElementById("desktop")
+  if (!desktop) return
+  const dw = desktop.clientWidth || 0
+  const dh = desktop.clientHeight || 0
+  if (!dw || !dh) return
+
+  positionClippyBubble()
+  const rootRect = ui.root.getBoundingClientRect()
+  const bodyRect0 = ui.body.getBoundingClientRect()
+  const bubbleRect0 = ui.bubble.getBoundingClientRect()
+  if (!bodyRect0.width || !bodyRect0.height || !bubbleRect0.width || !bubbleRect0.height) return
+  if (rectOverlapArea(bodyRect0, bubbleRect0) <= 0) return
+
+  const pad = 0
+  const bodyW = bodyRect0.width
+  const bodyH = bodyRect0.height
+  const bubble = bubbleRect0
+  const curLeft = parseFloat(ui.root.style.left) || 0
+  const curTop = parseFloat(ui.root.style.top) || 0
+  const preferAbove = !!opts.preferAbove
+
+  const anchorX = bubble.left + bubble.width * 0.5 - bodyW * 0.5
+  const candidates = []
+  const addCandidate = (x, y) => candidates.push({ x, y })
+  addCandidate(curLeft, bubble.top - bodyH - 8)
+  addCandidate(curLeft, bubble.bottom + 8)
+  addCandidate(bubble.left - bodyW - 8, curTop)
+  addCandidate(bubble.right + 8, curTop)
+  addCandidate(anchorX, bubble.top - bodyH - 8)
+  addCandidate(anchorX, bubble.bottom + 8)
+  addCandidate(bubble.left - bodyW - 8, bubble.top - bodyH * 0.4)
+  addCandidate(bubble.right + 8, bubble.top - bodyH * 0.4)
+  if (preferAbove) {
+    const aboveFirst = [
+      { x: curLeft, y: bubble.top - bodyH - 8 },
+      { x: anchorX, y: bubble.top - bodyH - 8 },
+      ...candidates,
+    ]
+    candidates.splice(0, candidates.length, ...aboveFirst)
+  }
+
+  let best = { score: Infinity, x: curLeft, y: curTop }
+  for (const c of candidates) {
+    const nx = Math.max(pad, Math.min(c.x, Math.max(pad, dw - (ui.root.offsetWidth || 64))))
+    const ny = Math.max(pad, Math.min(c.y, Math.max(pad, dh - (ui.root.offsetHeight || 64))))
+    ui.root.style.left = `${nx}px`
+    ui.root.style.top = `${ny}px`
+    positionClippyBubble()
+    const bodyRect = ui.body.getBoundingClientRect()
+    const bubbleRect = ui.bubble.getBoundingClientRect()
+    const overlap = rectOverlapArea(bodyRect, bubbleRect)
+    const isAbove = bodyRect.bottom <= bubbleRect.top + 1
+    const dist = Math.abs(nx - curLeft) + Math.abs(ny - curTop)
+    const score = overlap * 1e6 + (preferAbove && !isAbove ? 1e5 : 0) + dist
+    if (score < best.score) best = { score, x: nx, y: ny }
+    if (overlap <= 0 && (!preferAbove || isAbove)) {
+      best = { score, x: nx, y: ny }
+      break
+    }
+  }
+
+  ui.root.style.left = `${best.x}px`
+  ui.root.style.top = `${best.y}px`
+  positionClippyBubble()
+}
+
 function positionClippyBubble(){
   const ui = clippyUi
   if (!ui?.root || !ui?.bubble) return
@@ -2069,11 +2145,14 @@ function renderClippyBubble(){
   requestAnimationFrame(positionClippyBubble)
 }
 
-function showClippyBubble(){
+function showClippyBubble(opts = {}){
   if (!clippyUi?.bubble) return
   renderClippyBubble()
   clippyUi.bubble.classList.remove("clippy-hidden")
-  requestAnimationFrame(positionClippyBubble)
+  requestAnimationFrame(() => {
+    positionClippyBubble()
+    if (opts.snapNoOverlap) snapClippyOutOfBubble({ preferAbove: !!opts.preferAbove })
+  })
 }
 
 function ensureClippyAssistant(){
@@ -2151,8 +2230,10 @@ function ensureClippyAssistant(){
   }
   body?.addEventListener("pointerup", (e) => {
     if (!moved) {
-      if (bubble?.classList.contains("clippy-hidden")) showClippyBubble()
+      if (bubble?.classList.contains("clippy-hidden")) showClippyBubble({ snapNoOverlap: true, preferAbove: true })
       else hideClippyBubble()
+    } else if (bubble && !bubble.classList.contains("clippy-hidden")) {
+      snapClippyOutOfBubble({ preferAbove: false })
     }
     endDrag()
     body.releasePointerCapture?.(e.pointerId)
