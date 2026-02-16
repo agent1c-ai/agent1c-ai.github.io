@@ -3922,6 +3922,24 @@ function createSetupWindow(){
   setStatus("Create a vault to continue.")
 }
 
+function getDesktopViewport(){
+  const desktopEl = document.getElementById("desktop")
+  const w = Math.max(320, Number(desktopEl?.clientWidth) || window.innerWidth || 1024)
+  const h = Math.max(220, Number(desktopEl?.clientHeight) || window.innerHeight || 768)
+  return { w, h }
+}
+
+function getOpenAiWindowOpts(){
+  const { w, h } = getDesktopViewport()
+  const compact = w <= 560
+  if (!compact) {
+    return { panelId: "openai", left: 510, top: 28, width: 500, height: 320, closeAsMinimize: true }
+  }
+  const width = Math.max(300, w - 16)
+  const height = Math.max(280, Math.min(420, h - 58))
+  return { panelId: "openai", left: 8, top: 28, width, height, closeAsMinimize: true }
+}
+
 async function createWorkspace({ showUnlock, onboarding }) {
   if (workspaceReady) return
   workspaceReady = true
@@ -3936,12 +3954,8 @@ async function createWorkspace({ showUnlock, onboarding }) {
   if (shouldSpawnPanel("chat")) wins.chat = wmRef.createAgentPanelWindow("Chat", { panelId: "chat", left: 20, top: 28, width: 480, height: 320, closeAsMinimize: true })
   if (wins.chat?.panelRoot) wins.chat.panelRoot.innerHTML = chatWindowHtml()
 
-  if (shouldSpawnPanel("openai")) wins.openai = wmRef.createAgentPanelWindow("AI APIs", { panelId: "openai", left: 510, top: 28, width: 500, height: 320, closeAsMinimize: true })
+  if (shouldSpawnPanel("openai")) wins.openai = wmRef.createAgentPanelWindow("AI APIs", getOpenAiWindowOpts())
   if (wins.openai?.panelRoot) wins.openai.panelRoot.innerHTML = openAiWindowHtml()
-  if (wins.openai?.win) {
-    wins.openai.win.style.minWidth = "500px"
-    wins.openai.win.style.minHeight = "260px"
-  }
 
   if (shouldSpawnPanel("telegram")) wins.telegram = wmRef.createAgentPanelWindow("Telegram API", { panelId: "telegram", left: 510, top: 360, width: 500, height: 280, closeAsMinimize: true })
   if (wins.telegram?.panelRoot) wins.telegram.panelRoot.innerHTML = telegramWindowHtml()
