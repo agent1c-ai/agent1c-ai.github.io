@@ -2483,9 +2483,9 @@ function wireOllamaSetupWindowDom(winObj){
   const setupModels = {
     tiny: { label: "Tiny", model: "qwen2.5:0.5b" },
     small: { label: "Small", model: "qwen2.5:1.5b" },
-    medium: { label: "Medium", model: "qwen2.5:7b" },
-    large: { label: "Large", model: "mistral:7b" },
-    xl: { label: "XL", model: "glm4:9b" },
+    medium: { label: "Medium", model: "qwen2.5:3b" },
+    large: { label: "Large", model: "qwen2.5:7b" },
+    xl: { label: "XL", model: "glm-4.7-flash:latest" },
   }
   const modelSelect = root.querySelector("#ollamaSetupSizeSelect")
   const inferSizeFromModel = (value) => {
@@ -2848,9 +2848,9 @@ function ollamaSetupWindowHtml(){
             <select id="ollamaSetupSizeSelect" class="field">
               <option value="tiny">Tiny (qwen2.5:0.5b)</option>
               <option value="small">Small (qwen2.5:1.5b)</option>
-              <option value="medium">Medium (qwen2.5:7b)</option>
-              <option value="large">Large (mistral:7b)</option>
-              <option value="xl">XL (glm4:9b)</option>
+              <option value="medium">Medium (qwen2.5:3b)</option>
+              <option value="large">Large (qwen2.5:7b)</option>
+              <option value="xl">XL (glm-4.7-flash:latest)</option>
             </select>
           </label>
         </div>
@@ -2880,7 +2880,7 @@ function ollamaSetupWindowHtml(){
             <pre id="ollamaSetupStartLinux" class="agent-setup-code"><code>ollama serve</code></pre>
           </div>
           <div class="agent-code-card">
-            <div class="agent-code-head"><span class="agent-code-label">Pull small model</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupPullLinux">Copy</button></div>
+            <div class="agent-code-head"><span class="agent-code-label">Pull selected model</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupPullLinux">Copy</button></div>
             <pre id="ollamaSetupPullLinux" class="agent-setup-code"><code data-ollama-model-command>ollama pull qwen2.5:0.5b</code></pre>
           </div>
           <div class="agent-code-card">
@@ -2919,7 +2919,7 @@ sudo systemctl restart ollama</code></pre>
           <div class="agent-setup-title">Step 2: Start and pull model</div>
           <div class="agent-note">Open Terminal and run:</div>
           <div class="agent-code-card">
-            <div class="agent-code-head"><span class="agent-code-label">Pull small model</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupPullMac">Copy</button></div>
+            <div class="agent-code-head"><span class="agent-code-label">Pull selected model</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupPullMac">Copy</button></div>
             <pre id="ollamaSetupPullMac" class="agent-setup-code"><code data-ollama-model-command>ollama pull qwen2.5:0.5b</code></pre>
           </div>
           <div class="agent-code-card">
@@ -2958,7 +2958,7 @@ pkg install curl -y</code></pre>
             <pre id="ollamaSetupAndroidStart" class="agent-setup-code"><code>ollama serve</code></pre>
           </div>
           <div class="agent-code-card">
-            <div class="agent-code-head"><span class="agent-code-label">Pull small model</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupAndroidPull">Copy</button></div>
+            <div class="agent-code-head"><span class="agent-code-label">Pull selected model</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupAndroidPull">Copy</button></div>
             <pre id="ollamaSetupAndroidPull" class="agent-setup-code"><code data-ollama-model-command>ollama pull qwen2.5:0.5b</code></pre>
           </div>
         </div>
