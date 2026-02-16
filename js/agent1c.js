@@ -1,4 +1,5 @@
 import { listFiles, readFileBlob, readNoteText } from "./filesystem.js"
+import { animateHitomiWispsShow } from "./hitomi-wisps-fx.js"
 
 const DEFAULT_SOUL = `# SOUL.md - Who You Are
 
@@ -2294,10 +2295,12 @@ function ensureClippyAssistant(){
 function setClippyMode(next){
   const ui = next ? ensureClippyAssistant() : clippyUi
   if (!ui) return
+  const wasHidden = ui.root.classList.contains("clippy-hidden")
   clippyMode = !!next
   ui.root.classList.toggle("clippy-hidden", !clippyMode)
   if (ui.menu) ui.menu.classList.add("clippy-hidden")
   if (clippyMode) {
+    if (wasHidden) animateHitomiWispsShow(ui.root)
     const thread = getChatOneThread()
     const messages = Array.isArray(thread?.messages) ? thread.messages : []
     clippyLastAssistantKey = latestAssistantMessageKey(messages)
