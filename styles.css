@@ -1640,6 +1640,17 @@
   padding: 0;
   font-size: 11px;
 }
+.agent-inline-mini{
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+.agent-inline-mini .field{
+  min-width: 140px;
+  width: 160px;
+}
 .agent-stepper{ display: flex; align-items: stretch; gap: 4px; }
 .agent-stepper .field{ flex: 1 1 auto; }
 .agent-stepper-buttons{ display: flex; flex-direction: column; gap: 2px; }

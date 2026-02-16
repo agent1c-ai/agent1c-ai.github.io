@@ -108,7 +108,6 @@ const DB_NAME = "agent1c-db"
 const DB_VERSION = 1
 const ONBOARDING_KEY = "agent1c_onboarding_complete_v1"
 const ONBOARDING_OPENAI_TEST_KEY = "agent1c_onboarding_openai_tested_v1"
-const ONBOARDING_OPENAI_SETTINGS_KEY = "agent1c_onboarding_openai_settings_v1"
 const PREVIEW_PROVIDER_KEY = "agent1c_preview_providers_v1"
 const STORES = {
   meta: "meta",
@@ -160,9 +159,10 @@ let wired = false
 let dbPromise = null
 let onboardingComplete = false
 let onboardingOpenAiTested = false
-let onboardingOpenAiSettingsSaved = false
 let openAiEditing = false
 let telegramEditing = false
+let anthropicEditing = false
+let zaiEditing = false
 let docsAutosaveTimer = null
 let loopTimingSaveTimer = null
 let configAutosaveTimer = null
@@ -266,10 +266,28 @@ function refreshProviderPreviewUi(){
   if (els.providerSectionAnthropic) els.providerSectionAnthropic.classList.toggle("agent-hidden", editor !== "anthropic")
   if (els.providerSectionZai) els.providerSectionZai.classList.toggle("agent-hidden", editor !== "zai")
   if (els.providerSectionOllama) els.providerSectionOllama.classList.toggle("agent-hidden", editor !== "ollama")
+  if (els.anthropicStoredRow && els.anthropicControls) {
+    const showStored = previewProviderState.anthropicValidated && !anthropicEditing
+    els.anthropicStoredRow.classList.toggle("agent-hidden", !showStored)
+    els.anthropicControls.classList.toggle("agent-hidden", showStored)
+  }
+  if (els.zaiStoredRow && els.zaiControls) {
+    const showStored = previewProviderState.zaiValidated && !zaiEditing
+    els.zaiStoredRow.classList.toggle("agent-hidden", !showStored)
+    els.zaiControls.classList.toggle("agent-hidden", showStored)
+  }
   if (els.openaiPreviewStatus) els.openaiPreviewStatus.textContent = getPreviewProviderSummary("openai")
-  if (els.anthropicPreviewStatus) els.anthropicPreviewStatus.textContent = getPreviewProviderSummary("anthropic")
-  if (els.zaiPreviewStatus) els.zaiPreviewStatus.textContent = getPreviewProviderSummary("zai")
-  if (els.ollamaPreviewStatus) els.ollamaPreviewStatus.textContent = getPreviewProviderSummary("ollama")
+}
+
+function getSelectedModelValue(){
+  if (els.modelInput && els.modelInput.value) return els.modelInput.value
+  if (els.modelInputEdit && els.modelInputEdit.value) return els.modelInputEdit.value
+  return appState.config.model
+}
+
+function syncModelSelectors(value){
+  if (els.modelInput && els.modelInput.value !== value) els.modelInput.value = value
+  if (els.modelInputEdit && els.modelInputEdit.value !== value) els.modelInputEdit.value = value
 }
 
 function escapeHtml(value){
@@ -1582,18 +1600,20 @@ function renderEvents(){
 }
 
 function setModelOptions(ids, selected){
-  if (!els.modelInput) return
+  if (!els.modelInput && !els.modelInputEdit) return
   const list = ids && ids.length ? ids : FALLBACK_OPENAI_MODELS
-  els.modelInput.innerHTML = list.map(id => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`).join("")
-  if (list.includes(selected)) els.modelInput.value = selected
+  const optionsHtml = list.map(id => `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`).join("")
+  if (els.modelInput) els.modelInput.innerHTML = optionsHtml
+  if (els.modelInputEdit) els.modelInputEdit.innerHTML = optionsHtml
+  if (list.includes(selected)) syncModelSelectors(selected)
   else {
-    els.modelInput.value = list[0]
+    syncModelSelectors(list[0])
     appState.config.model = list[0]
   }
 }
 
 function saveDraftFromInputs(){
-  if (els.modelInput) appState.config.model = els.modelInput.value || appState.config.model
+  appState.config.model = getSelectedModelValue()
   if (els.loopHeartbeatMinInput) appState.config.heartbeatIntervalMs = Math.max(60000, Math.floor(Number(els.loopHeartbeatMinInput.value) || 1) * 60000)
   else if (els.heartbeatInput) appState.config.heartbeatIntervalMs = Math.max(5000, Number(els.heartbeatInput.value) || 60000)
   if (els.contextInput) appState.config.maxContextMessages = Math.max(4, Math.min(64, Number(els.contextInput.value) || 16))
@@ -1607,6 +1627,7 @@ function saveDraftFromInputs(){
 
 function loadInputsFromState(){
   setModelOptions(appState.openAiModels, appState.config.model)
+  syncModelSelectors(appState.config.model)
   if (els.heartbeatInput) els.heartbeatInput.value = String(appState.config.heartbeatIntervalMs)
   if (els.loopHeartbeatMinInput) els.loopHeartbeatMinInput.value = String(Math.max(1, Math.round(appState.config.heartbeatIntervalMs / 60000)))
   if (els.contextInput) els.contextInput.value = String(appState.config.maxContextMessages)
@@ -1665,10 +1686,13 @@ function refreshUi(){
   if (els.zaiKeyInput) els.zaiKeyInput.disabled = !canUse
   if (els.ollamaBaseUrlInput) els.ollamaBaseUrlInput.disabled = !canUse
   if (els.anthropicSavePreviewBtn) els.anthropicSavePreviewBtn.disabled = !canUse
+  if (els.anthropicEditBtn) els.anthropicEditBtn.disabled = !canUse
   if (els.zaiSavePreviewBtn) els.zaiSavePreviewBtn.disabled = !canUse
+  if (els.zaiEditBtn) els.zaiEditBtn.disabled = !canUse
   if (els.ollamaSavePreviewBtn) els.ollamaSavePreviewBtn.disabled = !canUse
   if (els.ollamaTestPreviewBtn) els.ollamaTestPreviewBtn.disabled = !canUse
   if (els.modelInput) els.modelInput.disabled = !canUse
+  if (els.modelInputEdit) els.modelInputEdit.disabled = !canUse
   if (els.heartbeatInput) els.heartbeatInput.disabled = !canUse
   if (els.contextInput) els.contextInput.disabled = !canUse
   if (els.temperatureInput) els.temperatureInput.disabled = !canUse
@@ -1737,12 +1761,12 @@ function revealPostOpenAiWindows(){
 async function maybeCompleteOnboarding(){
   if (onboardingComplete) return true
   const hasOpenAiSecret = Boolean(await getSecret("openai"))
-  if (!hasOpenAiSecret || !onboardingOpenAiTested || !onboardingOpenAiSettingsSaved) return false
+  if (!hasOpenAiSecret || !onboardingOpenAiTested) return false
   onboardingComplete = true
   localStorage.setItem(ONBOARDING_KEY, "1")
   minimizeWindow(wins.openai)
   revealPostOpenAiWindows()
-  await addEvent("onboarding_step", "OpenAI key saved, tested, and settings saved. Chat is ready.")
+  await addEvent("onboarding_step", "OpenAI key saved and tested. Chat is ready.")
   return true
 }
 
@@ -1835,6 +1859,11 @@ function openAiWindowHtml(){
           <div class="agent-note" id="openaiPreviewStatus">Wired via current OpenAI vault flow.</div>
         </div>
         <div id="providerSectionAnthropic" class="agent-provider-section agent-hidden">
+          <div id="anthropicStoredRow" class="agent-row agent-hidden">
+            <span class="agent-note">Anthropic API Key Stored (Preview)</span>
+            <button id="anthropicEditBtn" class="btn agent-icon-btn" type="button" aria-label="Edit Anthropic key">✎</button>
+          </div>
+          <div id="anthropicControls">
           <label class="agent-form-label">
             <span>Anthropic API key</span>
             <div class="agent-inline-key">
@@ -1842,9 +1871,14 @@ function openAiWindowHtml(){
               <button id="anthropicSavePreviewBtn" class="btn agent-inline-key-btn" type="button" aria-label="Test Anthropic key">></button>
             </div>
           </label>
-          <div id="anthropicPreviewStatus" class="agent-note">No Anthropic key saved yet.</div>
+          </div>
         </div>
         <div id="providerSectionZai" class="agent-provider-section agent-hidden">
+          <div id="zaiStoredRow" class="agent-row agent-hidden">
+            <span class="agent-note">z.ai API Key Stored (Preview)</span>
+            <button id="zaiEditBtn" class="btn agent-icon-btn" type="button" aria-label="Edit z.ai key">✎</button>
+          </div>
+          <div id="zaiControls">
           <label class="agent-form-label">
             <span>z.ai API key</span>
             <div class="agent-inline-key">
@@ -1852,7 +1886,7 @@ function openAiWindowHtml(){
               <button id="zaiSavePreviewBtn" class="btn agent-inline-key-btn" type="button" aria-label="Test z.ai key">></button>
             </div>
           </label>
-          <div id="zaiPreviewStatus" class="agent-note">No z.ai key saved yet.</div>
+          </div>
         </div>
         <div id="providerSectionOllama" class="agent-provider-section agent-hidden">
           <label class="agent-form-label">
@@ -1869,6 +1903,10 @@ function openAiWindowHtml(){
       <div id="openaiStoredRow" class="agent-row agent-hidden">
         <span class="agent-note">OpenAI API Key Stored in Vault</span>
         <button id="openaiEditBtn" class="btn agent-icon-btn" type="button" aria-label="Edit OpenAI key">✎</button>
+        <label class="agent-inline-mini">
+          <span>Model</span>
+          <select id="modelInput" class="field"></select>
+        </label>
       </div>
       <div id="openaiControls">
         <div class="agent-note">Status: <span id="openaiBadge" class="agent-badge warn">Missing key</span></div>
@@ -1880,24 +1918,11 @@ function openAiWindowHtml(){
               <button id="openaiSaveBtn" class="btn agent-inline-key-btn" type="submit" aria-label="Save OpenAI key">></button>
             </div>
           </label>
+          <label class="agent-inline-mini">
+            <span>Model</span>
+            <select id="modelInputEdit" class="field"></select>
+          </label>
         </form>
-      </div>
-      <div class="agent-grid2">
-        <label class="agent-form-label">
-          <span>Model</span>
-          <select id="modelInput" class="field"></select>
-        </label>
-        <label class="agent-form-label">
-          <span>Temperature</span>
-          <input id="temperatureInput" class="field" type="number" min="0" max="1.5" step="0.1" />
-        </label>
-        <label class="agent-form-label">
-          <span>Rolling context max messages</span>
-          <input id="contextInput" class="field" type="number" min="4" max="64" step="1" />
-        </label>
-      </div>
-      <div class="agent-row">
-        <button id="saveSettingsBtn" class="btn" type="button">Save OpenAI Settings</button>
       </div>
     </div>
   `
@@ -1936,9 +1961,6 @@ function telegramWindowHtml(){
           </select>
         </label>
       </div>
-      <div class="agent-row">
-        <button id="saveTelegramSettingsBtn" class="btn" type="button">Save Telegram Settings</button>
-      </div>
       <div class="agent-note">Telegram bridge is <strong id="telegramBridgeState">enabled</strong>.</div>
     </div>
   `
@@ -1947,6 +1969,16 @@ function telegramWindowHtml(){
 function configWindowHtml(){
   return `
     <div class="agent-stack">
+      <div class="agent-grid2">
+        <label class="agent-form-label">
+          <span>Rolling context max messages</span>
+          <input id="contextInput" class="field" type="number" min="4" max="64" step="1" />
+        </label>
+        <label class="agent-form-label">
+          <span>Temperature</span>
+          <input id="temperatureInput" class="field" type="number" min="0" max="1.5" step="0.1" />
+        </label>
+      </div>
       <label class="agent-form-label">
         <span>Heartbeat every (min)</span>
         <div class="agent-stepper">
@@ -2035,16 +2067,19 @@ function cacheElements(){
     providerSectionZai: byId("providerSectionZai"),
     providerSectionOllama: byId("providerSectionOllama"),
     openaiPreviewStatus: byId("openaiPreviewStatus"),
+    anthropicStoredRow: byId("anthropicStoredRow"),
+    anthropicControls: byId("anthropicControls"),
     anthropicKeyInput: byId("anthropicKeyInput"),
     anthropicSavePreviewBtn: byId("anthropicSavePreviewBtn"),
-    anthropicPreviewStatus: byId("anthropicPreviewStatus"),
+    anthropicEditBtn: byId("anthropicEditBtn"),
+    zaiStoredRow: byId("zaiStoredRow"),
+    zaiControls: byId("zaiControls"),
     zaiKeyInput: byId("zaiKeyInput"),
     zaiSavePreviewBtn: byId("zaiSavePreviewBtn"),
-    zaiPreviewStatus: byId("zaiPreviewStatus"),
+    zaiEditBtn: byId("zaiEditBtn"),
     ollamaBaseUrlInput: byId("ollamaBaseUrlInput"),
     ollamaSavePreviewBtn: byId("ollamaSavePreviewBtn"),
     ollamaTestPreviewBtn: byId("ollamaTestPreviewBtn"),
-    ollamaPreviewStatus: byId("ollamaPreviewStatus"),
     openaiStoredRow: byId("openaiStoredRow"),
     openaiControls: byId("openaiControls"),
     openaiEditBtn: byId("openaiEditBtn"),
@@ -2057,6 +2092,7 @@ function cacheElements(){
     telegramEditBtn: byId("telegramEditBtn"),
     telegramBadge: byId("telegramBadge"),
     modelInput: byId("modelInput"),
+    modelInputEdit: byId("modelInputEdit"),
     heartbeatInput: byId("heartbeatInput"),
     loopHeartbeatMinInput: byId("loopHeartbeatMinInput"),
     loopHeartbeatUpBtn: byId("loopHeartbeatUpBtn"),
@@ -2066,8 +2102,6 @@ function cacheElements(){
     telegramPollInput: byId("telegramPollInput"),
     telegramEnabledSelect: byId("telegramEnabledSelect"),
     telegramBridgeState: byId("telegramBridgeState"),
-    saveSettingsBtn: byId("saveSettingsBtn"),
-    saveTelegramSettingsBtn: byId("saveTelegramSettingsBtn"),
     startLoopBtn: byId("startLoopBtn"),
     stopLoopBtn: byId("stopLoopBtn"),
     loopStatus: byId("loopStatus"),
@@ -2304,6 +2338,8 @@ function wireUnlockDom(){
 function setPreviewProviderEditor(provider){
   if (!["openai", "anthropic", "zai", "ollama"].includes(provider)) return
   previewProviderState.editor = provider
+  if (provider === "anthropic") anthropicEditing = true
+  if (provider === "zai") zaiEditing = true
   persistPreviewProviderState()
   refreshProviderPreviewUi()
 }
@@ -2363,21 +2399,33 @@ function wireProviderPreviewDom(){
   els.anthropicSavePreviewBtn?.addEventListener("click", async () => {
     previewProviderState.anthropicKey = String(els.anthropicKeyInput?.value || "").trim()
     previewProviderState.anthropicValidated = true
+    anthropicEditing = false
     setActivePreviewProvider("anthropic")
     persistPreviewProviderState()
     refreshProviderPreviewUi()
     await addEvent("provider_preview_saved", "Anthropic key tested (preview validation accepted).")
     setStatus("Anthropic key tested. Active provider switched to anthropic.")
   })
+  els.anthropicEditBtn?.addEventListener("click", () => {
+    anthropicEditing = true
+    setPreviewProviderEditor("anthropic")
+    els.anthropicKeyInput?.focus()
+  })
 
   els.zaiSavePreviewBtn?.addEventListener("click", async () => {
     previewProviderState.zaiKey = String(els.zaiKeyInput?.value || "").trim()
     previewProviderState.zaiValidated = true
+    zaiEditing = false
     setActivePreviewProvider("zai")
     persistPreviewProviderState()
     refreshProviderPreviewUi()
     await addEvent("provider_preview_saved", "z.ai key tested (preview validation accepted).")
     setStatus("z.ai key tested. Active provider switched to z.ai.")
+  })
+  els.zaiEditBtn?.addEventListener("click", () => {
+    zaiEditing = true
+    setPreviewProviderEditor("zai")
+    els.zaiKeyInput?.focus()
   })
 
   els.ollamaSavePreviewBtn?.addEventListener("click", async () => {
@@ -2436,6 +2484,11 @@ function wireMainDom(){
     scheduleLoopTimingAutosave()
   })
   els.modelInput?.addEventListener("change", () => {
+    syncModelSelectors(els.modelInput.value || appState.config.model)
+    scheduleConfigAutosave()
+  })
+  els.modelInputEdit?.addEventListener("change", () => {
+    syncModelSelectors(els.modelInputEdit.value || appState.config.model)
     scheduleConfigAutosave()
   })
   els.temperatureInput?.addEventListener("change", () => {
@@ -2506,16 +2559,14 @@ function wireMainDom(){
       await refreshModelDropdown(key)
       onboardingComplete = false
       onboardingOpenAiTested = false
-      onboardingOpenAiSettingsSaved = false
       openAiEditing = false
       localStorage.removeItem(ONBOARDING_KEY)
       localStorage.removeItem(ONBOARDING_OPENAI_TEST_KEY)
-      localStorage.removeItem(ONBOARDING_OPENAI_SETTINGS_KEY)
       await addEvent("provider_key_saved", "OpenAI key stored in encrypted vault")
       await validateOpenAiKey(key)
       await refreshBadges()
       const completed = await maybeCompleteOnboarding()
-      setStatus(completed ? "OpenAI key saved and validated. Onboarding continued." : "OpenAI key saved and validated. Save OpenAI settings to continue.")
+      setStatus(completed ? "OpenAI key saved and validated. Onboarding continued." : "OpenAI key saved and validated.")
     } catch (err) {
       openAiEditing = true
       await refreshBadges()
@@ -2564,41 +2615,6 @@ function wireMainDom(){
     els.telegramTokenInput?.focus()
   })
 
-  els.saveSettingsBtn?.addEventListener("click", async () => {
-    try {
-      saveDraftFromInputs()
-      await persistState()
-      onboardingOpenAiSettingsSaved = true
-      localStorage.setItem(ONBOARDING_OPENAI_SETTINGS_KEY, "1")
-      await validateOpenAiKey(await readProviderKey("openai"))
-      const completed = await maybeCompleteOnboarding()
-      if (!completed) minimizeWindow(wins.openai)
-      setStatus("OpenAI settings saved. OpenAI window minimized.")
-      refreshUi()
-    } catch (err) {
-      onboardingOpenAiSettingsSaved = false
-      localStorage.removeItem(ONBOARDING_OPENAI_SETTINGS_KEY)
-      openAiEditing = true
-      await refreshBadges()
-      setStatus(err instanceof Error ? err.message : "OpenAI settings save failed")
-    }
-  })
-
-  els.saveTelegramSettingsBtn?.addEventListener("click", async () => {
-    try {
-      saveDraftFromInputs()
-      await persistState()
-      const { username } = await validateTelegramToken(await readProviderKey("telegram"))
-      refreshTelegramLoop()
-      minimizeWindow(wins.telegram)
-      setStatus(`Telegram settings saved. Telegram window minimized for @${username}.`)
-    } catch (err) {
-      telegramEditing = true
-      await refreshBadges()
-      setStatus(err instanceof Error ? err.message : "Telegram settings save failed")
-    }
-  })
-
   els.startLoopBtn?.addEventListener("click", async () => {
     if (!appState.unlocked) {
       setStatus("Unlock vault first.")
@@ -2642,7 +2658,7 @@ async function createWorkspace({ showUnlock, onboarding }) {
   wins.telegram = wmRef.createAgentPanelWindow("Telegram API", { panelId: "telegram", left: 510, top: 360, width: 500, height: 280 })
   if (wins.telegram?.panelRoot) wins.telegram.panelRoot.innerHTML = telegramWindowHtml()
 
-  wins.config = wmRef.createAgentPanelWindow("Loop", { panelId: "config", left: 20, top: 356, width: 430, height: 220 })
+  wins.config = wmRef.createAgentPanelWindow("Config", { panelId: "config", left: 20, top: 356, width: 430, height: 220 })
   if (wins.config?.panelRoot) wins.config.panelRoot.innerHTML = configWindowHtml()
 
   wins.soul = wmRef.createAgentPanelWindow("SOUL.md", { panelId: "soul", left: 20, top: 644, width: 320, height: 330 })
@@ -2722,7 +2738,6 @@ export async function initAgent1C({ wm }){
   loadPreviewProviderState()
   onboardingComplete = localStorage.getItem(ONBOARDING_KEY) === "1"
   onboardingOpenAiTested = localStorage.getItem(ONBOARDING_OPENAI_TEST_KEY) === "1"
-  onboardingOpenAiSettingsSaved = localStorage.getItem(ONBOARDING_OPENAI_SETTINGS_KEY) === "1"
   await loadPersistentState()
   const hasOpenAiSecret = Boolean(await getSecret("openai"))
   const onboarding = !hasOpenAiSecret || !onboardingComplete
