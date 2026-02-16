@@ -35,6 +35,8 @@ export function createVoiceSttController({ button, modal, btnYes, btnNo } = {}){
   let captureInterim = "";
   let silenceTimer = null;
   let idleCaptureTimer = null;
+  let networkErrorCount = 0;
+  let networkErrorWindowStart = 0;
   let lastDispatchedText = "";
   let lastDispatchedAt = 0;
   let currentStatus = "off";
@@ -159,6 +161,8 @@ export function createVoiceSttController({ button, modal, btnYes, btnNo } = {}){
     recognition.onstart = () => {
       recognizing = true;
       starting = false;
+      networkErrorCount = 0;
+      networkErrorWindowStart = 0;
       currentError = "";
       if (enabled) setStatus("idle", "Waiting for \"Hitomi\" or \"Hedgey Hog\"");
     };
@@ -171,6 +175,24 @@ export function createVoiceSttController({ button, modal, btnYes, btnNo } = {}){
         setStatus("denied", "", "Microphone permission denied.");
         updateButton();
         return;
+      }
+      if (err === "network") {
+        const now = Date.now();
+        if (!networkErrorWindowStart || now - networkErrorWindowStart > 8000) {
+          networkErrorWindowStart = now;
+          networkErrorCount = 1;
+        } else {
+          networkErrorCount += 1;
+        }
+        if (networkErrorCount >= 2) {
+          enabled = false;
+          persistEnabled();
+          resetCapture();
+          stopRecognition();
+          setStatus("error", "", "Mic error: network. Browser speech service unavailable. Voice turned off.");
+          updateButton();
+          return;
+        }
       }
       if (enabled) {
         const msg = err ? `Mic error: ${err}` : "Mic error";
