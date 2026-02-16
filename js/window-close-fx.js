@@ -41,7 +41,7 @@ export function animateWindowCloseMatrix(win, opts = {}){
   const prevVisibility = win.style.visibility;
   win.style.visibility = "hidden";
 
-  const chars = "01アイウエオカキクケコサシスセソナニヌネノマミムメモラリルレロ";
+  const chars = "01アイウエオカキクケコサシスセソナニヌネノマミムメモラリルレロ🦔❤️🐷瞳";
   const colWidth = 12;
   const cols = Math.max(8, Math.min(96, Math.floor(rect.width / colWidth)));
   const rain = document.createElement("div");
