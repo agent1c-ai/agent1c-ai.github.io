@@ -1944,9 +1944,8 @@
 .clippy-body:active{ cursor: grabbing; }
 .clippy-bubble{
   position: absolute;
-  left: 50%;
-  bottom: calc(100% + 8px);
-  transform: translateX(-50%);
+  left: 0;
+  top: 0;
   width: min(290px, 62vw);
   height: min(360px, 54vh);
   overflow: visible;
@@ -1962,24 +1961,38 @@
 .clippy-bubble::before{
   content: "";
   position: absolute;
-  left: calc(50% + 22px);
+  left: var(--tail-left, 50%);
   bottom: -13px;
   width: 0;
   height: 0;
   border-left: 12px solid transparent;
   border-right: 12px solid transparent;
   border-top: 13px solid #111;
+  transform: translateX(-50%);
 }
 .clippy-bubble::after{
   content: "";
   position: absolute;
-  left: calc(50% + 22px);
+  left: var(--tail-left, 50%);
   bottom: -11px;
   width: 0;
   height: 0;
   border-left: 10px solid transparent;
   border-right: 10px solid transparent;
   border-top: 11px solid #fffbd8;
+  transform: translateX(-50%);
+}
+.clippy-bubble[data-tail="up"]::before{
+  bottom: auto;
+  top: -13px;
+  border-top: 0;
+  border-bottom: 13px solid #111;
+}
+.clippy-bubble[data-tail="up"]::after{
+  bottom: auto;
+  top: -11px;
+  border-top: 0;
+  border-bottom: 11px solid #fffbd8;
 }
 .clippy-bubble-title{
   font-size: 11px;

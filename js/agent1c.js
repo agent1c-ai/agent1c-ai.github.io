@@ -2007,6 +2007,53 @@ function hideClippyBubble(){
   clippyUi.bubble.classList.add("clippy-hidden")
 }
 
+function positionClippyBubble(){
+  const ui = clippyUi
+  if (!ui?.root || !ui?.bubble) return
+  if (ui.bubble.classList.contains("clippy-hidden")) return
+  const desktop = document.getElementById("desktop")
+  if (!desktop) return
+  const dw = desktop.clientWidth || 0
+  const dh = desktop.clientHeight || 0
+  if (!dw || !dh) return
+
+  const rootLeft = parseFloat(ui.root.style.left) || 0
+  const rootTop = parseFloat(ui.root.style.top) || 0
+  const rootW = ui.root.offsetWidth || 132
+  const rootH = ui.root.offsetHeight || 132
+  const bubbleW = ui.bubble.offsetWidth || 280
+  const bubbleH = ui.bubble.offsetHeight || 220
+  const pad = 6
+  const gap = 8
+
+  // Hitomi head anchor inside clippy root (roughly center-top of hedgehog body).
+  const anchorLocalX = Math.max(18, Math.min(rootW - 18, Math.round(rootW * 0.57)))
+  const anchorGlobalX = rootLeft + anchorLocalX
+
+  let bubbleGlobalLeft = Math.round(anchorGlobalX - bubbleW / 2)
+  bubbleGlobalLeft = Math.max(pad, Math.min(bubbleGlobalLeft, Math.max(pad, dw - bubbleW - pad)))
+
+  let place = "down"
+  let bubbleGlobalTop = Math.round(rootTop - bubbleH - gap)
+  if (bubbleGlobalTop < pad) {
+    place = "up"
+    bubbleGlobalTop = Math.round(rootTop + rootH + gap)
+    bubbleGlobalTop = Math.min(bubbleGlobalTop, Math.max(pad, dh - bubbleH - pad))
+  }
+  bubbleGlobalTop = Math.max(pad, Math.min(bubbleGlobalTop, Math.max(pad, dh - bubbleH - pad)))
+
+  const localLeft = bubbleGlobalLeft - rootLeft
+  const localTop = bubbleGlobalTop - rootTop
+  ui.bubble.style.left = `${localLeft}px`
+  ui.bubble.style.top = `${localTop}px`
+  ui.bubble.style.bottom = "auto"
+  ui.bubble.style.transform = "none"
+  ui.bubble.dataset.tail = place
+
+  const tailX = Math.max(14, Math.min(bubbleW - 14, anchorGlobalX - bubbleGlobalLeft))
+  ui.bubble.style.setProperty("--tail-left", `${tailX}px`)
+}
+
 function scrollClippyToBottom(){
   if (!clippyUi?.log) return
   const apply = () => { clippyUi.log.scrollTop = clippyUi.log.scrollHeight }
@@ -2019,12 +2066,14 @@ function renderClippyBubble(){
   if (!clippyUi?.log) return
   clippyUi.log.innerHTML = getClippyChatHtml()
   scrollClippyToBottom()
+  requestAnimationFrame(positionClippyBubble)
 }
 
 function showClippyBubble(){
   if (!clippyUi?.bubble) return
   renderClippyBubble()
   clippyUi.bubble.classList.remove("clippy-hidden")
+  requestAnimationFrame(positionClippyBubble)
 }
 
 function ensureClippyAssistant(){
@@ -2074,6 +2123,7 @@ function ensureClippyAssistant(){
     const top = Math.max(0, Math.min(baseTop, Math.max(0, dh - rh)))
     root.style.left = `${left}px`
     root.style.top = `${top}px`
+    positionClippyBubble()
   }
   body?.addEventListener("pointerdown", (e) => {
     e.preventDefault()
@@ -2155,6 +2205,7 @@ function ensureClippyAssistant(){
     baseLeft = parseFloat(clippyUi.root.style.left) || 0
     baseTop = parseFloat(clippyUi.root.style.top) || 0
     clampPos()
+    positionClippyBubble()
   })
   return clippyUi
 }
