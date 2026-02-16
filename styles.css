@@ -436,6 +436,14 @@
       border-right: 1px solid var(--os-white);
       border-bottom: 1px solid var(--os-white);
     }
+    .modebtn.voice-on{
+      background: #ffe9f5;
+      border-color: #ff7ac4;
+      color: #702241;
+    }
+    .modebtn.voice-off{
+      opacity: 0.9;
+    }
 
     /* ===== Desktop area ===== */
     .desktop{
@@ -1942,6 +1950,29 @@
   filter: drop-shadow(0 2px 2px rgba(0,0,0,0.28));
 }
 .clippy-body:active{ cursor: grabbing; }
+.clippy-voice{
+  position: absolute;
+  left: 10px;
+  top: -22px;
+  max-width: min(250px, 56vw);
+  background: rgba(255, 251, 216, 0.96);
+  border: 1px solid #111;
+  border-radius: 8px;
+  padding: 3px 6px;
+  font-size: 10px;
+  line-height: 1.25;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  pointer-events: none;
+  z-index: 3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.clippy-voice.off{ opacity: 0.78; }
+.clippy-voice.listening{
+  border-color: #ff4fb8;
+  box-shadow: 0 0 0 1px rgba(255,79,184,0.35), 0 2px 8px rgba(255,79,184,0.25);
+}
 .clippy-bubble{
   position: absolute;
   left: 0;
@@ -2216,6 +2247,11 @@ body.dark .clippy-send{
   background: #2b3445;
   border-color: #5d6678;
   color: #eef2ff;
+}
+body.dark .clippy-voice{
+  background: rgba(44, 47, 56, 0.96);
+  color: #f2f4f8;
+  border-color: rgba(255,255,255,0.32);
 }
 .agent-doc-state{
   margin-top: 4px;

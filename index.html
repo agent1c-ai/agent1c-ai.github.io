@@ -66,6 +66,7 @@
     <button class="modebtn hudbtn" id="hudSwitch" title="Switch camera" aria-label="Switch camera">📷</button>
     <button class="modebtn" id="keybtn" title="Key operations" aria-label="Key operations">🔑</button>
     <button class="modebtn" id="modebtn" title="Toggle dark mode" aria-label="Toggle dark mode">☾</button>
+    <button class="modebtn" id="voicebtn" title="Voice wake-word is OFF. Click to turn on." aria-label="Voice wake-word toggle">🎙️</button>
   </div>
 
   <video id="hudFeed" class="hud-feed" autoplay muted playsinline></video>
@@ -150,6 +151,28 @@
       <div class="dactions">
         <button class="btn" id="downloadNo">No</button>
         <button class="btn" id="downloadYes">Yes</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="voiceModal" aria-hidden="true">
+    <div class="dialog bevel-out thick hairline">
+      <div class="dtitle">Enable Voice Wake-Word?</div>
+      <div class="dcontent">
+        <div class="key-hero">
+          <img src="assets/hedgey1.png" alt="Hitomi hedgehog" />
+        </div>
+        <div>
+          This turns on microphone speech recognition with wake words:
+          <strong>Hitomi</strong> or <strong>Hedgey Hog</strong>.
+        </div>
+        <div class="notehint" style="margin-top:8px;">
+          Privacy note: depending on your browser, audio/transcript processing may be sent to your browser vendor service.
+        </div>
+      </div>
+      <div class="dactions">
+        <button class="btn" id="voiceNo">No</button>
+        <button class="btn" id="voiceYes">Yes</button>
       </div>
     </div>
   </div>

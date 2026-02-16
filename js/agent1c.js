@@ -237,6 +237,7 @@ let clippyMode = false
 let clippyUi = null
 let clippyLastAssistantKey = ""
 let clippyBubbleVariant = "full"
+let voiceUiState = { enabled: false, supported: true, status: "off", text: "", error: "" }
 let hitomiDesktopIcon = null
 const thinkingThreadIds = new Set()
 
@@ -2022,6 +2023,32 @@ function hideClippyBubble(){
   clippyUi.bubble.classList.add("clippy-hidden")
 }
 
+function voiceStatusLabel(){
+  const s = voiceUiState || {}
+  if (!s.supported) return "🎤 Speech recognition unsupported"
+  if (!s.enabled) return "🎙️ Voice wake-word is off"
+  if (s.status === "starting") return "🎤 Starting microphone..."
+  if (s.status === "idle") return "🎤 Waiting for \"Hitomi\" or \"Hedgey Hog\""
+  if (s.status === "listening") return `🎧 ${s.text || "Listening..."}`
+  if (s.status === "processing") return "📝 Sending to Hitomi..."
+  if (s.status === "denied") return "🚫 Microphone permission denied"
+  if (s.status === "error") return `⚠️ ${s.error || "Mic error"}`
+  return "🎤 Voice ready"
+}
+
+function updateClippyVoiceBadge(){
+  if (!clippyUi?.voice || !clippyUi?.root) return
+  if (clippyUi.root.classList.contains("clippy-hidden")) {
+    clippyUi.voice.classList.add("clippy-hidden")
+    return
+  }
+  const visible = !!voiceUiState.enabled || !voiceUiState.supported || voiceUiState.status === "denied" || voiceUiState.status === "error"
+  clippyUi.voice.classList.toggle("clippy-hidden", !visible)
+  clippyUi.voice.classList.toggle("listening", voiceUiState.status === "listening")
+  clippyUi.voice.classList.toggle("off", !voiceUiState.enabled)
+  clippyUi.voice.textContent = voiceStatusLabel()
+}
+
 function rectOverlapArea(a, b){
   const x = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
   const y = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top))
@@ -2182,6 +2209,7 @@ function ensureClippyAssistant(){
   root.style.left = "28px"
   root.style.top = "390px"
   root.innerHTML = `
+    <div class="clippy-voice clippy-hidden"></div>
     <div class="clippy-bubble clippy-hidden">
       <div class="clippy-bubble-title">Hitomi</div>
       <div class="clippy-bubble-content">
@@ -2196,6 +2224,7 @@ function ensureClippyAssistant(){
   `
   desktop.appendChild(root)
   const body = root.querySelector(".clippy-body")
+  const voice = root.querySelector(".clippy-voice")
   const bubble = root.querySelector(".clippy-bubble")
   const log = root.querySelector(".clippy-log")
   const form = root.querySelector(".clippy-form")
@@ -2289,7 +2318,7 @@ function ensureClippyAssistant(){
       setStatus(err instanceof Error ? err.message : "Chat failed")
     }
   })
-  clippyUi = { root, body, bubble, log, form, input, menu }
+  clippyUi = { root, body, bubble, log, form, input, menu, voice }
   document.addEventListener("pointerdown", (e) => {
     if (!clippyMode) return
     if (clippyUi?.menu && !clippyUi.menu.classList.contains("clippy-hidden")) {
@@ -2308,6 +2337,7 @@ function ensureClippyAssistant(){
     clampPos()
     positionClippyBubble()
   })
+  updateClippyVoiceBadge()
   return clippyUi
 }
 
@@ -2324,10 +2354,31 @@ function setClippyMode(next){
     const messages = Array.isArray(thread?.messages) ? thread.messages : []
     clippyLastAssistantKey = latestAssistantMessageKey(messages)
     hideClippyBubble()
+    updateClippyVoiceBadge()
     setStatus("Clippy mode enabled.")
   } else {
     hideClippyBubble()
+    updateClippyVoiceBadge()
     setStatus("Clippy mode disabled.")
+  }
+}
+
+async function handleVoiceCommand(text){
+  const spoken = String(text || "").trim()
+  if (!spoken) return
+  try {
+    setClippyMode(true)
+    if (clippyUi?.input) clippyUi.input.value = spoken
+    clippyBubbleVariant = "full"
+    showClippyBubble({ variant: "full", snapNoOverlap: true, preferAbove: false })
+    setStatus("Thinking...")
+    const chatOne = getChatOneThread()
+    if (!chatOne?.id) throw new Error("Chat 1 not available.")
+    await sendChat(spoken, { threadId: chatOne.id })
+    setStatus("Reply received.")
+    showClippyBubble({ variant: "full", snapNoOverlap: true, preferAbove: false })
+  } catch (err) {
+    setStatus(err instanceof Error ? err.message : "Voice message failed")
   }
 }
 
@@ -3910,6 +3961,23 @@ function wireProviderPreviewDom(){
 function wireMainDom(){
   if (wired) return
   wired = true
+
+  window.addEventListener("agent1c:voice-state", (event) => {
+    const detail = event?.detail || {}
+    voiceUiState = {
+      enabled: !!detail.enabled,
+      supported: detail.supported !== false,
+      status: String(detail.status || (detail.enabled ? "idle" : "off")),
+      text: String(detail.text || ""),
+      error: String(detail.error || ""),
+    }
+    updateClippyVoiceBadge()
+  })
+  window.addEventListener("agent1c:voice-command", (event) => {
+    const text = String(event?.detail?.text || "").trim()
+    if (!text) return
+    handleVoiceCommand(text)
+  })
 
   bindNotepad(els.soulInput, els.soulLineNums)
   bindNotepad(els.toolsInput, els.toolsLineNums)

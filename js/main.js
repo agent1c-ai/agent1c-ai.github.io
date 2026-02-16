@@ -6,6 +6,7 @@ import { saveUpload, hasWrappedKey, setPassphrase, unlockWithPassphrase } from "
 import { initThemeToggle, initThemeState, applyTheme, getTheme } from "./theme.js";
 import { createHud } from "./hud.js";
 import { initAgent1C } from "./agent1c.js";
+import { createVoiceSttController } from "./voice-stt.js";
 
 const menubar = document.getElementById("menubar");
 const desktop = document.getElementById("desktop");
@@ -80,6 +81,14 @@ async function boot(){
   initMenuActions({ menubar, wm, appsMenu, defaultApps: appsMap, hud });
   initThemeToggle({ button: document.getElementById("modebtn") });
   initThemeState();
+
+  const voice = createVoiceSttController({
+    button: document.getElementById("voicebtn"),
+    modal: document.getElementById("voiceModal"),
+    btnYes: document.getElementById("voiceYes"),
+    btnNo: document.getElementById("voiceNo"),
+  });
+  voice.init();
 
   appsMenu.renderAppsMenu();
   appsMenu.renderSavedApps();
