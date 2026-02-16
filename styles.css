@@ -1624,6 +1624,22 @@
 .agent-wrap-row{ flex-wrap: wrap; }
 .agent-row .btn{ white-space: nowrap; }
 .agent-row .field{ flex: 1 1 200px; min-width: 0; }
+.agent-inline-key{
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.agent-inline-key .field{
+  flex: 1 1 auto;
+}
+.agent-inline-key-btn{
+  min-width: 22px;
+  width: 22px;
+  height: 22px;
+  line-height: 1;
+  padding: 0;
+  font-size: 11px;
+}
 .agent-stepper{ display: flex; align-items: stretch; gap: 4px; }
 .agent-stepper .field{ flex: 1 1 auto; }
 .agent-stepper-buttons{ display: flex; flex-direction: column; gap: 2px; }
