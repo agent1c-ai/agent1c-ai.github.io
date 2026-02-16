@@ -1373,6 +1373,14 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
 
     const appWrap = st.win.querySelector(".appwrap");
     if (!appWrap) return { id, win: st.win, panelRoot: null };
+    if (opts.closeAsMinimize) {
+      const closeBtn = st.win.querySelector("[data-close]");
+      if (closeBtn) {
+        const replacement = closeBtn.cloneNode(true);
+        closeBtn.replaceWith(replacement);
+        replacement.addEventListener("click", () => minimize(id));
+      }
+    }
     appWrap.innerHTML = "";
     const host = document.createElement("div");
     host.className = "agent-panel-body";

@@ -139,6 +139,7 @@ const DB_VERSION = 1
 const ONBOARDING_KEY = "agent1c_onboarding_complete_v1"
 const ONBOARDING_OPENAI_TEST_KEY = "agent1c_onboarding_openai_tested_v1"
 const PREVIEW_PROVIDER_KEY = "agent1c_preview_providers_v1"
+const WINDOW_LAYOUT_KEY = "hedgey_window_layout_v1"
 const STORES = {
   meta: "meta",
   secrets: "secrets",
@@ -205,6 +206,8 @@ let clippyMode = false
 let clippyUi = null
 let clippyLastAssistantKey = ""
 let hitomiDesktopIcon = null
+
+const CORE_AGENT_PANEL_IDS = ["chat", "openai", "telegram", "config", "soul", "tools", "heartbeat", "events"]
 const pendingDocSaves = new Set()
 const LEGACY_SOUL_MARKERS = [
   "You are opinionated, independent, and freedom-focused.",
@@ -2149,6 +2152,20 @@ function closeWindow(winObj){
   if (btn) btn.click()
 }
 
+function readSavedAgentPanelIds(){
+  try {
+    const raw = localStorage.getItem(WINDOW_LAYOUT_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    const panels = parsed && typeof parsed === "object" ? parsed.panels : null
+    if (!panels || typeof panels !== "object") return null
+    const ids = CORE_AGENT_PANEL_IDS.filter(id => Object.prototype.hasOwnProperty.call(panels, id))
+    return ids.length ? new Set(ids) : null
+  } catch {
+    return null
+  }
+}
+
 function minimizeWindow(winObj){
   if (!winObj?.win) return
   if (winObj.win.style.display === "none") return
@@ -2225,6 +2242,7 @@ function openOllamaSetupWindow(){
     top: 80,
     width: 620,
     height: 520,
+    closeAsMinimize: true,
   })
   if (!wins.ollamaSetup?.panelRoot) return
   wins.ollamaSetup.panelRoot.innerHTML = ollamaSetupWindowHtml()
@@ -3469,32 +3487,39 @@ async function createWorkspace({ showUnlock, onboarding }) {
   if (workspaceReady) return
   workspaceReady = true
 
-  wins.chat = wmRef.createAgentPanelWindow("Chat", { panelId: "chat", left: 20, top: 28, width: 480, height: 320 })
+  const savedPanelIds = readSavedAgentPanelIds()
+  const shouldSpawnPanel = (panelId) => {
+    if (!savedPanelIds) return true
+    if (onboarding && (panelId === "openai" || panelId === "events")) return true
+    return savedPanelIds.has(panelId)
+  }
+
+  if (shouldSpawnPanel("chat")) wins.chat = wmRef.createAgentPanelWindow("Chat", { panelId: "chat", left: 20, top: 28, width: 480, height: 320, closeAsMinimize: true })
   if (wins.chat?.panelRoot) wins.chat.panelRoot.innerHTML = chatWindowHtml()
 
-  wins.openai = wmRef.createAgentPanelWindow("AI APIs", { panelId: "openai", left: 510, top: 28, width: 500, height: 320 })
+  if (shouldSpawnPanel("openai")) wins.openai = wmRef.createAgentPanelWindow("AI APIs", { panelId: "openai", left: 510, top: 28, width: 500, height: 320, closeAsMinimize: true })
   if (wins.openai?.panelRoot) wins.openai.panelRoot.innerHTML = openAiWindowHtml()
   if (wins.openai?.win) {
     wins.openai.win.style.minWidth = "500px"
     wins.openai.win.style.minHeight = "260px"
   }
 
-  wins.telegram = wmRef.createAgentPanelWindow("Telegram API", { panelId: "telegram", left: 510, top: 360, width: 500, height: 280 })
+  if (shouldSpawnPanel("telegram")) wins.telegram = wmRef.createAgentPanelWindow("Telegram API", { panelId: "telegram", left: 510, top: 360, width: 500, height: 280, closeAsMinimize: true })
   if (wins.telegram?.panelRoot) wins.telegram.panelRoot.innerHTML = telegramWindowHtml()
 
-  wins.config = wmRef.createAgentPanelWindow("Config", { panelId: "config", left: 20, top: 356, width: 430, height: 220 })
+  if (shouldSpawnPanel("config")) wins.config = wmRef.createAgentPanelWindow("Config", { panelId: "config", left: 20, top: 356, width: 430, height: 220, closeAsMinimize: true })
   if (wins.config?.panelRoot) wins.config.panelRoot.innerHTML = configWindowHtml()
 
-  wins.soul = wmRef.createAgentPanelWindow("SOUL.md", { panelId: "soul", left: 20, top: 644, width: 320, height: 330 })
+  if (shouldSpawnPanel("soul")) wins.soul = wmRef.createAgentPanelWindow("SOUL.md", { panelId: "soul", left: 20, top: 644, width: 320, height: 330, closeAsMinimize: true })
   if (wins.soul?.panelRoot) wins.soul.panelRoot.innerHTML = soulWindowHtml()
 
-  wins.tools = wmRef.createAgentPanelWindow("TOOLS.md", { panelId: "tools", left: 680, top: 360, width: 360, height: 280 })
+  if (shouldSpawnPanel("tools")) wins.tools = wmRef.createAgentPanelWindow("TOOLS.md", { panelId: "tools", left: 680, top: 360, width: 360, height: 280, closeAsMinimize: true })
   if (wins.tools?.panelRoot) wins.tools.panelRoot.innerHTML = toolsWindowHtml()
 
-  wins.heartbeat = wmRef.createAgentPanelWindow("heartbeat.md", { panelId: "heartbeat", left: 350, top: 644, width: 320, height: 330 })
+  if (shouldSpawnPanel("heartbeat")) wins.heartbeat = wmRef.createAgentPanelWindow("heartbeat.md", { panelId: "heartbeat", left: 350, top: 644, width: 320, height: 330, closeAsMinimize: true })
   if (wins.heartbeat?.panelRoot) wins.heartbeat.panelRoot.innerHTML = heartbeatWindowHtml()
 
-  wins.events = wmRef.createAgentPanelWindow("Events", { panelId: "events", left: 680, top: 644, width: 360, height: 330 })
+  if (shouldSpawnPanel("events")) wins.events = wmRef.createAgentPanelWindow("Events", { panelId: "events", left: 680, top: 644, width: 360, height: 330, closeAsMinimize: true })
   if (wins.events?.panelRoot) wins.events.panelRoot.innerHTML = eventsWindowHtml()
 
   if (showUnlock) {
