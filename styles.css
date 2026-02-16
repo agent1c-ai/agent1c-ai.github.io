@@ -1760,16 +1760,19 @@
 .agent-provider-inline .agent-row-tight{
   flex-wrap: wrap;
   align-items: center;
+  gap: 4px;
 }
 .agent-provider-inline .agent-inline-key-wide{
-  flex: 1 1 140px;
+  flex: 1 1 96px;
+  min-width: 78px;
 }
 .agent-provider-inline .agent-inline-mini{
   margin-left: 0;
+  flex: 0 0 auto;
 }
 .agent-provider-inline .agent-inline-mini .field{
-  min-width: 84px;
-  width: 104px;
+  min-width: 86px;
+  width: 96px;
 }
 #openaiStoredRow .agent-note,
 #anthropicStoredRow .agent-note,
