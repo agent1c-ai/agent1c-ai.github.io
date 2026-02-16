@@ -1256,7 +1256,13 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
       const prevVisibility = win.style.visibility;
       win.style.visibility = "hidden";
       Promise.resolve()
-        .then(() => animateWindowOpenMatrix(win, { color: "#ff4fb8" }))
+        .then(() => animateWindowOpenMatrix(win, {
+          color: "#ff4fb8",
+          onReveal: () => {
+            if (!win.isConnected) return;
+            win.style.visibility = prevVisibility;
+          },
+        }))
         .finally(() => {
           if (!win.isConnected) return;
           win.style.visibility = prevVisibility;
