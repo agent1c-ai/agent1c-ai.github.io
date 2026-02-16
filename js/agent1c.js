@@ -109,6 +109,7 @@ const DB_VERSION = 1
 const ONBOARDING_KEY = "agent1c_onboarding_complete_v1"
 const ONBOARDING_OPENAI_TEST_KEY = "agent1c_onboarding_openai_tested_v1"
 const ONBOARDING_OPENAI_SETTINGS_KEY = "agent1c_onboarding_openai_settings_v1"
+const PREVIEW_PROVIDER_KEY = "agent1c_preview_providers_v1"
 const STORES = {
   meta: "meta",
   secrets: "secrets",
@@ -192,8 +193,79 @@ const wins = {
   heartbeat: null,
   events: null,
 }
+const previewProviderState = {
+  active: "openai",
+  anthropicKey: "",
+  zaiKey: "",
+  zaiBaseUrl: "",
+  ollamaBaseUrl: "http://localhost:11434",
+}
 
 function byId(id){ return document.getElementById(id) }
+
+function loadPreviewProviderState(){
+  try {
+    const raw = localStorage.getItem(PREVIEW_PROVIDER_KEY)
+    if (!raw) return
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== "object") return
+    previewProviderState.active = ["openai", "anthropic", "zai", "ollama"].includes(parsed.active) ? parsed.active : previewProviderState.active
+    previewProviderState.anthropicKey = String(parsed.anthropicKey || "")
+    previewProviderState.zaiKey = String(parsed.zaiKey || "")
+    previewProviderState.zaiBaseUrl = String(parsed.zaiBaseUrl || "")
+    previewProviderState.ollamaBaseUrl = String(parsed.ollamaBaseUrl || previewProviderState.ollamaBaseUrl)
+  } catch {}
+}
+
+function persistPreviewProviderState(){
+  try {
+    localStorage.setItem(PREVIEW_PROVIDER_KEY, JSON.stringify(previewProviderState))
+  } catch {}
+}
+
+function getPreviewProviderSummary(provider){
+  if (provider === "openai") return "Wired via current OpenAI vault flow."
+  if (provider === "anthropic") {
+    return previewProviderState.anthropicKey.trim()
+      ? "Anthropic key saved locally (preview)."
+      : "No Anthropic key saved yet."
+  }
+  if (provider === "zai") {
+    const hasKey = Boolean(previewProviderState.zaiKey.trim())
+    const hasUrl = Boolean(previewProviderState.zaiBaseUrl.trim())
+    if (hasKey && hasUrl) return "z.ai key + base URL saved locally (preview)."
+    if (hasKey) return "z.ai key saved, base URL missing."
+    if (hasUrl) return "z.ai base URL saved, key missing."
+    return "No z.ai credentials saved yet."
+  }
+  if (provider === "ollama") {
+    return previewProviderState.ollamaBaseUrl.trim()
+      ? `Ollama endpoint: ${previewProviderState.ollamaBaseUrl.trim()}`
+      : "No Ollama endpoint saved yet."
+  }
+  return ""
+}
+
+function refreshProviderPreviewUi(){
+  const active = previewProviderState.active
+  if (els.aiActiveProviderSelect) els.aiActiveProviderSelect.value = active
+  if (els.anthropicKeyInput) els.anthropicKeyInput.value = previewProviderState.anthropicKey
+  if (els.zaiKeyInput) els.zaiKeyInput.value = previewProviderState.zaiKey
+  if (els.zaiBaseUrlInput) els.zaiBaseUrlInput.value = previewProviderState.zaiBaseUrl
+  if (els.ollamaBaseUrlInput) els.ollamaBaseUrlInput.value = previewProviderState.ollamaBaseUrl
+  if (els.providerCardOpenai) els.providerCardOpenai.classList.toggle("active", active === "openai")
+  if (els.providerCardAnthropic) els.providerCardAnthropic.classList.toggle("active", active === "anthropic")
+  if (els.providerCardZai) els.providerCardZai.classList.toggle("active", active === "zai")
+  if (els.providerCardOllama) els.providerCardOllama.classList.toggle("active", active === "ollama")
+  if (els.providerSectionOpenai) els.providerSectionOpenai.classList.toggle("agent-hidden", active !== "openai")
+  if (els.providerSectionAnthropic) els.providerSectionAnthropic.classList.toggle("agent-hidden", active !== "anthropic")
+  if (els.providerSectionZai) els.providerSectionZai.classList.toggle("agent-hidden", active !== "zai")
+  if (els.providerSectionOllama) els.providerSectionOllama.classList.toggle("agent-hidden", active !== "ollama")
+  if (els.openaiPreviewStatus) els.openaiPreviewStatus.textContent = getPreviewProviderSummary("openai")
+  if (els.anthropicPreviewStatus) els.anthropicPreviewStatus.textContent = getPreviewProviderSummary("anthropic")
+  if (els.zaiPreviewStatus) els.zaiPreviewStatus.textContent = getPreviewProviderSummary("zai")
+  if (els.ollamaPreviewStatus) els.ollamaPreviewStatus.textContent = getPreviewProviderSummary("ollama")
+}
 
 function escapeHtml(value){
   return String(value)
@@ -1583,6 +1655,18 @@ function refreshUi(){
   if (els.chatSendBtn) els.chatSendBtn.disabled = false
   if (els.openaiKeyInput) els.openaiKeyInput.disabled = !canUse
   if (els.telegramTokenInput) els.telegramTokenInput.disabled = !canUse
+  if (els.aiActiveProviderSelect) els.aiActiveProviderSelect.disabled = !canUse
+  if (els.aiTransportProfileSelect) els.aiTransportProfileSelect.disabled = !canUse
+  if (els.anthropicKeyInput) els.anthropicKeyInput.disabled = !canUse
+  if (els.zaiKeyInput) els.zaiKeyInput.disabled = !canUse
+  if (els.zaiBaseUrlInput) els.zaiBaseUrlInput.disabled = !canUse
+  if (els.ollamaBaseUrlInput) els.ollamaBaseUrlInput.disabled = !canUse
+  if (els.anthropicSavePreviewBtn) els.anthropicSavePreviewBtn.disabled = !canUse
+  if (els.anthropicTestPreviewBtn) els.anthropicTestPreviewBtn.disabled = !canUse
+  if (els.zaiSavePreviewBtn) els.zaiSavePreviewBtn.disabled = !canUse
+  if (els.zaiTestPreviewBtn) els.zaiTestPreviewBtn.disabled = !canUse
+  if (els.ollamaSavePreviewBtn) els.ollamaSavePreviewBtn.disabled = !canUse
+  if (els.ollamaTestPreviewBtn) els.ollamaTestPreviewBtn.disabled = !canUse
   if (els.modelInput) els.modelInput.disabled = !canUse
   if (els.heartbeatInput) els.heartbeatInput.disabled = !canUse
   if (els.contextInput) els.contextInput.disabled = !canUse
@@ -1598,6 +1682,7 @@ function refreshUi(){
   renderChat()
   renderEvents()
   loadInputsFromState()
+  refreshProviderPreviewUi()
   refreshBadges()
 }
 
@@ -1715,20 +1800,20 @@ function openAiWindowHtml(){
   return `
     <div class="agent-stack">
       <div class="agent-provider-preview">
-        <div class="agent-note"><strong>AI APIs (Preview UI)</strong></div>
+        <div class="agent-note"><strong>AI APIs</strong></div>
         <div class="agent-grid2">
           <label class="agent-form-label">
             <span>Active provider</span>
-            <select class="field" disabled>
-              <option>OpenAI (wired)</option>
-              <option>Anthropic (preview)</option>
-              <option>z.ai (preview)</option>
-              <option>Ollama Local (preview)</option>
+            <select id="aiActiveProviderSelect" class="field">
+              <option value="openai">OpenAI (wired)</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="zai">z.ai</option>
+              <option value="ollama">Ollama Local</option>
             </select>
           </label>
           <label class="agent-form-label">
             <span>Transport profile</span>
-            <select class="field" disabled>
+            <select id="aiTransportProfileSelect" class="field">
               <option>Direct browser call</option>
               <option>Local proxy (preview)</option>
               <option>Cloud proxy (preview)</option>
@@ -1736,22 +1821,62 @@ function openAiWindowHtml(){
           </label>
         </div>
         <div class="agent-provider-cards">
-          <div class="agent-provider-card">
+          <button id="providerCardOpenai" class="agent-provider-card" data-provider="openai" type="button">
             <div class="agent-provider-head"><strong>OpenAI</strong><span class="agent-provider-pill ok">Wired</span></div>
-            <div class="agent-note">Current production provider. Uses existing key/test/save flow below.</div>
-          </div>
-          <div class="agent-provider-card">
+            <div class="agent-note">Use OpenAI settings and key controls below.</div>
+          </button>
+          <button id="providerCardAnthropic" class="agent-provider-card" data-provider="anthropic" type="button">
             <div class="agent-provider-head"><strong>Anthropic</strong><span class="agent-provider-pill">Preview</span></div>
-            <div class="agent-note">Planned fields: API key, model selection, test connection.</div>
-          </div>
-          <div class="agent-provider-card">
+            <div class="agent-note">Tap to configure Anthropic API key.</div>
+          </button>
+          <button id="providerCardZai" class="agent-provider-card" data-provider="zai" type="button">
             <div class="agent-provider-head"><strong>z.ai</strong><span class="agent-provider-pill">Preview</span></div>
-            <div class="agent-note">Planned fields: API key, endpoint/base URL, model mapping.</div>
-          </div>
-          <div class="agent-provider-card">
+            <div class="agent-note">Tap to configure z.ai key and endpoint.</div>
+          </button>
+          <button id="providerCardOllama" class="agent-provider-card" data-provider="ollama" type="button">
             <div class="agent-provider-head"><strong>Ollama (Local)</strong><span class="agent-provider-pill">Preview</span></div>
-            <div class="agent-note">Planned fields: local endpoint, model list, CORS/local proxy profile.</div>
+            <div class="agent-note">Tap to configure local Ollama endpoint.</div>
+          </button>
+        </div>
+        <div id="providerSectionOpenai" class="agent-provider-section">
+          <div class="agent-note" id="openaiPreviewStatus">Wired via current OpenAI vault flow.</div>
+        </div>
+        <div id="providerSectionAnthropic" class="agent-provider-section agent-hidden">
+          <label class="agent-form-label">
+            <span>Anthropic API key</span>
+            <input id="anthropicKeyInput" class="field" type="password" placeholder="sk-ant-..." />
+          </label>
+          <div class="agent-row">
+            <button id="anthropicSavePreviewBtn" class="btn" type="button">Save Anthropic Key</button>
+            <button id="anthropicTestPreviewBtn" class="btn" type="button">Test Anthropic Key</button>
           </div>
+          <div id="anthropicPreviewStatus" class="agent-note">No Anthropic key saved yet.</div>
+        </div>
+        <div id="providerSectionZai" class="agent-provider-section agent-hidden">
+          <label class="agent-form-label">
+            <span>z.ai API key</span>
+            <input id="zaiKeyInput" class="field" type="password" placeholder="zai-..." />
+          </label>
+          <label class="agent-form-label">
+            <span>z.ai base URL</span>
+            <input id="zaiBaseUrlInput" class="field" type="text" placeholder="https://api.z.ai/v1" />
+          </label>
+          <div class="agent-row">
+            <button id="zaiSavePreviewBtn" class="btn" type="button">Save z.ai Settings</button>
+            <button id="zaiTestPreviewBtn" class="btn" type="button">Test z.ai Settings</button>
+          </div>
+          <div id="zaiPreviewStatus" class="agent-note">No z.ai credentials saved yet.</div>
+        </div>
+        <div id="providerSectionOllama" class="agent-provider-section agent-hidden">
+          <label class="agent-form-label">
+            <span>Ollama endpoint</span>
+            <input id="ollamaBaseUrlInput" class="field" type="text" placeholder="http://localhost:11434" />
+          </label>
+          <div class="agent-row">
+            <button id="ollamaSavePreviewBtn" class="btn" type="button">Save Ollama Endpoint</button>
+            <button id="ollamaTestPreviewBtn" class="btn" type="button">Test Ollama Endpoint</button>
+          </div>
+          <div id="ollamaPreviewStatus" class="agent-note">No Ollama endpoint saved yet.</div>
         </div>
       </div>
       <div id="openaiStoredRow" class="agent-row agent-hidden">
@@ -1914,6 +2039,30 @@ function cacheElements(){
     openaiForm: byId("openaiForm"),
     openaiKeyInput: byId("openaiKeyInput"),
     openaiTestBtn: byId("openaiTestBtn"),
+    aiActiveProviderSelect: byId("aiActiveProviderSelect"),
+    aiTransportProfileSelect: byId("aiTransportProfileSelect"),
+    providerCardOpenai: byId("providerCardOpenai"),
+    providerCardAnthropic: byId("providerCardAnthropic"),
+    providerCardZai: byId("providerCardZai"),
+    providerCardOllama: byId("providerCardOllama"),
+    providerSectionOpenai: byId("providerSectionOpenai"),
+    providerSectionAnthropic: byId("providerSectionAnthropic"),
+    providerSectionZai: byId("providerSectionZai"),
+    providerSectionOllama: byId("providerSectionOllama"),
+    openaiPreviewStatus: byId("openaiPreviewStatus"),
+    anthropicKeyInput: byId("anthropicKeyInput"),
+    anthropicSavePreviewBtn: byId("anthropicSavePreviewBtn"),
+    anthropicTestPreviewBtn: byId("anthropicTestPreviewBtn"),
+    anthropicPreviewStatus: byId("anthropicPreviewStatus"),
+    zaiKeyInput: byId("zaiKeyInput"),
+    zaiBaseUrlInput: byId("zaiBaseUrlInput"),
+    zaiSavePreviewBtn: byId("zaiSavePreviewBtn"),
+    zaiTestPreviewBtn: byId("zaiTestPreviewBtn"),
+    zaiPreviewStatus: byId("zaiPreviewStatus"),
+    ollamaBaseUrlInput: byId("ollamaBaseUrlInput"),
+    ollamaSavePreviewBtn: byId("ollamaSavePreviewBtn"),
+    ollamaTestPreviewBtn: byId("ollamaTestPreviewBtn"),
+    ollamaPreviewStatus: byId("ollamaPreviewStatus"),
     openaiStoredRow: byId("openaiStoredRow"),
     openaiControls: byId("openaiControls"),
     openaiEditBtn: byId("openaiEditBtn"),
@@ -2170,6 +2319,103 @@ function wireUnlockDom(){
   })
 }
 
+function setActivePreviewProvider(provider){
+  if (!["openai", "anthropic", "zai", "ollama"].includes(provider)) return
+  previewProviderState.active = provider
+  persistPreviewProviderState()
+  refreshProviderPreviewUi()
+}
+
+function isLikelyUrl(value){
+  const text = String(value || "").trim()
+  if (!text) return false
+  try {
+    const parsed = new URL(text)
+    return parsed.protocol === "http:" || parsed.protocol === "https:"
+  } catch {
+    return false
+  }
+}
+
+function wireProviderPreviewDom(){
+  const cardHandlers = [
+    [els.providerCardOpenai, "openai"],
+    [els.providerCardAnthropic, "anthropic"],
+    [els.providerCardZai, "zai"],
+    [els.providerCardOllama, "ollama"],
+  ]
+  for (const [node, provider] of cardHandlers) {
+    node?.addEventListener("click", () => setActivePreviewProvider(provider))
+  }
+
+  els.aiActiveProviderSelect?.addEventListener("change", () => {
+    setActivePreviewProvider(els.aiActiveProviderSelect.value || "openai")
+  })
+
+  els.anthropicSavePreviewBtn?.addEventListener("click", async () => {
+    previewProviderState.anthropicKey = String(els.anthropicKeyInput?.value || "").trim()
+    persistPreviewProviderState()
+    refreshProviderPreviewUi()
+    await addEvent("provider_preview_saved", previewProviderState.anthropicKey ? "Anthropic key saved (preview)." : "Anthropic key cleared (preview).")
+    setStatus(previewProviderState.anthropicKey ? "Anthropic key saved locally (preview)." : "Anthropic key cleared (preview).")
+  })
+
+  els.anthropicTestPreviewBtn?.addEventListener("click", () => {
+    const key = String(els.anthropicKeyInput?.value || previewProviderState.anthropicKey).trim()
+    if (!key) {
+      setStatus("Anthropic preview test failed: missing key.")
+      return
+    }
+    if (!key.startsWith("sk-ant-")) {
+      setStatus("Anthropic preview format warning: expected sk-ant-... key.")
+      return
+    }
+    setStatus("Anthropic preview test passed (format only).")
+  })
+
+  els.zaiSavePreviewBtn?.addEventListener("click", async () => {
+    previewProviderState.zaiKey = String(els.zaiKeyInput?.value || "").trim()
+    previewProviderState.zaiBaseUrl = String(els.zaiBaseUrlInput?.value || "").trim()
+    persistPreviewProviderState()
+    refreshProviderPreviewUi()
+    await addEvent("provider_preview_saved", "z.ai settings saved (preview).")
+    setStatus("z.ai settings saved locally (preview).")
+  })
+
+  els.zaiTestPreviewBtn?.addEventListener("click", () => {
+    const key = String(els.zaiKeyInput?.value || previewProviderState.zaiKey).trim()
+    const url = String(els.zaiBaseUrlInput?.value || previewProviderState.zaiBaseUrl).trim()
+    if (!key) {
+      setStatus("z.ai preview test failed: missing key.")
+      return
+    }
+    if (!isLikelyUrl(url)) {
+      setStatus("z.ai preview test failed: base URL is not valid.")
+      return
+    }
+    setStatus("z.ai preview test passed (format only).")
+  })
+
+  els.ollamaSavePreviewBtn?.addEventListener("click", async () => {
+    previewProviderState.ollamaBaseUrl = String(els.ollamaBaseUrlInput?.value || "").trim() || "http://localhost:11434"
+    persistPreviewProviderState()
+    refreshProviderPreviewUi()
+    await addEvent("provider_preview_saved", "Ollama endpoint saved (preview).")
+    setStatus("Ollama endpoint saved locally (preview).")
+  })
+
+  els.ollamaTestPreviewBtn?.addEventListener("click", () => {
+    const url = String(els.ollamaBaseUrlInput?.value || previewProviderState.ollamaBaseUrl).trim()
+    if (!isLikelyUrl(url)) {
+      setStatus("Ollama preview test failed: endpoint must be a valid URL.")
+      return
+    }
+    setStatus("Ollama preview test passed (format only).")
+  })
+
+  refreshProviderPreviewUi()
+}
+
 function wireMainDom(){
   if (wired) return
   wired = true
@@ -2177,6 +2423,7 @@ function wireMainDom(){
   bindNotepad(els.soulInput, els.soulLineNums)
   bindNotepad(els.toolsInput, els.toolsLineNums)
   bindNotepad(els.heartbeatDocInput, els.heartbeatLineNums)
+  wireProviderPreviewDom()
   els.soulInput?.addEventListener("input", () => {
     scheduleDocsAutosave("soul")
   })
@@ -2497,6 +2744,7 @@ async function loadPersistentState(){
 
 export async function initAgent1C({ wm }){
   wmRef = wm
+  loadPreviewProviderState()
   onboardingComplete = localStorage.getItem(ONBOARDING_KEY) === "1"
   onboardingOpenAiTested = localStorage.getItem(ONBOARDING_OPENAI_TEST_KEY) === "1"
   onboardingOpenAiSettingsSaved = localStorage.getItem(ONBOARDING_OPENAI_SETTINGS_KEY) === "1"

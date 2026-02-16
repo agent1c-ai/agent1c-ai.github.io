@@ -1663,13 +1663,20 @@
 .agent-provider-cards{
   display: grid;
   gap: 5px;
-  max-height: 120px;
+  max-height: 148px;
   overflow: auto;
 }
 .agent-provider-card{
   border: 1px solid var(--line);
   background: rgba(255,255,255,0.28);
   padding: 5px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+.agent-provider-card.active{
+  outline: 1px dotted var(--line);
+  background: rgba(255,255,255,0.46);
 }
 .agent-provider-head{
   display: flex;
@@ -1687,6 +1694,13 @@
 }
 .agent-provider-pill.ok{
   background: #d8e9d8;
+}
+.agent-provider-section{
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.28);
+  padding: 6px;
+  display: grid;
+  gap: 6px;
 }
 .agent-meta-row{
   display: flex;
@@ -1896,10 +1910,17 @@ body.dark .agent-provider-card{
   background: #161b25;
   border-color: #555d6b;
 }
+body.dark .agent-provider-card.active{
+  background: #273146;
+}
 body.dark .agent-provider-pill{
   background: #2b3445;
   border-color: #5d6678;
   color: #eef2ff;
+}
+body.dark .agent-provider-section{
+  background: #161b25;
+  border-color: #555d6b;
 }
 body.dark .clippy-bubble{
   background: #1f2530;
