@@ -8,7 +8,7 @@ export function animateWindowCloseMatrix(win, opts = {}){
 
   const color = String(opts.color || "#ff4fb8");
   const glow = String(opts.glow || "rgba(255, 79, 184, 0.65)");
-  const duration = Math.max(220, Math.min(700, Number(opts.durationMs) || 360));
+  const duration = Math.max(420, Math.min(1200, Number(opts.durationMs) || 760));
 
   const layer = document.createElement("div");
   layer.style.position = "fixed";
@@ -32,22 +32,22 @@ export function animateWindowCloseMatrix(win, opts = {}){
   rain.style.position = "absolute";
   rain.style.inset = "0";
   rain.style.fontFamily = "monospace";
-  rain.style.fontSize = "11px";
+  rain.style.fontSize = "13px";
   rain.style.fontWeight = "700";
-  rain.style.lineHeight = "12px";
+  rain.style.lineHeight = "13px";
   rain.style.color = color;
-  rain.style.textShadow = `0 0 6px ${glow}, 0 0 12px ${glow}`;
+  rain.style.textShadow = `0 0 2px ${glow}, 0 0 8px ${glow}`;
 
   for (let i = 0; i < cols; i += 1) {
     const stream = document.createElement("div");
-    const len = 8 + Math.floor(Math.random() * 12);
+    const len = 10 + Math.floor(Math.random() * 14);
     let text = "";
     for (let j = 0; j < len; j += 1) text += chars[Math.floor(Math.random() * chars.length)];
     stream.textContent = text;
     stream.style.position = "absolute";
     stream.style.left = `${i * colWidth}px`;
     stream.style.top = `${-Math.random() * rect.height}px`;
-    stream.style.opacity = `${0.72 + Math.random() * 0.28}`;
+    stream.style.opacity = `${0.82 + Math.random() * 0.18}`;
     rain.appendChild(stream);
 
     stream.animate(
@@ -56,7 +56,7 @@ export function animateWindowCloseMatrix(win, opts = {}){
         { transform: `translateY(${rect.height + 48}px)`, opacity: "0.05" },
       ],
       {
-        duration: duration * (0.72 + Math.random() * 0.75),
+        duration: duration * (0.95 + Math.random() * 0.55),
         easing: "linear",
         fill: "forwards",
       },
@@ -80,8 +80,9 @@ export function animateWindowCloseMatrix(win, opts = {}){
   const layerAnim = layer.animate(
     [
       { opacity: 1, filter: "brightness(1) blur(0px)", clipPath: "inset(0 0 0 0)" },
-      { opacity: 0.92, filter: "brightness(1.2) blur(0.4px)", clipPath: "inset(0 0 0 0)" },
-      { opacity: 0.0, filter: "brightness(0.6) blur(1.4px)", clipPath: "inset(88% 0 0 0)" },
+      { opacity: 1, filter: "brightness(1.25) blur(0px)", clipPath: "inset(0 0 0 0)" },
+      { opacity: 0.88, filter: "brightness(1.1) blur(0.2px)", clipPath: "inset(0 0 0 0)" },
+      { opacity: 0.0, filter: "brightness(0.65) blur(1.2px)", clipPath: "inset(88% 0 0 0)" },
     ],
     { duration, easing: "cubic-bezier(.2,.8,.3,1)", fill: "forwards" },
   );
@@ -89,10 +90,10 @@ export function animateWindowCloseMatrix(win, opts = {}){
   sweep.animate(
     [
       { transform: "translateY(-100%)", opacity: 0.0 },
-      { transform: "translateY(15%)", opacity: 0.62 },
-      { transform: "translateY(105%)", opacity: 0.0 },
+      { transform: "translateY(25%)", opacity: 0.72 },
+      { transform: "translateY(115%)", opacity: 0.0 },
     ],
-    { duration: duration * 0.86, easing: "ease-out", fill: "forwards" },
+    { duration: duration * 0.92, delay: duration * 0.12, easing: "ease-out", fill: "forwards" },
   );
 
   return new Promise((resolve) => {
@@ -103,7 +104,7 @@ export function animateWindowCloseMatrix(win, opts = {}){
       layer.remove();
       resolve();
     };
-    const t = setTimeout(finish, duration + 120);
+    const t = setTimeout(finish, duration + 240);
     layerAnim.addEventListener("finish", () => {
       clearTimeout(t);
       finish();
