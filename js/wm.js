@@ -276,6 +276,7 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     ghost.style.margin = "0";
     ghost.style.zIndex = "9999";
     ghost.style.pointerEvents = "none";
+    ghost.style.visibility = "visible";
     ghost.style.opacity = "0.96";
     ghost.style.transformOrigin = "top left";
     ghost.style.transition = "transform 180ms ease-in, opacity 180ms ease-in";
