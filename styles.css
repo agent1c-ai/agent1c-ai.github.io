@@ -1622,6 +1622,14 @@
   min-height: 22px;
 }
 .agent-note{ font-size: 11px; opacity: 0.92; }
+.agent-note-warn{
+  color: #9a1a1a;
+  opacity: 1;
+}
+.agent-btn-danger{
+  color: #9a1a1a;
+  border-color: #9a1a1a;
+}
 .agent-muted{ font-size: 11px; opacity: 0.75; padding: 6px; }
 .agent-hidden{ display: none !important; }
 .agent-icon-btn{

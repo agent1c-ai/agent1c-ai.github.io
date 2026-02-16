@@ -140,6 +140,7 @@ const ONBOARDING_KEY = "agent1c_onboarding_complete_v1"
 const ONBOARDING_OPENAI_TEST_KEY = "agent1c_onboarding_openai_tested_v1"
 const PREVIEW_PROVIDER_KEY = "agent1c_preview_providers_v1"
 const WINDOW_LAYOUT_KEY = "hedgey_window_layout_v1"
+const UNENCRYPTED_MODE_KEY = "agent1c_unencrypted_mode_v1"
 const STORES = {
   meta: "meta",
   secrets: "secrets",
@@ -151,6 +152,7 @@ const STORES = {
 const appState = {
   vaultReady: false,
   unlocked: false,
+  unencryptedMode: false,
   sessionKey: null,
   openAiModels: FALLBACK_OPENAI_MODELS.slice(),
   running: false,
@@ -459,6 +461,12 @@ async function getSecret(provider){
   return (await reqValue(tx.objectStore(STORES.secrets).get(provider))) || null
 }
 
+async function getAllSecrets(){
+  const db = await openDb()
+  const tx = db.transaction(STORES.secrets, "readonly")
+  return (await reqValue(tx.objectStore(STORES.secrets).getAll())) || []
+}
+
 async function setSecret(secret){
   const db = await openDb()
   const tx = db.transaction(STORES.secrets, "readwrite")
@@ -587,20 +595,49 @@ function lockVault(){
   appState.sessionKey = null
 }
 
+function canAccessSecrets(){
+  return Boolean(appState.unlocked || appState.unencryptedMode)
+}
+
+function setUnencryptedMode(enabled){
+  appState.unencryptedMode = Boolean(enabled)
+  try {
+    if (appState.unencryptedMode) localStorage.setItem(UNENCRYPTED_MODE_KEY, "1")
+    else localStorage.removeItem(UNENCRYPTED_MODE_KEY)
+  } catch {}
+}
+
 async function saveProviderKey(provider, value){
-  if (!appState.unlocked || !appState.sessionKey) throw new Error("Unlock vault first.")
   const cleaned = (value || "").trim()
   if (!cleaned) throw new Error("Value is required.")
+  if (appState.unencryptedMode && (!appState.unlocked || !appState.sessionKey)) {
+    await setSecret({ provider, plain: cleaned, unencrypted: true, updatedAt: Date.now() })
+    return
+  }
+  if (!appState.unlocked || !appState.sessionKey) throw new Error("Unlock vault first.")
   const iv = randomB64(12)
   const encrypted = await encryptText(appState.sessionKey, cleaned, iv)
-  await setSecret({ provider, iv, encrypted, updatedAt: Date.now() })
+  await setSecret({ provider, iv, encrypted, unencrypted: false, updatedAt: Date.now() })
 }
 
 async function readProviderKey(provider){
-  if (!appState.unlocked || !appState.sessionKey) return ""
   const record = await getSecret(provider)
   if (!record) return ""
+  if (typeof record.plain === "string") return record.plain
+  if (!appState.unlocked || !appState.sessionKey) return ""
   return decryptText(appState.sessionKey, record.encrypted, record.iv)
+}
+
+async function migratePlaintextSecretsToEncrypted(){
+  if (!appState.unlocked || !appState.sessionKey) return
+  const all = await getAllSecrets()
+  for (const record of all) {
+    if (!record || typeof record.provider !== "string") continue
+    if (typeof record.plain !== "string" || !record.plain.trim()) continue
+    const iv = randomB64(12)
+    const encrypted = await encryptText(appState.sessionKey, record.plain.trim(), iv)
+    await setSecret({ provider: record.provider, iv, encrypted, unencrypted: false, updatedAt: Date.now() })
+  }
 }
 
 const XAI_BASE_URL = "https://api.x.ai/v1"
@@ -1423,7 +1460,7 @@ async function handleFilesystemUploadNotice(uploadedFiles){
   if (!files.length) return
   const summary = files.map(fileMetaLabel).join("; ")
   await addEvent("filesystem_upload_detected", `New uploaded file(s): ${summary}`)
-  if (!appState.unlocked) return
+  if (!canAccessSecrets()) return
   const runtime = await resolveActiveProviderRuntime()
   if (runtime.provider === "ollama" ? !runtime.ollamaBaseUrl : !runtime.apiKey) return
   const prompt = [
@@ -1720,6 +1757,27 @@ async function hasAnyAiProviderKey(){
   ])
   const hasOllama = Boolean(previewProviderState.ollamaValidated && normalizeOllamaBaseUrl(previewProviderState.ollamaBaseUrl))
   return Boolean(openai || anthropic || xai || zai || hasOllama)
+}
+
+function storageLabelText(){
+  return appState.unencryptedMode ? "Stored locally (not encrypted)" : "Stored in vault"
+}
+
+function encryptedLabelText(){
+  return appState.unencryptedMode ? "Saved locally (not encrypted)" : "Saved in vault"
+}
+
+function providerSavedEventText(provider){
+  const name = providerDisplayName(provider)
+  return appState.unencryptedMode
+    ? `${name} key saved locally (not encrypted)`
+    : `${name} key stored in encrypted vault`
+}
+
+function telegramSavedEventText(){
+  return appState.unencryptedMode
+    ? "Telegram token saved locally (not encrypted)"
+    : "Telegram token stored in encrypted vault"
 }
 
 async function refreshHitomiDesktopIcon(){
@@ -2030,7 +2088,7 @@ async function refreshBadges(){
   const ollamaErr = String(providerErrors.ollama || "")
   if (els.openaiBadge) {
     els.openaiBadge.className = `agent-badge ${hasOpenAi ? "ok" : "warn"}`
-    els.openaiBadge.textContent = hasOpenAi ? "Saved in vault" : "Missing key"
+    els.openaiBadge.textContent = hasOpenAi ? encryptedLabelText() : "Missing key"
   }
   if (els.anthropicBadge) {
     els.anthropicBadge.className = `agent-badge ${hasAnthropic ? "ok" : "warn"}`
@@ -2075,7 +2133,22 @@ async function refreshBadges(){
   }
   if (els.telegramBadge) {
     els.telegramBadge.className = `agent-badge ${hasTelegram ? "ok" : "warn"}`
-    els.telegramBadge.textContent = hasTelegram ? "Saved in vault" : "Missing token"
+    els.telegramBadge.textContent = hasTelegram ? encryptedLabelText() : "Missing token"
+  }
+  if (els.openaiStoredLabel) {
+    els.openaiStoredLabel.textContent = `OpenAI API Key ${storageLabelText()}`
+  }
+  if (els.anthropicStoredLabel) {
+    els.anthropicStoredLabel.textContent = `Anthropic API Key ${storageLabelText()}`
+  }
+  if (els.xaiStoredLabel) {
+    els.xaiStoredLabel.textContent = `xAI API Key ${storageLabelText()}`
+  }
+  if (els.zaiStoredLabel) {
+    els.zaiStoredLabel.textContent = `z.ai API Key ${storageLabelText()}`
+  }
+  if (els.telegramStoredLabel) {
+    els.telegramStoredLabel.textContent = `Telegram API Key ${storageLabelText()}`
   }
   if (els.openaiStoredRow && els.openaiControls) {
     if (selectedProvider !== "openai") {
@@ -2096,7 +2169,7 @@ async function refreshBadges(){
 }
 
 function refreshUi(){
-  const canUse = appState.unlocked
+  const canUse = canAccessSecrets()
   if (els.chatInput) {
     els.chatInput.disabled = false
     els.chatInput.placeholder = "Write a message..."
@@ -2139,6 +2212,7 @@ function refreshUi(){
   if (els.heartbeatDocInput) els.heartbeatDocInput.disabled = !canUse
   if (els.startLoopBtn) els.startLoopBtn.disabled = !canUse || appState.running
   if (els.stopLoopBtn) els.stopLoopBtn.disabled = !appState.running
+  if (els.telegramSaveBtn) els.telegramSaveBtn.textContent = appState.unencryptedMode ? "Save Token (Local)" : "Save Token"
   renderChat()
   renderEvents()
   loadInputsFromState()
@@ -2300,6 +2374,8 @@ function setupWindowHtml(){
           <input id="setupConfirm" class="field" type="password" autocomplete="new-password" minlength="8" required />
         </label>
         <button class="btn" type="submit">Initialize Vault</button>
+        <button id="setupSkipBtn" class="btn agent-btn-danger" type="button">Skip for Now</button>
+        <div class="agent-note agent-note-warn">Warning: If skipped, your API keys are stored locally without encryption.</div>
         <div id="setupStatus" class="agent-note">Create a local vault to continue.</div>
       </form>
     </div>
@@ -2359,7 +2435,7 @@ function openAiWindowHtml(){
             <div id="providerNoteOpenai" class="agent-note">Tap to configure OpenAI API key.</div>
             <div id="providerSectionOpenai" class="agent-provider-inline agent-hidden">
               <div id="openaiStoredRow" class="agent-row agent-row-tight agent-hidden">
-                <span class="agent-note">OpenAI API Key Stored in Vault</span>
+                <span id="openaiStoredLabel" class="agent-note">OpenAI API Key Stored in Vault</span>
                 <button id="openaiEditBtn" class="btn agent-icon-btn" type="button" aria-label="Edit OpenAI key">✎</button>
                 <label class="agent-inline-mini">
                   <span>Model</span>
@@ -2386,7 +2462,7 @@ function openAiWindowHtml(){
             <div id="providerNoteAnthropic" class="agent-note">Tap to configure Anthropic API key.</div>
             <div id="providerSectionAnthropic" class="agent-provider-inline agent-hidden">
               <div id="anthropicStoredRow" class="agent-row agent-row-tight agent-hidden">
-                <span class="agent-note">Anthropic API Key Stored in Vault</span>
+                <span id="anthropicStoredLabel" class="agent-note">Anthropic API Key Stored in Vault</span>
                 <button id="anthropicEditBtn" class="btn agent-icon-btn" type="button" aria-label="Edit Anthropic key">✎</button>
                 <label class="agent-inline-mini">
                   <span>Model</span>
@@ -2413,7 +2489,7 @@ function openAiWindowHtml(){
             <div id="providerNoteXai" class="agent-note">Tap to configure xAI API key.</div>
             <div id="providerSectionXai" class="agent-provider-inline agent-hidden">
               <div id="xaiStoredRow" class="agent-row agent-row-tight agent-hidden">
-                <span class="agent-note">xAI API Key Stored in Vault</span>
+                <span id="xaiStoredLabel" class="agent-note">xAI API Key Stored in Vault</span>
                 <button id="xaiEditBtn" class="btn agent-icon-btn" type="button" aria-label="Edit xAI key">✎</button>
                 <label class="agent-inline-mini">
                   <span>Model</span>
@@ -2440,7 +2516,7 @@ function openAiWindowHtml(){
             <div id="providerNoteZai" class="agent-note">Tap to configure z.ai API key.</div>
             <div id="providerSectionZai" class="agent-provider-inline agent-hidden">
               <div id="zaiStoredRow" class="agent-row agent-row-tight agent-hidden">
-                <span class="agent-note">z.ai API Key Stored in Vault</span>
+                <span id="zaiStoredLabel" class="agent-note">z.ai API Key Stored in Vault</span>
                 <button id="zaiEditBtn" class="btn agent-icon-btn" type="button" aria-label="Edit z.ai key">✎</button>
                 <label class="agent-inline-mini">
                   <span>Model</span>
@@ -2574,7 +2650,7 @@ function telegramWindowHtml(){
   return `
     <div class="agent-stack">
       <div id="telegramStoredRow" class="agent-row agent-hidden">
-        <span class="agent-note">Telegram API Key Stored in Vault</span>
+        <span id="telegramStoredLabel" class="agent-note">Telegram API Key Stored in Vault</span>
         <button id="telegramEditBtn" class="btn agent-icon-btn" type="button" aria-label="Edit Telegram token">✎</button>
       </div>
       <div id="telegramControls">
@@ -2585,7 +2661,7 @@ function telegramWindowHtml(){
             <input id="telegramTokenInput" class="field" type="password" placeholder="123456:AA..." required />
           </label>
           <div class="agent-row">
-            <button class="btn" type="submit">Save Encrypted Token</button>
+            <button id="telegramSaveBtn" class="btn" type="submit">Save Token</button>
             <button id="telegramTestBtn" class="btn" type="button">Test Telegram Token</button>
           </div>
         </form>
@@ -2685,6 +2761,7 @@ function cacheElements(){
     setupForm: byId("setupForm"),
     setupPassphrase: byId("setupPassphrase"),
     setupConfirm: byId("setupConfirm"),
+    setupSkipBtn: byId("setupSkipBtn"),
     setupStatus: byId("setupStatus"),
     unlockForm: byId("unlockForm"),
     unlockPassphrase: byId("unlockPassphrase"),
@@ -2721,6 +2798,7 @@ function cacheElements(){
     providerSectionZai: byId("providerSectionZai"),
     providerSectionOllama: byId("providerSectionOllama"),
     anthropicStoredRow: byId("anthropicStoredRow"),
+    anthropicStoredLabel: byId("anthropicStoredLabel"),
     anthropicControls: byId("anthropicControls"),
     anthropicKeyInput: byId("anthropicKeyInput"),
     anthropicBadge: byId("anthropicBadge"),
@@ -2729,6 +2807,7 @@ function cacheElements(){
     anthropicSavePreviewBtn: byId("anthropicSavePreviewBtn"),
     anthropicEditBtn: byId("anthropicEditBtn"),
     xaiStoredRow: byId("xaiStoredRow"),
+    xaiStoredLabel: byId("xaiStoredLabel"),
     xaiControls: byId("xaiControls"),
     xaiKeyInput: byId("xaiKeyInput"),
     xaiBadge: byId("xaiBadge"),
@@ -2737,6 +2816,7 @@ function cacheElements(){
     xaiSavePreviewBtn: byId("xaiSavePreviewBtn"),
     xaiEditBtn: byId("xaiEditBtn"),
     zaiStoredRow: byId("zaiStoredRow"),
+    zaiStoredLabel: byId("zaiStoredLabel"),
     zaiControls: byId("zaiControls"),
     zaiKeyInput: byId("zaiKeyInput"),
     zaiBadge: byId("zaiBadge"),
@@ -2758,6 +2838,7 @@ function cacheElements(){
     openaiEditBtn: byId("openaiEditBtn"),
     openaiBadge: byId("openaiBadge"),
     telegramForm: byId("telegramForm"),
+    telegramSaveBtn: byId("telegramSaveBtn"),
     telegramTokenInput: byId("telegramTokenInput"),
     telegramTestBtn: byId("telegramTestBtn"),
     telegramStoredRow: byId("telegramStoredRow"),
@@ -2865,7 +2946,7 @@ async function sendChat(text, { threadId } = {}){
 
 async function heartbeatTick(){
   if (!appState.running) return
-  if (!appState.unlocked) return
+  if (!canAccessSecrets()) return
   appState.agent.lastTickAt = Date.now()
   if (els.lastTick) els.lastTick.textContent = formatTime(appState.agent.lastTickAt)
   const runtime = await resolveActiveProviderRuntime()
@@ -2924,7 +3005,7 @@ function stopTelegramLoop(){
 
 function refreshTelegramLoop(){
   stopTelegramLoop()
-  if (!appState.unlocked || !appState.telegramEnabled) return
+  if (!canAccessSecrets() || !appState.telegramEnabled) return
   appState.telegramTimer = setInterval(() => {
     pollTelegram().catch(() => {})
   }, appState.telegramPollMs)
@@ -2932,7 +3013,7 @@ function refreshTelegramLoop(){
 }
 
 async function pollTelegram(){
-  if (appState.telegramPolling || !appState.unlocked || !appState.telegramEnabled) return
+  if (appState.telegramPolling || !canAccessSecrets() || !appState.telegramEnabled) return
   appState.telegramPolling = true
   try {
     const [token, runtime] = await Promise.all([readProviderKey("telegram"), resolveActiveProviderRuntime()])
@@ -2993,6 +3074,8 @@ function wireSetupDom(){
     }
     try {
       await setupVault(els.setupPassphrase.value)
+      await migratePlaintextSecretsToEncrypted()
+      setUnencryptedMode(false)
       closeWindow(setupWin)
       await addEvent("vault_unlocked", "Vault initialized and unlocked")
       await createWorkspace({ showUnlock: false, onboarding: true })
@@ -3003,6 +3086,20 @@ function wireSetupDom(){
       setStatus("Vault initialized and unlocked.")
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Could not initialize vault")
+    }
+  })
+  els.setupSkipBtn?.addEventListener("click", async () => {
+    try {
+      setUnencryptedMode(true)
+      appState.unlocked = false
+      appState.sessionKey = null
+      await addEvent("vault_warning", "WARNING: Your APIs are not encrypted. Click on Create Vault to encrypt your APIs.")
+      await createWorkspace({ showUnlock: false, onboarding: true })
+      minimizeWindow(setupWin)
+      applyOnboardingWindowState()
+      setStatus("Encryption skipped for now. Configure AI APIs to continue.")
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Could not skip vault setup")
     }
   })
 }
@@ -3399,7 +3496,7 @@ function wireMainDom(){
       openAiEditing = false
       localStorage.removeItem(ONBOARDING_KEY)
       localStorage.removeItem(ONBOARDING_OPENAI_TEST_KEY)
-      await addEvent("provider_key_saved", "OpenAI key stored in encrypted vault")
+      await addEvent("provider_key_saved", providerSavedEventText("openai"))
       await validateProviderKey("openai", key)
       setActivePreviewProvider("openai")
       await refreshBadges()
@@ -3419,7 +3516,7 @@ function wireMainDom(){
       const token = els.telegramTokenInput.value.trim()
       els.telegramTokenInput.value = ""
       telegramEditing = false
-      await addEvent("provider_key_saved", "Telegram token stored in encrypted vault")
+      await addEvent("provider_key_saved", telegramSavedEventText())
       const { username } = await validateTelegramToken(token)
       await refreshBadges()
       setStatus(`Telegram token saved and validated for @${username}.`)
@@ -3454,8 +3551,8 @@ function wireMainDom(){
   })
 
   els.startLoopBtn?.addEventListener("click", async () => {
-    if (!appState.unlocked) {
-      setStatus("Unlock vault first.")
+    if (!canAccessSecrets()) {
+      setStatus("Initialize or unlock vault first.")
       return
     }
     saveDraftFromInputs()
@@ -3475,7 +3572,7 @@ function wireMainDom(){
 }
 
 function createSetupWindow(){
-  setupWin = wmRef.createAgentPanelWindow("Create Vault", { panelId: "setup", left: 340, top: 90, width: 520, height: 260 })
+  setupWin = wmRef.createAgentPanelWindow("Create Vault", { panelId: "setup", left: 340, top: 90, width: 520, height: 260, closeAsMinimize: true })
   if (!setupWin?.panelRoot) return
   setupWin.panelRoot.innerHTML = setupWindowHtml()
   cacheElements()
@@ -3546,6 +3643,11 @@ async function createWorkspace({ showUnlock, onboarding }) {
 async function loadPersistentState(){
   const [meta, cfg, savedState, events] = await Promise.all([getVaultMeta(), getConfig(), getState(), getRecentEvents()])
   appState.vaultReady = Boolean(meta)
+  try {
+    appState.unencryptedMode = localStorage.getItem(UNENCRYPTED_MODE_KEY) === "1"
+  } catch {
+    appState.unencryptedMode = false
+  }
   appState.unlocked = false
   appState.sessionKey = null
   if (cfg) {
@@ -3593,10 +3695,20 @@ export async function initAgent1C({ wm }){
 
   if (!appState.vaultReady) {
     createSetupWindow()
+    if (appState.unencryptedMode) {
+      await createWorkspace({ showUnlock: false, onboarding: true })
+      minimizeWindow(setupWin)
+      applyOnboardingWindowState()
+      await addEvent("vault_warning", "WARNING: Your APIs are not encrypted. Click on Create Vault to encrypt your APIs.")
+      setStatus("Unencrypted mode is active. You can configure APIs now.")
+    }
     return
   }
 
   await createWorkspace({ showUnlock: true, onboarding })
+  if (appState.unencryptedMode) {
+    await addEvent("vault_warning", "WARNING: Your APIs are not encrypted. Click on Create Vault to encrypt your APIs.")
+  }
   if (onboarding) {
     applyOnboardingWindowState()
     setStatus("Unlock vault, then connect an AI provider to start.")
