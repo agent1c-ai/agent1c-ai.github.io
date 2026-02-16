@@ -1600,6 +1600,10 @@
   overflow-y: auto;
   overflow-x: hidden;
 }
+.agent-panel[data-panel-id="ollama-setup"]{
+  overflow-y: auto;
+  overflow-x: hidden;
+}
 .agent-panel[data-panel-id="openai"] .agent-stack{
   overflow: visible;
   min-height: max-content;
@@ -1787,6 +1791,32 @@
   -webkit-line-clamp: 2;
   line-height: 1.2;
   max-height: 2.4em;
+}
+.agent-setup-stack{
+  overflow: auto;
+  min-height: 0;
+  padding-right: 2px;
+}
+.agent-setup-section{
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.28);
+  padding: 6px;
+  display: grid;
+  gap: 5px;
+}
+.agent-setup-title{
+  font-size: 11px;
+  font-weight: 700;
+}
+.agent-setup-code{
+  margin: 0;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.45);
+  padding: 6px;
+  font-size: 11px;
+  line-height: 1.28;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .agent-meta-row{
   display: flex;

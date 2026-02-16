@@ -218,6 +218,7 @@ const wins = {
   tools: null,
   heartbeat: null,
   events: null,
+  ollamaSetup: null,
 }
 const previewProviderState = {
   active: "openai",
@@ -1982,6 +1983,7 @@ function refreshUi(){
   if (els.zaiEditBtn) els.zaiEditBtn.disabled = !canUse
   if (els.ollamaSavePreviewBtn) els.ollamaSavePreviewBtn.disabled = !canUse
   if (els.ollamaEditBtn) els.ollamaEditBtn.disabled = !canUse
+  if (els.ollamaSetupBtn) els.ollamaSetupBtn.disabled = !canUse
   if (els.modelInput) els.modelInput.disabled = !canUse
   if (els.modelInputEdit) els.modelInputEdit.disabled = !canUse
   if (els.heartbeatInput) els.heartbeatInput.disabled = !canUse
@@ -2023,6 +2025,71 @@ function restoreWindow(winObj){
 function focusWindow(winObj){
   if (!winObj?.id || !wmRef) return
   wmRef.focus?.(winObj.id)
+}
+
+async function copyTextToClipboard(text){
+  const value = String(text || "")
+  if (!value) return false
+  try {
+    await navigator.clipboard.writeText(value)
+    return true
+  } catch {
+    try {
+      const ta = document.createElement("textarea")
+      ta.value = value
+      ta.setAttribute("readonly", "readonly")
+      ta.style.position = "fixed"
+      ta.style.left = "-9999px"
+      document.body.appendChild(ta)
+      ta.select()
+      const ok = document.execCommand("copy")
+      ta.remove()
+      return Boolean(ok)
+    } catch {
+      return false
+    }
+  }
+}
+
+function wireOllamaSetupWindowDom(winObj){
+  const root = winObj?.panelRoot
+  if (!root) return
+
+  root.querySelectorAll("[data-copy-target]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const targetId = btn.getAttribute("data-copy-target")
+      const source = targetId ? root.querySelector(`#${targetId}`) : null
+      const text = source?.textContent || ""
+      const ok = await copyTextToClipboard(text)
+      setStatus(ok ? "Copied command." : "Could not copy command.")
+    })
+  })
+
+  root.querySelectorAll("[data-open-url]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const url = String(btn.getAttribute("data-open-url") || "").trim()
+      if (!url) return
+      window.open(url, "_blank", "noopener,noreferrer")
+    })
+  })
+}
+
+function openOllamaSetupWindow(){
+  if (wins.ollamaSetup?.win?.isConnected) {
+    restoreWindow(wins.ollamaSetup)
+    focusWindow(wins.ollamaSetup)
+    return
+  }
+  wins.ollamaSetup = wmRef.createAgentPanelWindow("Ollama Setup", {
+    panelId: "ollama-setup",
+    left: 140,
+    top: 80,
+    width: 620,
+    height: 520,
+  })
+  if (!wins.ollamaSetup?.panelRoot) return
+  wins.ollamaSetup.panelRoot.innerHTML = ollamaSetupWindowHtml()
+  wireOllamaSetupWindowDom(wins.ollamaSetup)
 }
 
 function applyOnboardingWindowState(){
@@ -2263,9 +2330,84 @@ function openAiWindowHtml(){
                   </label>
                 </div>
               </div>
+              <div class="agent-row">
+                <button id="ollamaSetupBtn" class="btn" type="button">Ollama Setup...</button>
+                <span class="agent-note">Guided Linux/macOS setup with copyable commands.</span>
+              </div>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  `
+}
+
+function ollamaSetupWindowHtml(){
+  return `
+    <div class="agent-stack agent-setup-stack">
+      <div class="agent-note"><strong>Hi, I am Hitomi.</strong> I am your tiny hedgehog friend, and I will help you set up Ollama step by step.</div>
+
+      <div class="agent-setup-section">
+        <div class="agent-setup-title">1) Install Ollama</div>
+        <div class="agent-note">Install Ollama from the official website, then come back here.</div>
+        <div class="agent-row">
+          <button class="btn" type="button" data-open-url="https://ollama.com/download">Open Ollama Download Page</button>
+        </div>
+        <div class="agent-note">Linux quick install:</div>
+        <pre id="ollamaSetupInstallLinux" class="agent-setup-code">curl -fsSL https://ollama.com/install.sh | sh</pre>
+        <div class="agent-row">
+          <button class="btn" type="button" data-copy-target="ollamaSetupInstallLinux">Copy</button>
+        </div>
+      </div>
+
+      <div class="agent-setup-section">
+        <div class="agent-setup-title">2) Start Ollama and Pull a Model</div>
+        <div class="agent-note">Start the local server and install at least one model.</div>
+        <pre id="ollamaSetupStart" class="agent-setup-code">ollama serve</pre>
+        <div class="agent-row">
+          <button class="btn" type="button" data-copy-target="ollamaSetupStart">Copy</button>
+        </div>
+        <pre id="ollamaSetupPull" class="agent-setup-code">ollama pull llama3.2:3b</pre>
+        <div class="agent-row">
+          <button class="btn" type="button" data-copy-target="ollamaSetupPull">Copy</button>
+        </div>
+        <pre id="ollamaSetupTags" class="agent-setup-code">curl http://127.0.0.1:11434/api/tags</pre>
+        <div class="agent-row">
+          <button class="btn" type="button" data-copy-target="ollamaSetupTags">Copy</button>
+        </div>
+      </div>
+
+      <div class="agent-setup-section">
+        <div class="agent-setup-title">3) Allow Browser Access (CORS)</div>
+        <div class="agent-note">Agent1c runs in your browser, so Ollama must allow origin access for this domain.</div>
+        <div class="agent-note"><strong>Linux (systemd)</strong></div>
+        <pre id="ollamaSetupLinuxEdit" class="agent-setup-code">sudo systemctl edit ollama.service</pre>
+        <div class="agent-row">
+          <button class="btn" type="button" data-copy-target="ollamaSetupLinuxEdit">Copy</button>
+        </div>
+        <pre id="ollamaSetupLinuxEnv" class="agent-setup-code">[Service]
+Environment="OLLAMA_ORIGINS=https://agent1c.me,https://www.agent1c.me,http://localhost:8000,http://127.0.0.1:8000"
+Environment="OLLAMA_HOST=127.0.0.1:11434"</pre>
+        <div class="agent-row">
+          <button class="btn" type="button" data-copy-target="ollamaSetupLinuxEnv">Copy</button>
+        </div>
+        <pre id="ollamaSetupLinuxRestart" class="agent-setup-code">sudo systemctl daemon-reload
+sudo systemctl restart ollama</pre>
+        <div class="agent-row">
+          <button class="btn" type="button" data-copy-target="ollamaSetupLinuxRestart">Copy</button>
+        </div>
+        <div class="agent-note"><strong>macOS (Ollama app)</strong></div>
+        <pre id="ollamaSetupMacEnv" class="agent-setup-code">launchctl setenv OLLAMA_ORIGINS "https://agent1c.me,https://www.agent1c.me,http://localhost:8000,http://127.0.0.1:8000"
+launchctl setenv OLLAMA_HOST "127.0.0.1:11434"</pre>
+        <div class="agent-row">
+          <button class="btn" type="button" data-copy-target="ollamaSetupMacEnv">Copy</button>
+        </div>
+        <div class="agent-note">After this, quit and reopen the Ollama app.</div>
+      </div>
+
+      <div class="agent-setup-section">
+        <div class="agent-setup-title">4) Verify in Agent1c</div>
+        <div class="agent-note">Back in AI APIs, set Ollama URL to <code>http://127.0.0.1:11434</code>, set your model, then save/test.</div>
       </div>
     </div>
   `
@@ -2453,6 +2595,7 @@ function cacheElements(){
     ollamaModelStored: byId("ollamaModelStored"),
     ollamaSavePreviewBtn: byId("ollamaSavePreviewBtn"),
     ollamaEditBtn: byId("ollamaEditBtn"),
+    ollamaSetupBtn: byId("ollamaSetupBtn"),
     openaiStoredRow: byId("openaiStoredRow"),
     openaiControls: byId("openaiControls"),
     openaiEditBtn: byId("openaiEditBtn"),
@@ -2965,6 +3108,10 @@ function wireProviderPreviewDom(){
     ollamaEditing = true
     setPreviewProviderEditor("ollama")
     els.ollamaBaseUrlInput?.focus()
+  })
+  els.ollamaSetupBtn?.addEventListener("click", (e) => {
+    e.stopPropagation()
+    openOllamaSetupWindow()
   })
 
   refreshProviderPreviewUi()
