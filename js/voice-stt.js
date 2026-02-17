@@ -1,5 +1,6 @@
 const LS_VOICE_CONSENT = "agent1c_voice_stt_consent_v1";
 const LS_VOICE_ENABLED = "agent1c_voice_stt_enabled_v1";
+const FOLLOWUP_WINDOW_MS = 45000;
 
 function normalizeSpaces(text){
   return String(text || "").replace(/\s+/g, " ").trim();
@@ -40,6 +41,8 @@ export function createVoiceSttController({ button, modal, btnYes, btnNo } = {}){
   let lastDispatchedText = "";
   let lastDispatchedAt = 0;
   let heardHintTimer = null;
+  let followupUntil = 0;
+  let followupTimer = null;
   let currentStatus = "off";
   let currentText = "";
   let currentError = "";
@@ -93,6 +96,36 @@ export function createVoiceSttController({ button, modal, btnYes, btnNo } = {}){
     idleCaptureTimer = null;
   }
 
+  function isFollowupActive(){
+    return Date.now() < followupUntil;
+  }
+
+  function updateIdleStatus(){
+    if (!enabled) return;
+    if (isFollowupActive()) {
+      setStatus("idle", "Listening for follow-up...");
+    } else {
+      setStatus("idle", "Waiting for \"agentic\"");
+    }
+  }
+
+  function armFollowupWindow(){
+    followupUntil = Date.now() + FOLLOWUP_WINDOW_MS;
+    if (followupTimer) clearTimeout(followupTimer);
+    followupTimer = setTimeout(() => {
+      followupUntil = 0;
+      if (!enabled || captureActive) return;
+      updateIdleStatus();
+    }, FOLLOWUP_WINDOW_MS + 40);
+    if (!captureActive) updateIdleStatus();
+  }
+
+  function clearFollowupWindow(){
+    followupUntil = 0;
+    if (followupTimer) clearTimeout(followupTimer);
+    followupTimer = null;
+  }
+
   function showHeardHint(text){
     if (!enabled || captureActive) return;
     if (heardHintTimer) clearTimeout(heardHintTimer);
@@ -101,7 +134,7 @@ export function createVoiceSttController({ button, modal, btnYes, btnNo } = {}){
     setStatus("idle", `Heard: ${heard}`);
     heardHintTimer = setTimeout(() => {
       if (!enabled || captureActive) return;
-      setStatus("idle", "Waiting for \"agentic\"");
+      updateIdleStatus();
     }, 1200);
   }
 
@@ -152,13 +185,14 @@ export function createVoiceSttController({ button, modal, btnYes, btnNo } = {}){
     if (command) {
       setStatus("processing", command);
       dispatchVoiceCommand(command);
+      armFollowupWindow();
       setTimeout(() => {
         if (!enabled) return;
-        setStatus("idle", "Waiting for \"agentic\"");
+        updateIdleStatus();
       }, 120);
       return;
     }
-    if (enabled) setStatus("idle", "Waiting for \"agentic\"");
+    if (enabled) updateIdleStatus();
   }
 
   function restartSilenceTimer(ms = 1200){
@@ -179,7 +213,7 @@ export function createVoiceSttController({ button, modal, btnYes, btnNo } = {}){
       networkErrorCount = 0;
       networkErrorWindowStart = 0;
       currentError = "";
-      if (enabled) setStatus("idle", "Waiting for \"agentic\"");
+      if (enabled) updateIdleStatus();
     };
     recognition.onerror = (event) => {
       const err = String(event?.error || "").toLowerCase();
@@ -203,6 +237,7 @@ export function createVoiceSttController({ button, modal, btnYes, btnNo } = {}){
           enabled = false;
           persistEnabled();
           resetCapture();
+          clearFollowupWindow();
           stopRecognition();
           setStatus("error", "", "Mic error: network. Browser speech service unavailable. Voice turned off.");
           updateButton();
@@ -222,19 +257,20 @@ export function createVoiceSttController({ button, modal, btnYes, btnNo } = {}){
         if (!txt) continue;
         if (!captureActive) {
           const afterWake = extractAfterWake(txt);
-          if (afterWake === null) {
+          if (afterWake === null && !isFollowupActive()) {
             showHeardHint(txt);
             continue;
           }
           captureActive = true;
           captureFinalParts = [];
           captureInterim = "";
-          if (afterWake) {
+          const seedText = afterWake === null ? txt : afterWake;
+          if (seedText) {
             if (result.isFinal) {
-              captureFinalParts.push(afterWake);
+              captureFinalParts.push(seedText);
               restartSilenceTimer(900);
             } else {
-              captureInterim = afterWake;
+              captureInterim = seedText;
               restartSilenceTimer(1400);
             }
           } else {
@@ -294,6 +330,7 @@ export function createVoiceSttController({ button, modal, btnYes, btnNo } = {}){
 
   function stopRecognition(){
     resetCapture();
+    clearFollowupWindow();
     if (!recognition) return;
     try {
       recognition.onresult = null;
