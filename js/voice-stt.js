@@ -1,6 +1,11 @@
 const LS_VOICE_CONSENT = "agent1c_voice_stt_consent_v1";
 const LS_VOICE_ENABLED = "agent1c_voice_stt_enabled_v1";
 const FOLLOWUP_WINDOW_MS = 45000;
+const FIRST_WAKE_IDLE_MS = 7000;
+const FIRST_WAKE_SILENCE_MS = 2200;
+const DEFAULT_IDLE_CAPTURE_MS = 2600;
+const DEFAULT_SILENCE_MS_FINAL = 1200;
+const DEFAULT_SILENCE_MS_INTERIM = 1400;
 
 function normalizeSpaces(text){
   return String(text || "").replace(/\s+/g, " ").trim();
@@ -46,6 +51,8 @@ export function createVoiceSttController({ button, modal, btnYes, btnNo } = {}){
   let currentStatus = "off";
   let currentText = "";
   let currentError = "";
+  let wakeCapturePrimed = false;
+  let audioCtx = null;
 
   function emitState(){
     const detail = {
@@ -145,6 +152,33 @@ export function createVoiceSttController({ button, modal, btnYes, btnNo } = {}){
     captureActive = false;
     captureFinalParts = [];
     captureInterim = "";
+    wakeCapturePrimed = false;
+  }
+
+  function playWakeChime(){
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      if (!audioCtx) audioCtx = new Ctx();
+      const now = audioCtx.currentTime;
+      const oscA = audioCtx.createOscillator();
+      const oscB = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      oscA.type = "sine";
+      oscB.type = "sine";
+      oscA.frequency.setValueAtTime(880, now);
+      oscB.frequency.setValueAtTime(1175, now + 0.08);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.06, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      oscA.connect(gain);
+      oscB.connect(gain);
+      gain.connect(audioCtx.destination);
+      oscA.start(now);
+      oscA.stop(now + 0.11);
+      oscB.start(now + 0.08);
+      oscB.stop(now + 0.22);
+    } catch {}
   }
 
   function openConsentModal(){
@@ -195,12 +229,12 @@ export function createVoiceSttController({ button, modal, btnYes, btnNo } = {}){
     if (enabled) updateIdleStatus();
   }
 
-  function restartSilenceTimer(ms = 1200){
+  function restartSilenceTimer(ms = DEFAULT_SILENCE_MS_FINAL){
     if (silenceTimer) clearTimeout(silenceTimer);
     silenceTimer = setTimeout(() => finishCapture(), ms);
   }
 
-  function restartIdleCaptureTimer(ms = 2600){
+  function restartIdleCaptureTimer(ms = DEFAULT_IDLE_CAPTURE_MS){
     if (idleCaptureTimer) clearTimeout(idleCaptureTimer);
     idleCaptureTimer = setTimeout(() => finishCapture(), ms);
   }
@@ -262,19 +296,21 @@ export function createVoiceSttController({ button, modal, btnYes, btnNo } = {}){
             continue;
           }
           captureActive = true;
+          wakeCapturePrimed = afterWake !== null;
+          if (wakeCapturePrimed) playWakeChime();
           captureFinalParts = [];
           captureInterim = "";
           const seedText = afterWake === null ? txt : afterWake;
           if (seedText) {
             if (result.isFinal) {
               captureFinalParts.push(seedText);
-              restartSilenceTimer(900);
+              restartSilenceTimer(wakeCapturePrimed ? FIRST_WAKE_SILENCE_MS : 900);
             } else {
               captureInterim = seedText;
-              restartSilenceTimer(1400);
+              restartSilenceTimer(wakeCapturePrimed ? FIRST_WAKE_SILENCE_MS : DEFAULT_SILENCE_MS_INTERIM);
             }
           } else {
-            restartIdleCaptureTimer(2600);
+            restartIdleCaptureTimer(wakeCapturePrimed ? FIRST_WAKE_IDLE_MS : DEFAULT_IDLE_CAPTURE_MS);
           }
           setStatus("listening", composeCaptureText() || "Listening...");
           continue;
@@ -284,10 +320,10 @@ export function createVoiceSttController({ button, modal, btnYes, btnNo } = {}){
         if (result.isFinal) {
           if (cleaned) captureFinalParts.push(cleaned);
           captureInterim = "";
-          restartSilenceTimer(1200);
+          restartSilenceTimer(wakeCapturePrimed ? FIRST_WAKE_SILENCE_MS : DEFAULT_SILENCE_MS_FINAL);
         } else {
           captureInterim = cleaned;
-          restartSilenceTimer(1400);
+          restartSilenceTimer(wakeCapturePrimed ? FIRST_WAKE_SILENCE_MS : DEFAULT_SILENCE_MS_INTERIM);
         }
         setStatus("listening", composeCaptureText() || "Listening...");
       }
