@@ -1032,6 +1032,14 @@ function asksToReadFile(text){
   return /(open|read|view|inspect|summarize|analy[sz]e|echo|print)\b[\s\S]{0,60}\b(file|doc|document|script|csv|txt|md|xlsx|docx|json|xml|log)/i.test(t)
 }
 
+function inferWindowAction(text){
+  const t = normalizeText(text)
+  if (!t) return ""
+  if (/\b(arrange|organi[sz]e|organize)\b[\s\S]{0,24}\b(windows?|desktop)\b/i.test(t)) return "arrange"
+  if (/\b(tile)\b[\s\S]{0,24}\b(windows?|desktop)\b/i.test(t)) return "tile"
+  return ""
+}
+
 function isLikelyText(record){
   const type = String(record?.type || "").toLowerCase()
   if (type.startsWith("text/")) return true
@@ -1288,6 +1296,10 @@ async function maybeInjectAutoToolResults(messages){
   const text = latestUserText(messages).trim()
   if (!text) return []
   const out = []
+  const wmAction = inferWindowAction(text)
+  if (wmAction) {
+    out.push(await runToolCall({ name: "wm_action", args: { action: wmAction } }))
+  }
   if (asksForFileList(text)) {
     out.push(await runToolCall({ name: "list_files", args: {} }))
   }
@@ -1333,7 +1345,24 @@ async function runToolCall(call){
   }
   if (call.name === "wm_action") {
     const args = call.args || {}
-    const action = String(args.action || "").trim().toLowerCase()
+    const rawAction = String(args.action || "").trim().toLowerCase()
+    const actionMap = {
+      "tilewindows": "tile",
+      "tile_visible_windows": "tile",
+      "tile_visible": "tile",
+      "arrangewindows": "arrange",
+      "arrange_windows": "arrange",
+      "arrange_visible_windows": "arrange",
+      "arrangevisiblewindows": "arrange",
+      "focus": "focus_window",
+      "minimize": "minimize_window",
+      "restore": "restore_window",
+      "openapp": "open_app",
+      "openurl": "open_url",
+      "listwindows": "list_windows",
+      "listapps": "list_apps",
+    }
+    const action = actionMap[rawAction.replace(/[^a-z0-9_]/g, "")] || rawAction
     if (!action) return "TOOL_RESULT wm_action: missing action"
     if (!wmRef) return `TOOL_RESULT wm_action ${action}: window manager unavailable`
     const rows = wmRef.listWindows?.() || []
