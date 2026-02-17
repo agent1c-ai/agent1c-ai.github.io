@@ -1512,6 +1512,7 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     if (["notes", "note"].includes(norm)) return createNotesWindow();
 
     const entries = Object.entries(appsMap || {});
+    const saved = loadSavedApps();
     const byIdExact = entries.find(([id]) => String(id || "").toLowerCase() === key);
     if (byIdExact && byIdExact[1]?.url) {
       const [id, app] = byIdExact;
@@ -1540,7 +1541,34 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
       const [id, app] = byTitleContains;
       return createAppWindow(app.title || id, app.url);
     }
+
+    const savedExact = saved.find(app => String(app?.name || "").toLowerCase() === key);
+    if (savedExact?.url) return createAppWindow(savedExact.name || "App", savedExact.url);
+    const savedNorm = saved.find(app => String(app?.name || "").toLowerCase().replace(/[^a-z0-9]/g, "") === norm);
+    if (savedNorm?.url) return createAppWindow(savedNorm.name || "App", savedNorm.url);
+    const savedContains = saved.find(app => {
+      const t = String(app?.name || "").toLowerCase();
+      return t.includes(key) || key.includes(t);
+    });
+    if (savedContains?.url) return createAppWindow(savedContains.name || "App", savedContains.url);
+
     return null;
+  }
+
+  function listAvailableApps(){
+    const base = Object.entries(appsMap || {}).map(([id, app]) => ({
+      id: String(id || ""),
+      title: String(app?.title || id || ""),
+      url: String(app?.url || ""),
+      source: "builtin",
+    }));
+    const saved = loadSavedApps().map((app, i) => ({
+      id: `saved:${i + 1}`,
+      title: String(app?.name || "Saved App"),
+      url: String(app?.url || ""),
+      source: "saved",
+    }));
+    return [...base, ...saved].filter(app => app.title && app.url);
   }
 
   function openUrlInBrowser(url, opts = {}){
@@ -1784,6 +1812,7 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     listWindows,
     findWindowByTitle,
     openAppById,
+    listAvailableApps,
     openUrlInBrowser,
     restoreLayoutSession: restoreNonAgentWindowsFromSnapshot,
   };

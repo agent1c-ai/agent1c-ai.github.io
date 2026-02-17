@@ -127,7 +127,7 @@ Use when: User explicitly asks for local command execution.
 
 7. wm_action
 Parameters:
-- action: list_windows | tile | arrange | focus_window | minimize_window | restore_window | open_app | open_url
+- action: list_windows | list_apps | tile | arrange | focus_window | minimize_window | restore_window | open_app | open_url
 - title: window title for focus/minimize/restore (optional per action)
 - app: app id for open_app (optional per action)
 - url: target URL for open_url (optional per action)
@@ -1348,6 +1348,12 @@ async function runToolCall(call){
       if (!rows.length) return "TOOL_RESULT wm_action list_windows: no windows"
       const list = rows.map((w, i) => `${i + 1}. ${w.title} | id=${w.id} | minimized=${w.minimized ? "yes" : "no"} | kind=${w.kind || "window"}`)
       return `TOOL_RESULT wm_action list_windows:\n${list.join("\n")}`
+    }
+    if (action === "list_apps") {
+      const apps = wmRef.listAvailableApps?.() || []
+      if (!apps.length) return "TOOL_RESULT wm_action list_apps: no apps"
+      const list = apps.map((app, i) => `${i + 1}. ${app.title} | id=${app.id} | source=${app.source}`)
+      return `TOOL_RESULT wm_action list_apps:\n${list.join("\n")}`
     }
     if (action === "tile") {
       wmRef.tileVisibleWindows?.()

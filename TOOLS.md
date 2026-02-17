@@ -57,7 +57,7 @@ Use when: User explicitly asks for local shell command execution.
 
 7. `wm_action`
 Parameters:
-- `action`: `list_windows | tile | arrange | focus_window | minimize_window | restore_window | open_app | open_url`
+- `action`: `list_windows | list_apps | tile | arrange | focus_window | minimize_window | restore_window | open_app | open_url`
 - `title`: window title for focus/minimize/restore (optional per action)
 - `app`: app id for `open_app` (optional per action)
 - `url`: target URL for `open_url` (optional per action)
