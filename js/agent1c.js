@@ -263,6 +263,8 @@ let clippyLastAssistantKey = ""
 let clippyBubbleVariant = "full"
 let voiceUiState = { enabled: false, supported: true, status: "off", text: "", error: "" }
 let hitomiDesktopIcon = null
+let hitomiIconObserver = null
+let hitomiIconRelayoutQueued = false
 const thinkingThreadIds = new Set()
 
 const CORE_AGENT_PANEL_IDS = ["chat", "openai", "telegram", "config", "shellrelay", "soul", "tools", "heartbeat", "events"]
@@ -2026,6 +2028,7 @@ function ensureHitomiDesktopIcon(){
   })
   iconLayer.appendChild(el)
   hitomiDesktopIcon = el
+  ensureHitomiIconObserver()
   return el
 }
 
@@ -2037,8 +2040,42 @@ function removeHitomiDesktopIcon(){
 function positionHitomiDesktopIcon(){
   if (!hitomiDesktopIcon || !hitomiDesktopIcon.isConnected) return
   const pos = computeNextDesktopIconPosition({ excludeEl: hitomiDesktopIcon })
-  hitomiDesktopIcon.style.left = `${pos.x}px`
-  hitomiDesktopIcon.style.top = `${pos.y}px`
+  const nextLeft = `${pos.x}px`
+  const nextTop = `${pos.y}px`
+  if (hitomiDesktopIcon.style.left !== nextLeft) hitomiDesktopIcon.style.left = nextLeft
+  if (hitomiDesktopIcon.style.top !== nextTop) hitomiDesktopIcon.style.top = nextTop
+}
+
+function ensureHitomiIconObserver(){
+  const iconLayer = document.getElementById("iconLayer")
+  if (!iconLayer || hitomiIconObserver) return
+  hitomiIconObserver = new MutationObserver((mutations) => {
+    if (!hitomiDesktopIcon || !hitomiDesktopIcon.isConnected) return
+    let shouldRelayout = false
+    for (const m of mutations) {
+      if (m.type === "childList") {
+        shouldRelayout = true
+        break
+      }
+      if (m.type === "attributes") {
+        if (m.target === hitomiDesktopIcon) continue
+        shouldRelayout = true
+        break
+      }
+    }
+    if (!shouldRelayout || hitomiIconRelayoutQueued) return
+    hitomiIconRelayoutQueued = true
+    requestAnimationFrame(() => {
+      hitomiIconRelayoutQueued = false
+      positionHitomiDesktopIcon()
+    })
+  })
+  hitomiIconObserver.observe(iconLayer, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["style"],
+  })
 }
 
 async function hasAnyAiProviderKey(){
