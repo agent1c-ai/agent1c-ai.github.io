@@ -1,8 +1,9 @@
 # PHASE2_PLAN.md
 
 Scope:
-- Integrate Hitomi (Chat 1) with native HedgeyOS window-manager actions.
-- Keep relay architecture ready for expanded non-CORS tooling.
+- Phase 2a: upgrade native HedgeyOS Browser with relay-backed fallback for CORS-blocked sites.
+- Phase 2b: integrate Hitomi (Chat 1) with native HedgeyOS visible actions (browser + WM actions).
+- Keep relay architecture deterministic and modular.
 - Do not implement speculative side features outside this scope.
 
 Source context:
@@ -10,7 +11,33 @@ Source context:
 - `agents.md` remains the full long-form project memory.
 - This file is the focused execution contract for Phase 2 only.
 
-## 1) Phase 2 goals
+## 1) Phase split
+
+### Phase 2a (Browser first)
+
+Goal:
+- Make the existing native HedgeyOS Browser capable of opening any site:
+  - direct iframe/embed path when allowed
+  - relay fallback path when direct path fails due to CORS/private-network restrictions
+
+Requirements:
+- Keep current Browser UX intact (URL field + Go + iframe render path).
+- Add relay fetch fallback only as needed.
+- Keep fallback transparent to normal users.
+- Log fallback usage/events for debuggability.
+
+### Phase 2b (Agent actions)
+
+Goal:
+- Let Hitomi use the native Browser and native WM actions so users can see actions onscreen.
+- Hitomi must open the Browser window, set URL, and navigate through native HedgeyOS behavior.
+
+Requirements:
+- Browser actions are visible and deterministic.
+- WM actions are explicit and deterministic.
+- Tool results are injected and grounded before user-facing claims.
+
+## 2) Phase 2b goals
 
 1. Let Hitomi trigger native HedgeyOS desktop actions:
 - Tile windows
@@ -28,7 +55,7 @@ Source context:
 - No custom replacement window manager logic.
 - Use existing WM APIs and app-launch pathways.
 
-## 2) Proposed tool contract additions
+## 3) Proposed tool contract additions (Phase 2b)
 
 Add a WM action tool family in TOOLS:
 - `wm_action`
@@ -48,7 +75,7 @@ Parser/dispatch rules:
 - Return deterministic `TOOL_RESULT wm_action ...` responses.
 - If target window/app is ambiguous, return clear failure and let model ask user.
 
-## 3) WM capability mapping (existing HedgeyOS hooks)
+## 4) WM capability mapping (existing HedgeyOS hooks)
 
 Already available in `wm`:
 - `tileVisibleWindows()`
@@ -65,7 +92,19 @@ Integration approach:
 - Add a thin adapter in Agent1c that calls WM methods.
 - Do not re-implement WM layout logic in agent layer.
 
-## 4) Safety boundaries
+## 5) Browser integration contract (Phase 2a + 2b)
+
+1. Native Browser is the primary browsing surface.
+2. For user and Hitomi browsing requests:
+- attempt native direct navigation first
+- fallback to relay-backed fetch/proxy only when direct path is blocked
+3. Hitomi browsing actions must remain visible:
+- open/focus Browser window
+- set URL
+- trigger native navigation
+4. No hidden "background-only fetch" when the request intent is visible browsing.
+
+## 6) Safety boundaries
 
 1. Only Chat 1 controls desktop actions.
 2. Every action must write an event log entry.
@@ -74,21 +113,30 @@ Integration approach:
 - `wm_action` for desktop/window operations
 - `shell_exec` for host OS command operations
 
-## 5) Shell relay "what else" roadmap (beyond shell exec)
+## 7) Shell relay roadmap in this phase split
 
 Relay already used for:
 - Host OS command execution (`shell_exec`)
 
-Planned additional use:
+Phase 2a planned additional use:
 - CORS-safe HTTP bridge/proxy (`/v1/http/fetch`) for:
   - HedgeyOS Browser access to blocked sites
   - Future web tools requiring server-like fetch behavior
 
-## 6) Acceptance criteria
+Phase 2b planned additional use:
+- deterministic browser control actions for Hitomi via native Browser window (not custom renderer).
 
-1. Hitomi can tile/arrange/focus/open/minimize/restore via explicit tool calls.
-2. WM actions are reliable and reflected in visible UI state.
-3. Event timeline records requested action and outcome.
-4. No regressions to existing provider/chat/heartbeat/Telegram flows.
-5. No HedgeyOS core WM regressions.
+## 8) Acceptance criteria
 
+1. Phase 2a:
+- Native Browser can access sites that direct path blocks by using relay fallback.
+- No regression to direct browsing path.
+
+2. Phase 2b:
+- Hitomi can visibly open/focus Browser and navigate to requested URL.
+- Hitomi can tile/arrange/focus/open/minimize/restore via explicit tool calls.
+- Event timeline records requested action and outcome.
+
+3. Global:
+- No regressions to existing provider/chat/heartbeat/Telegram flows.
+- No HedgeyOS core WM regressions.

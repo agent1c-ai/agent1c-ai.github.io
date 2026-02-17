@@ -796,3 +796,17 @@ Besides `shell_exec`, relay is planned to also support:
 2. Keep `agents.md` as long-form project memory and cross-check assumptions.
 3. Preserve HedgeyOS-native WM behavior and visual language.
 4. Keep execution deterministic with explicit tool tokens and TOOL_RESULT grounding.
+
+### 19.6 Phase split refinement (2a / 2b)
+
+Updated sequencing:
+- Phase 2a first:
+  - upgrade native HedgeyOS Browser to support relay fallback for CORS-blocked sites
+  - keep native Browser as the visible browsing surface
+- Phase 2b second:
+  - let Hitomi use native Browser actions (open/focus browser, set URL, navigate)
+  - then add broader WM action controls (`tile`, `arrange`, `focus`, `open app`, etc.)
+
+Important product rule:
+- If Hitomi "opens a website", the user should see it in native HedgeyOS Browser.
+- Relay fetch is fallback/infrastructure, not the primary visible browsing UI.
