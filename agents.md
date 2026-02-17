@@ -810,3 +810,10 @@ Updated sequencing:
 Important product rule:
 - If Hitomi "opens a website", the user should see it in native HedgeyOS Browser.
 - Relay fetch is fallback/infrastructure, not the primary visible browsing UI.
+
+### 19.7 Deferred setup UX bucket (Phase 2c)
+
+Relay setup UX follow-up is intentionally deferred to Phase 2c:
+- Add optional persistence instructions (Linux/Android) using user `systemd` service + optional `enable` on startup.
+- Add clear uninstall flow in a separate tab/section with strong warning style (red caution) to prevent accidental execution.
+- Keep macOS persistence guidance separate (launchd note), not mixed with Linux/Android systemd commands.

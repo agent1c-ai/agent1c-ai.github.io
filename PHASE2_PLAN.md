@@ -6,6 +6,9 @@ Scope:
 - Keep relay architecture deterministic and modular.
 - Do not implement speculative side features outside this scope.
 
+Out of scope for this file:
+- Phase 2c relay setup UX hardening (persistent service + uninstall flow).
+
 Source context:
 - This plan is derived from product discussion after Phase 1 shell relay.
 - `agents.md` remains the full long-form project memory.
@@ -140,3 +143,16 @@ Phase 2b planned additional use:
 3. Global:
 - No regressions to existing provider/chat/heartbeat/Telegram flows.
 - No HedgeyOS core WM regressions.
+
+## 9) Deferred to Phase 2c (explicit)
+
+Relay setup UX follow-up:
+- Add optional persistence step in setup instructions for Linux/Android:
+  - install/start as user `systemd` service
+  - optional `enable` for startup persistence
+- Add clearly marked uninstall path:
+  - put uninstall commands in separate tab/section to avoid accidental execution
+  - style warning prominently (red/high-contrast caution label)
+- macOS note:
+  - document that persistence is different (launchd), not systemd
+  - keep Linux/Android systemd instructions isolated from macOS instructions
