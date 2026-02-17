@@ -3,6 +3,7 @@
 // for Codex: keep relay logic modular in this file; do not spread core relay behavior across agent1c.js.
 
 export const AGENT1C_RELAY_CONTRACT_PATH = "PHASE1_CONTRACT.md"
+const RELAY_CONNECTED_ONCE_KEY = "agent1c_relay_connected_once_v1"
 
 export const RELAY_DEFAULTS = {
   enabled: false,
@@ -117,6 +118,21 @@ function relaySetupByOs(os){
   }
 }
 
+function relayConnectedOnce(){
+  try {
+    return localStorage.getItem(RELAY_CONNECTED_ONCE_KEY) === "1"
+  } catch {
+    return false
+  }
+}
+
+function setRelayConnectedOnce(value){
+  try {
+    if (value) localStorage.setItem(RELAY_CONNECTED_ONCE_KEY, "1")
+    else localStorage.removeItem(RELAY_CONNECTED_ONCE_KEY)
+  } catch {}
+}
+
 function codeCard(title, code, copyKey){
   return `
     <div class="agent-code-card">
@@ -139,48 +155,58 @@ export function shellRelayWindowHtml(){
         <div class="agent-note">This enables localhost shell tools for Hitomi. Setup is shell-only and local to your device.</div>
         <div class="agent-note agent-note-warn">Warning: run relay as non-root/non-sudo user.</div>
       </div>
-      <div class="agent-grid2">
-        <label class="agent-form-label">
-          <span>Relay</span>
-          <select id="relayWindowEnabledSelect" class="field">
-            <option value="off">Disabled</option>
-            <option value="on">Enabled</option>
-          </select>
-        </label>
-        <label class="agent-form-label">
-          <span>Timeout (ms)</span>
-          <input id="relayWindowTimeoutInput" class="field" type="number" min="1000" max="120000" step="1000" />
-        </label>
-      </div>
-      <label class="agent-form-label">
-        <span>Relay URL</span>
-        <input id="relayWindowBaseUrlInput" class="field" type="text" placeholder="http://127.0.0.1:8765" />
-      </label>
-      <label class="agent-form-label">
-        <span>Relay token (optional)</span>
-        <input id="relayWindowTokenInput" class="field" type="password" placeholder="change-me" />
-      </label>
-      <div class="agent-row agent-wrap-row">
-        <button id="relayWindowSaveBtn" class="btn" type="button">Save Relay Settings</button>
-        <button id="relayWindowTestBtn" class="btn" type="button">Test Relay</button>
-        <span id="relayWindowStatus" class="agent-note">Relay idle.</span>
-      </div>
-      <div class="agent-divider"></div>
       <div class="agent-device-tabs">
-        <button class="btn agent-device-tab active" type="button" data-relay-os="linux">Linux</button>
-        <button class="btn agent-device-tab" type="button" data-relay-os="mac">macOS</button>
-        <button class="btn agent-device-tab" type="button" data-relay-os="android">Android</button>
+        <button id="relayMainTabSetup" class="btn agent-device-tab active" type="button" data-relay-main-tab="setup">Setup</button>
+        <button id="relayMainTabConnect" class="btn agent-device-tab" type="button" data-relay-main-tab="connect">Connect</button>
       </div>
-      <div class="agent-note">Pick device first, then copy commands.</div>
-      <div id="relaySetupBody">
-        <div class="agent-setup-section">
-          <div class="agent-setup-title">${os.label}</div>
-          ${codeCard(os.depsTitle, os.depsCmd, "deps")}
-          ${codeCard(os.installTitle, os.installCmd, "install")}
-          ${codeCard(os.startTitle, os.startCmd, "start")}
-          ${codeCard(os.tokenTitle, os.tokenCmd, "token")}
-          ${codeCard(os.verifyTitle, os.verifyCmd, "verify")}
-          <div class="agent-note">${os.caveat}</div>
+      <div id="relayPageSetup" class="agent-relay-page">
+        <div class="agent-device-tabs">
+          <button class="btn agent-device-tab active" type="button" data-relay-os="linux">Linux</button>
+          <button class="btn agent-device-tab" type="button" data-relay-os="mac">macOS</button>
+          <button class="btn agent-device-tab" type="button" data-relay-os="android">Android</button>
+        </div>
+        <div class="agent-note">Pick device first, then copy commands.</div>
+        <div id="relaySetupBody">
+          <div class="agent-setup-section">
+            <div class="agent-setup-title">${os.label}</div>
+            ${codeCard(os.depsTitle, os.depsCmd, "deps")}
+            ${codeCard(os.installTitle, os.installCmd, "install")}
+            ${codeCard(os.startTitle, os.startCmd, "start")}
+            ${codeCard(os.tokenTitle, os.tokenCmd, "token")}
+            ${codeCard(os.verifyTitle, os.verifyCmd, "verify")}
+            <div class="agent-note">${os.caveat}</div>
+          </div>
+        </div>
+        <div class="agent-row">
+          <button id="relayNextBtn" class="btn" type="button">Next: Connect</button>
+        </div>
+      </div>
+      <div id="relayPageConnect" class="agent-relay-page agent-hidden">
+        <div class="agent-grid2">
+          <label class="agent-form-label">
+            <span>Relay</span>
+            <select id="relayWindowEnabledSelect" class="field">
+              <option value="off">Disabled</option>
+              <option value="on">Enabled</option>
+            </select>
+          </label>
+          <label class="agent-form-label">
+            <span>Timeout (ms)</span>
+            <input id="relayWindowTimeoutInput" class="field" type="number" min="1000" max="120000" step="1000" />
+          </label>
+        </div>
+        <label class="agent-form-label">
+          <span>Relay URL</span>
+          <input id="relayWindowBaseUrlInput" class="field" type="text" placeholder="http://127.0.0.1:8765" />
+        </label>
+        <label class="agent-form-label">
+          <span>Relay token (optional)</span>
+          <input id="relayWindowTokenInput" class="field" type="password" placeholder="change-me" />
+        </label>
+        <div class="agent-row agent-wrap-row">
+          <button id="relayWindowSaveBtn" class="btn" type="button">Save Relay Settings</button>
+          <button id="relayWindowTestBtn" class="btn" type="button">Test Relay</button>
+          <span id="relayWindowStatus" class="agent-note">Relay idle.</span>
         </div>
       </div>
     </div>
@@ -204,6 +230,11 @@ function renderRelaySetupBody(os){
 
 export function cacheShellRelayElements(byId){
   return {
+    relayMainTabSetup: byId("relayMainTabSetup"),
+    relayMainTabConnect: byId("relayMainTabConnect"),
+    relayPageSetup: byId("relayPageSetup"),
+    relayPageConnect: byId("relayPageConnect"),
+    relayNextBtn: byId("relayNextBtn"),
     relayWindowEnabledSelect: byId("relayWindowEnabledSelect"),
     relayWindowTimeoutInput: byId("relayWindowTimeoutInput"),
     relayWindowBaseUrlInput: byId("relayWindowBaseUrlInput"),
@@ -295,6 +326,14 @@ export function wireShellRelayDom({ root, els, getRelayConfig, onSaveRelayConfig
   if (els.relayWindowTokenInput) els.relayWindowTokenInput.value = cfg.token
   if (els.relayWindowStatus) els.relayWindowStatus.textContent = cfg.enabled ? "Relay enabled." : "Relay disabled."
 
+  const setMainTab = (tab) => {
+    const isConnect = tab === "connect"
+    els.relayMainTabSetup?.classList.toggle("active", !isConnect)
+    els.relayMainTabConnect?.classList.toggle("active", isConnect)
+    els.relayPageSetup?.classList.toggle("agent-hidden", isConnect)
+    els.relayPageConnect?.classList.toggle("agent-hidden", !isConnect)
+  }
+
   const saveFromInputs = async () => {
     const nextCfg = normalizeRelayConfig({
       relayEnabled: els.relayWindowEnabledSelect?.value === "on",
@@ -306,6 +345,12 @@ export function wireShellRelayDom({ root, els, getRelayConfig, onSaveRelayConfig
     if (els.relayWindowStatus) els.relayWindowStatus.textContent = nextCfg.enabled ? "Relay enabled." : "Relay disabled."
     setStatus?.("Relay settings saved.")
   }
+
+  const defaultMainTab = relayConnectedOnce() ? "connect" : "setup"
+  setMainTab(defaultMainTab)
+  els.relayMainTabSetup?.addEventListener("click", () => setMainTab("setup"))
+  els.relayMainTabConnect?.addEventListener("click", () => setMainTab("connect"))
+  els.relayNextBtn?.addEventListener("click", () => setMainTab("connect"))
 
   const tabs = Array.from(root.querySelectorAll(".agent-device-tab[data-relay-os]"))
   const setOs = (os) => {
@@ -346,6 +391,8 @@ export function wireShellRelayDom({ root, els, getRelayConfig, onSaveRelayConfig
       const current = normalizeRelayConfig(getRelayConfig?.() || RELAY_DEFAULTS)
       const health = await testRelayHealth(current)
       if (els.relayWindowStatus) els.relayWindowStatus.textContent = `Relay ok (${String(health?.version || "unknown")}).`
+      setRelayConnectedOnce(true)
+      setMainTab("connect")
       await addEvent?.("relay_test_ok", `Relay healthy at ${current.baseUrl}`)
       setStatus?.("Relay test passed.")
     } catch (err) {
