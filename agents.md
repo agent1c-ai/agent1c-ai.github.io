@@ -745,3 +745,54 @@ Implemented direction in this pass:
   - `handler.sh`
 - Setup flow is OS-first with copyable command blocks in `Shell Relay`.
 - Tool contract includes `shell_exec` via inline token flow and result injection.
+
+---
+
+## 19) Phase 2 plan snapshot: Hitomi control of HedgeyOS actions
+
+This section summarizes the current agreed direction.
+The execution contract is now in `PHASE2_PLAN.md`.
+
+### 19.1 Product intent
+
+- Hitomi (Chat 1) should control core HedgeyOS actions as an integrated agentic OS behavior.
+- Target actions include:
+  - tile windows
+  - arrange windows
+  - focus a chosen window
+  - minimize/restore a chosen window
+  - open apps from the Apps list
+  - list current windows/apps for grounding
+
+### 19.2 Integration method
+
+- Implement via explicit inline tool calls (deterministic parser path).
+- Add a WM action tool family (`wm_action`) in Agent1c tooling flow.
+- Reuse existing `wm` methods; do not rewrite WM logic in agent layer.
+
+### 19.3 Known WM hooks available now
+
+- `tileVisibleWindows()`
+- `arrangeVisibleWindows()`
+- focus/minimize/restore through existing window state flow
+- app/window creation:
+  - `createFilesWindow()`
+  - `createBrowserWindow()`
+  - `createNotesWindow()`
+  - `createTerminalWindow()`
+  - `createThemesWindow()`
+  - `createAppWindow(title, url)`
+
+### 19.4 Shell relay future use (beyond current shell exec)
+
+Besides `shell_exec`, relay is planned to also support:
+- CORS-safe external fetch proxy endpoint (`/v1/http/fetch`) for:
+  - HedgeyOS Browser access to CORS-blocked sites
+  - future web/data tools that require server-side fetch behavior
+
+### 19.5 Guardrails for future codex iterations
+
+1. Always read `PHASE2_PLAN.md` before implementing WM action tooling.
+2. Keep `agents.md` as long-form project memory and cross-check assumptions.
+3. Preserve HedgeyOS-native WM behavior and visual language.
+4. Keep execution deterministic with explicit tool tokens and TOOL_RESULT grounding.

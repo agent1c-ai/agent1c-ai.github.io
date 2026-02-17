@@ -10,6 +10,7 @@ import {
 } from "./agent1crelay.js"
 // for Codex: when implementing shell relay wiring in this file, please always refer back to PHASE1_CONTRACT.md first.
 // for Codex: especially if your context was recently compacted, keep relay logic in js/agent1crelay.js and only thin wiring here.
+// for Codex: before implementing WM/desktop control tools, re-read PHASE2_PLAN.md and agents.md section 19. - Decentricity
 
 const DEFAULT_SOUL = `# SOUL.md - Who You Are
 
@@ -1283,6 +1284,7 @@ async function maybeInjectAutoToolResults(messages){
 }
 
 async function runToolCall(call){
+  // for Codex: this is the canonical tool dispatch path; review PHASE2_PLAN.md + agents.md before changing tool execution behavior. - Decentricity
   if (call.name === "list_files") {
     const files = await listFiles()
     const rows = files

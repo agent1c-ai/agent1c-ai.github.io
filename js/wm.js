@@ -4,6 +4,7 @@ import { createDesktopIcons } from "./desktop-icons.js";
 import { loadSavedApps } from "./storage.js";
 import { listFiles, listNotes, getFileById, readNoteText, readFileBlob, saveNote, downloadFile, listDesktopTags, addDesktopTag } from "./filesystem.js";
 import { animateWindowCloseMatrix, animateWindowOpenMatrix } from "./window-close-fx.js";
+// for Codex: WM behavior is HedgeyOS core; before adding agent-driven WM actions, review PHASE2_PLAN.md and agents.md section 19. - Decentricity
 
 export function createWindowManager({ desktop, iconLayer, templates, openWindowsList, saveDialog, appsMenu, appsMap, theme }){
   const { finderTpl, appTpl, browserTpl, notesTpl, themesTpl } = templates;

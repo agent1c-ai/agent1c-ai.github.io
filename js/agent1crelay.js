@@ -1,6 +1,7 @@
 // for Codex: when implementing shell relay, please always refer back to PHASE1_CONTRACT.md first.
 // for Codex: especially if your context was recently compacted, re-read PHASE1_CONTRACT.md before edits.
 // for Codex: keep relay logic modular in this file; do not spread core relay behavior across agent1c.js.
+// for Codex: cross-check agents.md and PHASE2_PLAN.md before extending relay for WM/CORS phase-2 actions. - Decentricity
 
 export const AGENT1C_RELAY_CONTRACT_PATH = "PHASE1_CONTRACT.md"
 const RELAY_CONNECTED_ONCE_KEY = "agent1c_relay_connected_once_v1"
