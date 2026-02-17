@@ -78,6 +78,11 @@ Parser/dispatch rules:
 - Return deterministic `TOOL_RESULT wm_action ...` responses.
 - If target window/app is ambiguous, return clear failure and let model ask user.
 
+Document authority rule for Phase 2b rollout:
+- Deployed defaults for `SOUL.md`, `TOOLS.md`, and `heartbeat.md` are authoritative.
+- On app refresh/reload, local edited versions of those three docs are overwritten by current deployed defaults.
+- This is intentional for coordinated behavior updates during active 2b development.
+
 ## 4) WM capability mapping (existing HedgeyOS hooks)
 
 Already available in `wm`:

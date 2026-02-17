@@ -817,3 +817,14 @@ Relay setup UX follow-up is intentionally deferred to Phase 2c:
 - Add optional persistence instructions (Linux/Android) using user `systemd` service + optional `enable` on startup.
 - Add clear uninstall flow in a separate tab/section with strong warning style (red caution) to prevent accidental execution.
 - Keep macOS persistence guidance separate (launchd note), not mixed with Linux/Android systemd commands.
+
+### 19.8 Phase 2b document authority policy
+
+For current 2b rollout, the shipped doc defaults are authoritative:
+- `SOUL.md`
+- `TOOLS.md`
+- `heartbeat.md`
+
+Behavior requirement:
+- On refresh/reload, local edited versions of the three docs must be overwritten with deployed defaults.
+- This is intentional to ensure coordinated prompt/tool behavior updates reach all users consistently.
