@@ -3134,10 +3134,6 @@ function openAiWindowHtml(){
             </div>
           </div>
         </div>
-        <div class="agent-row">
-          <button id="openShellRelayBtn" class="btn" type="button">Shell Relay...</button>
-          <span class="agent-note">Open shell relay setup and relay controls.</span>
-        </div>
       </div>
     </div>
   `
@@ -3359,6 +3355,10 @@ function configWindowHtml(){
       <div class="agent-row agent-wrap-row">
         <button id="startLoopBtn" class="btn" type="button">Start Agent Loop</button>
         <button id="stopLoopBtn" class="btn" type="button">Stop Loop</button>
+      </div>
+      <div class="agent-row agent-wrap-row">
+        <button id="openShellRelayBtn" class="btn" type="button">Shell Relay...</button>
+        <span class="agent-note">Open shell relay setup and controls.</span>
       </div>
       <div class="agent-meta-row">
         <span>Loop status: <strong id="loopStatus">idle</strong></span>
@@ -4283,6 +4283,7 @@ async function createWorkspace({ showUnlock, onboarding }) {
   const savedPanelIds = readSavedAgentPanelIds()
   const shouldSpawnPanel = (panelId) => {
     if (!savedPanelIds) return true
+    if (panelId === "shellrelay") return true
     if (onboarding && (panelId === "openai" || panelId === "events")) return true
     return savedPanelIds.has(panelId)
   }
