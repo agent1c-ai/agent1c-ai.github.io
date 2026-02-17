@@ -1,5 +1,13 @@
 import { listFiles, readFileBlob, readNoteText } from "./filesystem.js"
 import { animateHitomiWispsShow } from "./hitomi-wisps-fx.js"
+import {
+  RELAY_DEFAULTS,
+  normalizeRelayConfig,
+  shellRelayWindowHtml,
+  cacheShellRelayElements,
+  wireShellRelayDom,
+  runShellExecTool,
+} from "./agent1crelay.js"
 // for Codex: when implementing shell relay wiring in this file, please always refer back to PHASE1_CONTRACT.md first.
 // for Codex: especially if your context was recently compacted, keep relay logic in js/agent1crelay.js and only thin wiring here.
 
@@ -67,6 +75,7 @@ Tool call format:
 - For Wikipedia search use: {{tool:wiki_search|query=hedgehog}}
 - For Wikipedia summary use: {{tool:wiki_summary|title=Hedgehog}}
 - For GitHub public reads use: {{tool:github_repo_read|request=owner/repo issue 123}}
+- For localhost shell relay use: {{tool:shell_exec|command=pwd}}
 - Do not use JSON unless explicitly asked by the user.
 - Emit tool tokens only when needed to answer the user.
 - After tool results are returned, answer naturally for the user.
@@ -106,6 +115,13 @@ Parameters:
 Description: Reads public GitHub repo metadata, issues, PRs, and file contents.
 Use when: User asks about public GitHub repos, files, issues, or pull requests.
 
+6. shell_exec
+Parameters:
+- command: shell command to execute through localhost relay.
+- timeout_ms: optional timeout override.
+Description: Executes local shell command via user-run localhost relay.
+Use when: User explicitly asks for local command execution.
+
 Policy:
 - You can access local files via these tools. Do not claim you cannot access files without trying the tools first.
 - Use list_files when you need current file inventory to answer a user request.
@@ -115,6 +131,8 @@ Policy:
 - Do not claim file contents were read unless a TOOL_RESULT read_file was returned.
 - If user asks factual web context, prefer Wikipedia tools before guessing.
 - If user asks GitHub repo/file/issue/PR questions, use github_repo_read before claiming details.
+- Use shell_exec only for explicit user-requested local actions.
+- Never claim command success unless TOOL_RESULT shell_exec confirms it.
 `
 
 const FALLBACK_OPENAI_MODELS = [
@@ -199,6 +217,10 @@ const appState = {
     heartbeatIntervalMs: 60000,
     maxContextMessages: 16,
     temperature: 0.4,
+    relayEnabled: RELAY_DEFAULTS.enabled,
+    relayBaseUrl: RELAY_DEFAULTS.baseUrl,
+    relayToken: RELAY_DEFAULTS.token,
+    relayTimeoutMs: RELAY_DEFAULTS.timeoutMs,
   },
   agent: {
     soulMd: DEFAULT_SOUL,
@@ -243,7 +265,7 @@ let voiceUiState = { enabled: false, supported: true, status: "off", text: "", e
 let hitomiDesktopIcon = null
 const thinkingThreadIds = new Set()
 
-const CORE_AGENT_PANEL_IDS = ["chat", "openai", "telegram", "config", "soul", "tools", "heartbeat", "events"]
+const CORE_AGENT_PANEL_IDS = ["chat", "openai", "telegram", "config", "shellrelay", "soul", "tools", "heartbeat", "events"]
 const pendingDocSaves = new Set()
 const LEGACY_SOUL_MARKERS = [
   "You are opinionated, independent, and freedom-focused.",
@@ -263,6 +285,7 @@ const wins = {
   tools: null,
   heartbeat: null,
   events: null,
+  shellrelay: null,
   ollamaSetup: null,
 }
 const previewProviderState = {
@@ -907,6 +930,8 @@ function buildSystemPrompt(){
     "- Use list_files only when target is unclear, stale, or lookup fails.",
     "- Do not narrate a file read/open action without emitting a tool call in the same reply.",
     "- Do not claim file contents were read unless TOOL_RESULT read_file is present.",
+    "- Use shell_exec only when user explicitly asks for local shell actions.",
+    "- Never claim shell command success unless TOOL_RESULT shell_exec confirms it.",
     "Interaction policy:",
     "- Keep replies to one or two sentences unless impossible.",
     "- Ask at most one follow-up question, and only when truly blocked.",
@@ -1278,6 +1303,14 @@ async function runToolCall(call){
   }
   if (call.name === "github_repo_read") {
     return githubRepoReadTool(call.args || {})
+  }
+  if (call.name === "shell_exec") {
+    return runShellExecTool({
+      args: call.args || {},
+      relayConfig: normalizeRelayConfig(appState.config),
+      addEvent,
+      excerptForToolText,
+    })
   }
   return `TOOL_RESULT ${call.name}: unsupported`
 }
@@ -2622,6 +2655,7 @@ function refreshUi(){
   if (els.ollamaSavePreviewBtn) els.ollamaSavePreviewBtn.disabled = !canUse
   if (els.ollamaEditBtn) els.ollamaEditBtn.disabled = !canUse
   if (els.ollamaSetupBtn) els.ollamaSetupBtn.disabled = !canUse
+  if (els.openShellRelayBtn) els.openShellRelayBtn.disabled = !canUse
   if (els.modelInput) els.modelInput.disabled = !canUse
   if (els.modelInputEdit) els.modelInputEdit.disabled = !canUse
   if (els.heartbeatInput) els.heartbeatInput.disabled = !canUse
@@ -2811,6 +2845,46 @@ function openOllamaSetupWindow(){
   wireOllamaSetupWindowDom(wins.ollamaSetup)
 }
 
+function wireShellRelayWindowDom(winObj){
+  const root = winObj?.panelRoot
+  if (!root) return
+  wireShellRelayDom({
+    root,
+    els,
+    getRelayConfig: () => normalizeRelayConfig(appState.config),
+    onSaveRelayConfig: async (nextCfg) => {
+      appState.config.relayEnabled = nextCfg.enabled
+      appState.config.relayBaseUrl = nextCfg.baseUrl
+      appState.config.relayToken = nextCfg.token
+      appState.config.relayTimeoutMs = nextCfg.timeoutMs
+      await persistState()
+      refreshUi()
+    },
+    setStatus,
+    addEvent,
+  })
+}
+
+function openShellRelayWindow(){
+  if (wins.shellrelay?.id && wmRef?.restore) {
+    wmRef.restore(wins.shellrelay.id)
+    wmRef.focus?.(wins.shellrelay.id)
+    return
+  }
+  wins.shellrelay = wmRef.createAgentPanelWindow("Shell Relay", {
+    panelId: "shellrelay",
+    left: 1045,
+    top: 360,
+    width: 460,
+    height: 470,
+    closeAsMinimize: true,
+  })
+  if (!wins.shellrelay?.panelRoot) return
+  wins.shellrelay.panelRoot.innerHTML = shellRelayWindowHtml()
+  cacheElements()
+  wireShellRelayWindowDom(wins.shellrelay)
+}
+
 function applyOnboardingWindowState(){
   restoreWindow(wins.openai)
   restoreWindow(wins.events)
@@ -2818,6 +2892,7 @@ function applyOnboardingWindowState(){
   minimizeWindow(wins.chat)
   minimizeWindow(wins.config)
   minimizeWindow(wins.telegram)
+  minimizeWindow(wins.shellrelay)
   minimizeWindow(wins.soul)
   minimizeWindow(wins.tools)
   minimizeWindow(wins.heartbeat)
@@ -2828,6 +2903,7 @@ function revealPostOpenAiWindows(){
   restoreWindow(wins.config)
   restoreWindow(wins.telegram)
   restoreWindow(wins.events)
+  minimizeWindow(wins.shellrelay)
   minimizeWindow(wins.soul)
   minimizeWindow(wins.tools)
   minimizeWindow(wins.heartbeat)
@@ -3057,6 +3133,10 @@ function openAiWindowHtml(){
               </div>
             </div>
           </div>
+        </div>
+        <div class="agent-row">
+          <button id="openShellRelayBtn" class="btn" type="button">Shell Relay...</button>
+          <span class="agent-note">Open shell relay setup and relay controls.</span>
         </div>
       </div>
     </div>
@@ -3402,6 +3482,7 @@ function cacheElements(){
     ollamaSavePreviewBtn: byId("ollamaSavePreviewBtn"),
     ollamaEditBtn: byId("ollamaEditBtn"),
     ollamaSetupBtn: byId("ollamaSetupBtn"),
+    openShellRelayBtn: byId("openShellRelayBtn"),
     openaiStoredRow: byId("openaiStoredRow"),
     openaiControls: byId("openaiControls"),
     openaiEditBtn: byId("openaiEditBtn"),
@@ -3438,6 +3519,7 @@ function cacheElements(){
     heartbeatLineNums: byId("heartbeatLineNums"),
     eventLog: byId("eventLog"),
   })
+  Object.assign(els, cacheShellRelayElements(byId))
 }
 
 async function refreshModelDropdown(providedKey){
@@ -4030,6 +4112,9 @@ function wireMainDom(){
   els.telegramEnabledSelect?.addEventListener("change", () => {
     scheduleConfigAutosave()
   })
+  els.openShellRelayBtn?.addEventListener("click", () => {
+    openShellRelayWindow()
+  })
 
   if (els.chatForm) {
     els.chatForm.addEventListener("submit", async (e) => {
@@ -4214,6 +4299,9 @@ async function createWorkspace({ showUnlock, onboarding }) {
   if (shouldSpawnPanel("config")) wins.config = wmRef.createAgentPanelWindow("Config", { panelId: "config", left: 20, top: 356, width: 430, height: 220, closeAsMinimize: true })
   if (wins.config?.panelRoot) wins.config.panelRoot.innerHTML = configWindowHtml()
 
+  if (shouldSpawnPanel("shellrelay")) wins.shellrelay = wmRef.createAgentPanelWindow("Shell Relay", { panelId: "shellrelay", left: 1045, top: 360, width: 460, height: 470, closeAsMinimize: true })
+  if (wins.shellrelay?.panelRoot) wins.shellrelay.panelRoot.innerHTML = shellRelayWindowHtml()
+
   if (shouldSpawnPanel("soul")) wins.soul = wmRef.createAgentPanelWindow("SOUL.md", { panelId: "soul", left: 20, top: 644, width: 320, height: 330, closeAsMinimize: true })
   if (wins.soul?.panelRoot) wins.soul.panelRoot.innerHTML = soulWindowHtml()
 
@@ -4234,6 +4322,7 @@ async function createWorkspace({ showUnlock, onboarding }) {
   cacheElements()
   wireMainDom()
   wireUnlockDom()
+  wireShellRelayWindowDom(wins.shellrelay)
   loadInputsFromState()
   requestAnimationFrame(() => syncNotepadGutters())
   setTimeout(() => syncNotepadGutters(), 0)
@@ -4262,6 +4351,11 @@ async function loadPersistentState(){
     appState.config.heartbeatIntervalMs = Math.max(5000, Number(cfg.heartbeatIntervalMs) || appState.config.heartbeatIntervalMs)
     appState.config.maxContextMessages = Math.max(4, Math.min(64, Number(cfg.maxContextMessages) || appState.config.maxContextMessages))
     appState.config.temperature = Math.max(0, Math.min(1.5, Number(cfg.temperature) || appState.config.temperature))
+    const relayCfg = normalizeRelayConfig(cfg)
+    appState.config.relayEnabled = relayCfg.enabled
+    appState.config.relayBaseUrl = relayCfg.baseUrl
+    appState.config.relayToken = relayCfg.token
+    appState.config.relayTimeoutMs = relayCfg.timeoutMs
     appState.telegramEnabled = cfg.telegramEnabled !== false
     appState.telegramPollMs = Math.max(5000, Number(cfg.telegramPollMs) || appState.telegramPollMs)
   }

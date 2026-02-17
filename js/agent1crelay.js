@@ -2,14 +2,356 @@
 // for Codex: especially if your context was recently compacted, re-read PHASE1_CONTRACT.md before edits.
 // for Codex: keep relay logic modular in this file; do not spread core relay behavior across agent1c.js.
 
-/*
-  Phase 1 relay module scaffold.
-  Intentionally minimal now: implementation happens in later gated passes.
-*/
-
 export const AGENT1C_RELAY_CONTRACT_PATH = "PHASE1_CONTRACT.md"
 
-export function relayNotImplemented(){
-  throw new Error("Shell relay module is not implemented yet. Read PHASE1_CONTRACT.md first.")
+export const RELAY_DEFAULTS = {
+  enabled: false,
+  baseUrl: "http://127.0.0.1:8765",
+  token: "",
+  timeoutMs: 30000,
 }
 
+function clamp(value, low, high){
+  return Math.max(low, Math.min(high, Number(value) || low))
+}
+
+export function normalizeRelayBaseUrl(value){
+  const source = String(value || "").trim()
+  if (!source) return ""
+  return source.replace(/\/+$/, "")
+}
+
+export function normalizeRelayConfig(config){
+  const source = config && typeof config === "object" ? config : {}
+  return {
+    enabled: source.relayEnabled === true || source.enabled === true,
+    baseUrl: normalizeRelayBaseUrl(source.relayBaseUrl || source.baseUrl || RELAY_DEFAULTS.baseUrl) || RELAY_DEFAULTS.baseUrl,
+    token: String(source.relayToken || source.token || "").trim(),
+    timeoutMs: clamp(source.relayTimeoutMs || source.timeoutMs || RELAY_DEFAULTS.timeoutMs, 1000, 120000),
+  }
+}
+
+async function copyTextToClipboard(text){
+  const value = String(text || "")
+  if (!value) return false
+  try {
+    await navigator.clipboard.writeText(value)
+    return true
+  } catch {
+    try {
+      const ta = document.createElement("textarea")
+      ta.value = value
+      ta.setAttribute("readonly", "readonly")
+      ta.style.position = "fixed"
+      ta.style.left = "-9999px"
+      document.body.appendChild(ta)
+      ta.select()
+      const ok = document.execCommand("copy")
+      ta.remove()
+      return Boolean(ok)
+    } catch {
+      return false
+    }
+  }
+}
+
+function relayInstallBaseUrl(){
+  try {
+    const origin = String(window.location?.origin || "").trim().replace(/\/+$/, "")
+    if (origin) return `${origin}/shell-relay`
+  } catch {}
+  return "https://agent1c.me/shell-relay"
+}
+
+function relaySetupByOs(os){
+  const base = relayInstallBaseUrl()
+  const installCmd = `curl -fsSL ${base}/install.sh | sh`
+  const tokenStart = `AGENT1C_RELAY_TOKEN="change-me" ~/.agent1c-relay/agent1c-relay.sh`
+  const healthNoToken = `curl -s -H "Origin: https://agent1c.me" http://127.0.0.1:8765/v1/health`
+  const healthWithToken = `curl -s -H "Origin: https://agent1c.me" -H "x-agent1c-token: change-me" http://127.0.0.1:8765/v1/health`
+  if (os === "mac") {
+    return {
+      label: "macOS",
+      depsTitle: "Step 1: Install dependencies",
+      depsCmd: "brew install jq socat",
+      installTitle: "Step 2: Install relay scripts",
+      installCmd,
+      startTitle: "Step 3: Start relay",
+      startCmd: "~/.agent1c-relay/agent1c-relay.sh",
+      tokenTitle: "Optional: start with token",
+      tokenCmd: tokenStart,
+      verifyTitle: "Step 4: Verify relay is alive",
+      verifyCmd: `${healthNoToken}\n${healthWithToken}`,
+      caveat: "Run as normal user (not sudo). If browser blocks local private-network requests, use a browser build that allows localhost private-network CORS from HTTPS origin.",
+    }
+  }
+  if (os === "android") {
+    return {
+      label: "Android (Termux)",
+      depsTitle: "Step 0: Install Termux (F-Droid preferred)",
+      depsCmd: "https://f-droid.org/packages/com.termux/",
+      installTitle: "Step 1: Install dependencies in Termux",
+      installCmd: "pkg update && pkg install -y curl jq socat",
+      startTitle: "Step 2: Install and start relay",
+      startCmd: `${installCmd}\n~/.agent1c-relay/agent1c-relay.sh`,
+      tokenTitle: "Optional: start with token",
+      tokenCmd: tokenStart,
+      verifyTitle: "Step 3: Verify + browser private-network note",
+      verifyCmd: `${healthNoToken}\n${healthWithToken}`,
+      caveat: "Android browsers may block HTTPS->localhost private-network requests. Ensure your browser permits local private-network CORS for agent1c.me.",
+    }
+  }
+  return {
+    label: "Linux",
+    depsTitle: "Step 1: Install dependencies",
+    depsCmd: "sudo apt update && sudo apt install -y curl jq socat",
+    installTitle: "Step 2: Install relay scripts",
+    installCmd,
+    startTitle: "Step 3: Start relay",
+    startCmd: "~/.agent1c-relay/agent1c-relay.sh",
+    tokenTitle: "Optional: start with token",
+    tokenCmd: tokenStart,
+    verifyTitle: "Step 4: Verify relay is alive",
+    verifyCmd: `${healthNoToken}\n${healthWithToken}`,
+    caveat: "Run as normal user (not sudo). If your distro does not use apt, install jq+socat using your package manager.",
+  }
+}
+
+function codeCard(title, code, copyKey){
+  return `
+    <div class="agent-code-card">
+      <div class="agent-code-head">
+        <span class="agent-code-label">${title}</span>
+        <button class="btn agent-copy-btn" type="button" data-relay-copy="${copyKey}">Copy</button>
+      </div>
+      <pre class="agent-setup-code" data-relay-code="${copyKey}">${code}</pre>
+    </div>
+  `
+}
+
+export function shellRelayWindowHtml(){
+  // for Codex: when changing Shell Relay UI/flow, always re-read PHASE1_CONTRACT.md first.
+  const os = relaySetupByOs("linux")
+  return `
+    <div class="agent-stack agent-setup-stack">
+      <div class="agent-setup-intro">
+        <div class="agent-setup-title">Shell Relay Setup</div>
+        <div class="agent-note">This enables localhost shell tools for Hitomi. Setup is shell-only and local to your device.</div>
+        <div class="agent-note agent-note-warn">Warning: run relay as non-root/non-sudo user.</div>
+      </div>
+      <div class="agent-grid2">
+        <label class="agent-form-label">
+          <span>Relay</span>
+          <select id="relayWindowEnabledSelect" class="field">
+            <option value="off">Disabled</option>
+            <option value="on">Enabled</option>
+          </select>
+        </label>
+        <label class="agent-form-label">
+          <span>Timeout (ms)</span>
+          <input id="relayWindowTimeoutInput" class="field" type="number" min="1000" max="120000" step="1000" />
+        </label>
+      </div>
+      <label class="agent-form-label">
+        <span>Relay URL</span>
+        <input id="relayWindowBaseUrlInput" class="field" type="text" placeholder="http://127.0.0.1:8765" />
+      </label>
+      <label class="agent-form-label">
+        <span>Relay token (optional)</span>
+        <input id="relayWindowTokenInput" class="field" type="password" placeholder="change-me" />
+      </label>
+      <div class="agent-row agent-wrap-row">
+        <button id="relayWindowSaveBtn" class="btn" type="button">Save Relay Settings</button>
+        <button id="relayWindowTestBtn" class="btn" type="button">Test Relay</button>
+        <span id="relayWindowStatus" class="agent-note">Relay idle.</span>
+      </div>
+      <div class="agent-divider"></div>
+      <div class="agent-device-tabs">
+        <button class="btn agent-device-tab active" type="button" data-relay-os="linux">Linux</button>
+        <button class="btn agent-device-tab" type="button" data-relay-os="mac">macOS</button>
+        <button class="btn agent-device-tab" type="button" data-relay-os="android">Android</button>
+      </div>
+      <div class="agent-note">Pick device first, then copy commands.</div>
+      <div id="relaySetupBody">
+        <div class="agent-setup-section">
+          <div class="agent-setup-title">${os.label}</div>
+          ${codeCard(os.depsTitle, os.depsCmd, "deps")}
+          ${codeCard(os.installTitle, os.installCmd, "install")}
+          ${codeCard(os.startTitle, os.startCmd, "start")}
+          ${codeCard(os.tokenTitle, os.tokenCmd, "token")}
+          ${codeCard(os.verifyTitle, os.verifyCmd, "verify")}
+          <div class="agent-note">${os.caveat}</div>
+        </div>
+      </div>
+    </div>
+  `
+}
+
+function renderRelaySetupBody(os){
+  const info = relaySetupByOs(os)
+  return `
+    <div class="agent-setup-section">
+      <div class="agent-setup-title">${info.label}</div>
+      ${codeCard(info.depsTitle, info.depsCmd, "deps")}
+      ${codeCard(info.installTitle, info.installCmd, "install")}
+      ${codeCard(info.startTitle, info.startCmd, "start")}
+      ${codeCard(info.tokenTitle, info.tokenCmd, "token")}
+      ${codeCard(info.verifyTitle, info.verifyCmd, "verify")}
+      <div class="agent-note">${info.caveat}</div>
+    </div>
+  `
+}
+
+export function cacheShellRelayElements(byId){
+  return {
+    relayWindowEnabledSelect: byId("relayWindowEnabledSelect"),
+    relayWindowTimeoutInput: byId("relayWindowTimeoutInput"),
+    relayWindowBaseUrlInput: byId("relayWindowBaseUrlInput"),
+    relayWindowTokenInput: byId("relayWindowTokenInput"),
+    relayWindowSaveBtn: byId("relayWindowSaveBtn"),
+    relayWindowTestBtn: byId("relayWindowTestBtn"),
+    relayWindowStatus: byId("relayWindowStatus"),
+    relaySetupBody: byId("relaySetupBody"),
+  }
+}
+
+async function relayJsonFetch(url, { method = "GET", token = "", body = null, timeoutMs = RELAY_DEFAULTS.timeoutMs } = {}){
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), clamp(timeoutMs, 1000, 120000))
+  try {
+    const headers = {}
+    if (token) headers["x-agent1c-token"] = token
+    if (body !== null) headers["Content-Type"] = "application/json"
+    const response = await fetch(url, {
+      method,
+      mode: "cors",
+      headers,
+      body: body !== null ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    })
+    const json = await response.json().catch(() => null)
+    if (!response.ok) {
+      const msg = String(json?.error || json?.message || "").trim()
+      throw new Error(`relay failed (${response.status})${msg ? `: ${msg}` : ""}`)
+    }
+    return json || {}
+  } catch (err) {
+    if (err?.name === "AbortError") throw new Error("relay timeout")
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+export async function testRelayHealth(relayConfig){
+  const cfg = normalizeRelayConfig(relayConfig)
+  if (!cfg.baseUrl) throw new Error("Relay URL is missing.")
+  return relayJsonFetch(`${cfg.baseUrl}/v1/health`, {
+    method: "GET",
+    token: cfg.token,
+    timeoutMs: cfg.timeoutMs,
+  })
+}
+
+export async function runShellExecTool({ args, relayConfig, addEvent, excerptForToolText }){
+  // for Codex: when changing shell execution behavior, always re-read PHASE1_CONTRACT.md first.
+  const cfg = normalizeRelayConfig(relayConfig)
+  if (!cfg.enabled) return "TOOL_RESULT shell_exec: local relay is disabled."
+  if (!cfg.baseUrl) return "TOOL_RESULT shell_exec: relay URL is missing."
+  const command = String(args?.command || args?.cmd || "").trim()
+  if (!command) return "TOOL_RESULT shell_exec: missing command parameter"
+  const timeoutMs = clamp(Number(args?.timeout_ms) || cfg.timeoutMs, 1000, 120000)
+  await addEvent?.("shell_exec_requested", command.slice(0, 160))
+  const json = await relayJsonFetch(`${cfg.baseUrl}/v1/shell/exec`, {
+    method: "POST",
+    token: cfg.token,
+    timeoutMs: timeoutMs + 1000,
+    body: { command, timeout_ms: timeoutMs },
+  })
+  const exitCode = Number(json?.exitCode ?? -1)
+  const timedOut = Boolean(json?.timedOut)
+  const truncated = Boolean(json?.truncated)
+  const stdoutRaw = String(json?.stdout || "")
+  const stderrRaw = String(json?.stderr || "")
+  const stdout = excerptForToolText ? excerptForToolText(stdoutRaw, 7000) : stdoutRaw
+  const stderr = excerptForToolText ? excerptForToolText(stderrRaw, 5000) : stderrRaw
+  await addEvent?.("shell_exec_result", `exit=${exitCode}${timedOut ? " timeout" : ""}${truncated ? " truncated" : ""}`)
+  return [
+    `TOOL_RESULT shell_exec: exitCode=${exitCode}${timedOut ? " timedOut=true" : ""}${truncated ? " truncated=true" : ""}`,
+    "[STDOUT]",
+    stdout || "(empty)",
+    "[STDERR]",
+    stderr || "(empty)",
+  ].join("\n")
+}
+
+export function wireShellRelayDom({ root, els, getRelayConfig, onSaveRelayConfig, setStatus, addEvent }){
+  // for Codex: when changing relay window interactions, always re-read PHASE1_CONTRACT.md first.
+  if (!root) return
+  const cfg = normalizeRelayConfig(getRelayConfig?.() || RELAY_DEFAULTS)
+  if (els.relayWindowEnabledSelect) els.relayWindowEnabledSelect.value = cfg.enabled ? "on" : "off"
+  if (els.relayWindowTimeoutInput) els.relayWindowTimeoutInput.value = String(cfg.timeoutMs)
+  if (els.relayWindowBaseUrlInput) els.relayWindowBaseUrlInput.value = cfg.baseUrl
+  if (els.relayWindowTokenInput) els.relayWindowTokenInput.value = cfg.token
+  if (els.relayWindowStatus) els.relayWindowStatus.textContent = cfg.enabled ? "Relay enabled." : "Relay disabled."
+
+  const saveFromInputs = async () => {
+    const nextCfg = normalizeRelayConfig({
+      relayEnabled: els.relayWindowEnabledSelect?.value === "on",
+      relayTimeoutMs: Number(els.relayWindowTimeoutInput?.value || cfg.timeoutMs),
+      relayBaseUrl: String(els.relayWindowBaseUrlInput?.value || cfg.baseUrl),
+      relayToken: String(els.relayWindowTokenInput?.value || ""),
+    })
+    await onSaveRelayConfig?.(nextCfg)
+    if (els.relayWindowStatus) els.relayWindowStatus.textContent = nextCfg.enabled ? "Relay enabled." : "Relay disabled."
+    setStatus?.("Relay settings saved.")
+  }
+
+  const tabs = Array.from(root.querySelectorAll(".agent-device-tab[data-relay-os]"))
+  const setOs = (os) => {
+    for (const tab of tabs) tab.classList.toggle("active", tab.dataset.relayOs === os)
+    if (els.relaySetupBody) els.relaySetupBody.innerHTML = renderRelaySetupBody(os)
+  }
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => setOs(String(tab.dataset.relayOs || "linux")))
+  })
+
+  root.addEventListener("click", async (event) => {
+    const btn = event.target?.closest?.("[data-relay-copy]")
+    if (!btn) return
+    const key = String(btn.getAttribute("data-relay-copy") || "")
+    const code = root.querySelector(`[data-relay-code="${key}"]`)
+    const text = code?.textContent || ""
+    const ok = await copyTextToClipboard(text)
+    if (ok) {
+      btn.textContent = "Copied"
+      setTimeout(() => { btn.textContent = "Copy" }, 900)
+    } else {
+      setStatus?.("Copy failed.")
+    }
+  })
+
+  els.relayWindowSaveBtn?.addEventListener("click", async () => {
+    try {
+      await saveFromInputs()
+    } catch (err) {
+      setStatus?.(err instanceof Error ? err.message : "Could not save relay settings")
+    }
+  })
+
+  els.relayWindowTestBtn?.addEventListener("click", async () => {
+    try {
+      await saveFromInputs()
+      if (els.relayWindowStatus) els.relayWindowStatus.textContent = "Testing relay..."
+      const current = normalizeRelayConfig(getRelayConfig?.() || RELAY_DEFAULTS)
+      const health = await testRelayHealth(current)
+      if (els.relayWindowStatus) els.relayWindowStatus.textContent = `Relay ok (${String(health?.version || "unknown")}).`
+      await addEvent?.("relay_test_ok", `Relay healthy at ${current.baseUrl}`)
+      setStatus?.("Relay test passed.")
+    } catch (err) {
+      if (els.relayWindowStatus) els.relayWindowStatus.textContent = "Relay test failed."
+      await addEvent?.("relay_test_failed", err instanceof Error ? err.message : "Relay test failed")
+      setStatus?.(err instanceof Error ? err.message : "Relay test failed")
+    }
+  })
+}

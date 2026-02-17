@@ -688,7 +688,7 @@ Important:
 ### 18.5 UX flow (based on Ollama Setup pattern)
 
 Add a new setup window:
-- Name: `Local Relay Setup`
+- Name: `Shell Relay`
 - Triggered from Connection/API area.
 - HedgeyOS-native window (no custom non-native panel).
 
@@ -727,3 +727,21 @@ Phase 3:
 3. Hitomi can execute explicit `shell_exec` tool call and receive deterministic result.
 4. Events timeline records command actions and outcomes.
 5. No regression to existing provider/chat/loop flows.
+
+### 18.9 Phase 1 implementation status (current)
+
+- Contract source of truth: `PHASE1_CONTRACT.md`.
+- Relay logic must be modularized in `js/agent1crelay.js`.
+- `js/agent1c.js` should remain thin integration for:
+  - window spawn/wiring
+  - tool dispatch hook
+  - state persistence handoff
+
+Implemented direction in this pass:
+- Dedicated `Shell Relay` top-level window (not inside `Config`).
+- Shell-only relay runtime scripts under `shell-relay/`:
+  - `install.sh`
+  - `agent1c-relay.sh`
+  - `handler.sh`
+- Setup flow is OS-first with copyable command blocks in `Shell Relay`.
+- Tool contract includes `shell_exec` via inline token flow and result injection.

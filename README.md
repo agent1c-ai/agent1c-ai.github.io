@@ -28,6 +28,7 @@ Agent1c.me and HedgeyOS are both by Decentricity.
 ## Core Capabilities
 
 - Top-level agent windows in HedgeyOS (Chat, AI APIs, Telegram API, Loop, SOUL.md, TOOLS.md, heartbeat.md, Events)
+- Dedicated `Shell Relay` window (separate from Config) for localhost shell bridge setup and controls
 - Local threaded chat with rolling context
 - Per-thread memory for local chats
 - Per-chat-id memory isolation for Telegram chats
@@ -62,6 +63,16 @@ Agent1c.me and HedgeyOS are both by Decentricity.
 - Agent runtime is tab-bound.
 - Locking vault protects secret access, while loop intent can continue and resume API work after unlock.
 - Telegram bridge runs only when enabled and when required credentials are available.
+
+## Shell Relay (Phase 1)
+
+- `Shell Relay` is a separate HedgeyOS window, not a Config subsection.
+- It provides OS-first setup instructions (Linux, macOS, Android) with copyable code blocks.
+- Relay runtime is shell-only in this phase:
+  - `shell-relay/install.sh`
+  - `shell-relay/agent1c-relay.sh`
+  - `shell-relay/handler.sh`
+- New tool in TOOLS: `shell_exec`.
 
 ## AI Provider Architecture
 
