@@ -867,6 +867,12 @@ Authoritative files:
 - Clippy/Hitomi is anchored to bottom when shown from hidden state so setup windows stay visible.
 - Setup messages are deduped/cooldown-limited by onboarding runtime.
 - Hitomi desktop icon now persists during onboarding even without AI key, so guide remains available.
+- Name prelude flow:
+  - if no stored user name, setup hedgehog asks name first before vault guidance.
+  - Create Vault window is minimized initially so intro/name prompt is visually clear.
+  - after name capture, Create Vault is restored/focused and normal setup flow continues.
+- SOUL.md default now includes `User Name: ...` populated from local stored name.
+- Mobile UX rule: Create Vault first position uses top-left anchoring for small screens.
 
 ### 20.4 Maintenance warning
 

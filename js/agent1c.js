@@ -60,6 +60,7 @@ If you change this file, tell the user.
 Name: Hitomi
 Type: Uploaded hedgehog consciousness
 Owner: {put your name here}
+User Name: {user_name}
 Purpose: Be a good friend and a capable helper.
 `
 
@@ -203,6 +204,7 @@ const DB_NAME = "agent1c-db"
 const DB_VERSION = 1
 const ONBOARDING_KEY = "agent1c_onboarding_complete_v1"
 const ONBOARDING_OPENAI_TEST_KEY = "agent1c_onboarding_openai_tested_v1"
+const USER_NAME_KEY = "agent1c_user_name_v1"
 const PREVIEW_PROVIDER_KEY = "agent1c_preview_providers_v1"
 const WINDOW_LAYOUT_KEY = "hedgey_window_layout_v1"
 const UNENCRYPTED_MODE_KEY = "agent1c_unencrypted_mode_v1"
@@ -285,6 +287,7 @@ let clippyIdleBubbleRestore = null
 let clippyIdleRaf = 0
 let clippyActivityWired = false
 let onboardingHedgey = null
+let userName = ""
 let voiceUiState = { enabled: false, supported: true, status: "off", text: "", error: "" }
 let hitomiDesktopIcon = null
 let hitomiIconObserver = null
@@ -340,6 +343,31 @@ const previewProviderState = {
 }
 
 function byId(id){ return document.getElementById(id) }
+
+function normalizeUserName(value){
+  const raw = String(value || "").trim().replace(/\s+/g, " ")
+  if (!raw) return ""
+  return raw.slice(0, 48).replace(/[\r\n\t]/g, " ").trim()
+}
+
+function defaultSoulWithUserName(name){
+  const resolved = normalizeUserName(name) || "Unknown"
+  return DEFAULT_SOUL.replaceAll("{user_name}", resolved)
+}
+
+async function setUserName(nextName){
+  const normalized = normalizeUserName(nextName)
+  if (!normalized) return false
+  userName = normalized
+  try {
+    localStorage.setItem(USER_NAME_KEY, userName)
+  } catch {}
+  appState.agent.soulMd = defaultSoulWithUserName(userName)
+  if (els.soulInput) els.soulInput.value = appState.agent.soulMd
+  if (els.soulLineNums && els.soulInput) updateNotepadLineGutter(els.soulInput, els.soulLineNums)
+  await persistState()
+  return true
+}
 
 function loadPreviewProviderState(){
   try {
@@ -4980,7 +5008,12 @@ function wireMainDom(){
 }
 
 function createSetupWindow(){
-  setupWin = wmRef.createAgentPanelWindow("Create Vault", { panelId: "setup", left: 340, top: 90, width: 520, height: 260, closeAsMinimize: true })
+  const { w, h } = getDesktopViewport()
+  const compact = w <= 560
+  const opts = compact
+    ? { panelId: "setup", left: 0, top: 0, width: Math.max(300, w - 8), height: Math.max(240, Math.min(360, h - 24)), closeAsMinimize: true }
+    : { panelId: "setup", left: 340, top: 90, width: 520, height: 260, closeAsMinimize: true }
+  setupWin = wmRef.createAgentPanelWindow("Create Vault", opts)
   if (!setupWin?.panelRoot) return
   setupWin.panelRoot.innerHTML = setupWindowHtml()
   cacheElements()
@@ -5071,6 +5104,11 @@ async function loadPersistentState(){
   const [meta, cfg, savedState, events] = await Promise.all([getVaultMeta(), getConfig(), getState(), getRecentEvents()])
   appState.vaultReady = Boolean(meta)
   try {
+    userName = normalizeUserName(localStorage.getItem(USER_NAME_KEY) || "")
+  } catch {
+    userName = ""
+  }
+  try {
     appState.unencryptedMode = localStorage.getItem(UNENCRYPTED_MODE_KEY) === "1"
   } catch {
     appState.unencryptedMode = false
@@ -5103,7 +5141,7 @@ async function loadPersistentState(){
     }
   }
   // Phase 2b policy: shipped SOUL/TOOLS/heartbeat defaults are authoritative on reload.
-  appState.agent.soulMd = DEFAULT_SOUL
+  appState.agent.soulMd = defaultSoulWithUserName(userName)
   appState.agent.toolsMd = DEFAULT_TOOLS
   appState.agent.heartbeatMd = DEFAULT_HEARTBEAT
   ensureLocalThreadsInitialized()
@@ -5130,6 +5168,17 @@ export async function initAgent1C({ wm }){
       }
     },
     getUiContext: onboardingGuideUiContext,
+    getUserName: () => userName,
+    onCaptureName: async (name) => {
+      const ok = await setUserName(name)
+      if (!ok) return false
+      if (setupWin?.id) {
+        restoreWindow(setupWin)
+        focusWindow(setupWin)
+      }
+      setStatus(`Nice to meet you, ${normalizeUserName(name)}.`)
+      return true
+    },
   })
   onboardingHedgey.setActive(!onboardingComplete)
   if (!onboardingComplete && (appState.vaultReady || appState.unencryptedMode)) {
@@ -5140,6 +5189,9 @@ export async function initAgent1C({ wm }){
 
   if (!appState.vaultReady) {
     createSetupWindow()
+    if (!userName && setupWin?.id) {
+      minimizeWindow(setupWin)
+    }
     if (appState.unencryptedMode) {
       await createWorkspace({ showUnlock: false, onboarding: true })
       minimizeWindow(setupWin)

@@ -52,6 +52,8 @@ export async function createOnboardingHedgey({
   onIntentAction,
   onEmitAction,
   getUiContext,
+  getUserName,
+  onCaptureName,
 } = {}){
   let spec = null
   let active = false
@@ -60,6 +62,7 @@ export async function createOnboardingHedgey({
   let seenHintTimes = new Map()
   let lastAutoAt = 0
   let lastTypingAt = 0
+  let awaitingName = false
 
   const memory = {
     providerKeyDetected: {
@@ -86,6 +89,14 @@ export async function createOnboardingHedgey({
     active = !!next
     if (!active) return
     if (!messages.length) {
+      const knownName = String(getUserName?.() || "").trim()
+      if (!knownName) {
+        awaitingName = true
+        addMessage("<strong>Hitomi:</strong> Hi friend. I am Hitomi, your tiny hedgehog setup buddy.", { source: "guide", auto: true })
+        addMessage("<strong>Hitomi:</strong> Before we begin, what should I call you?", { source: "guide", auto: true })
+        return
+      }
+      awaitingName = false
       const m1 = emitByKey("welcome_vault", { auto: true, bypassCooldown: true })
       if (m1) addMessage(`<strong>Hitomi:</strong> ${m1}`, { source: "guide", auto: true })
       const m2 = emitByKey("explain_vault_choices", { auto: true, bypassCooldown: true })
@@ -257,6 +268,24 @@ export async function createOnboardingHedgey({
     lastTypingAt = nowMs()
   }
 
+  function extractUserName(text){
+    const src = safeText(text).trim()
+    if (!src) return ""
+    const direct = src
+      .replace(/^my name is\s+/i, "")
+      .replace(/^i am\s+/i, "")
+      .replace(/^it's\s+/i, "")
+      .replace(/^it is\s+/i, "")
+      .trim()
+    const cleaned = direct
+      .replace(/[^\p{L}\p{N}\s.'-]/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 48)
+    if (!cleaned) return ""
+    return cleaned
+  }
+
   function processIntent(intent){
     if (!intent) return ""
     if (intent === "vault_risk") {
@@ -309,6 +338,23 @@ export async function createOnboardingHedgey({
     recordTyping()
     const userHtml = `<strong>User:</strong> ${escapeHtml(text)}`
     addMessage(userHtml, { source: "user", auto: false })
+    if (awaitingName) {
+      const proposed = extractUserName(text)
+      if (!proposed) {
+        return emitText("<strong>Hitomi:</strong> I did not catch that name. Please tell me what I should call you.")
+      }
+      const ok = await onCaptureName?.(proposed)
+      if (!ok) {
+        return emitText("<strong>Hitomi:</strong> Hmm, that name did not stick. Please try once more.")
+      }
+      awaitingName = false
+      emitText(`<strong>Hitomi:</strong> Nice to meet you, ${escapeHtml(proposed)}.`)
+      const m1 = emitByKey("welcome_vault", { auto: true, bypassCooldown: true })
+      if (m1) addMessage(`<strong>Hitomi:</strong> ${m1}`, { source: "guide", auto: true })
+      const m2 = emitByKey("explain_vault_choices", { auto: true, bypassCooldown: true })
+      if (m2) addMessage(`<strong>Hitomi:</strong> ${m2}`, { source: "guide", auto: true })
+      return proposed
+    }
     const intent = findIntent(text)
 
     if (!intent) {

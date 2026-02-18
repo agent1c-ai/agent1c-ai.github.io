@@ -187,6 +187,9 @@ Store grammar definitions in:
 - Setup links in onboarding bubble are clickable and open through native HedgeyOS browser route.
 - Onboarding guide activation is tied to onboarding completion state.
 - Clippy spawn is forced to bottom when shown from hidden state to reduce overlap with setup windows.
+- Added prelude step: setup hedgehog asks user name before vault flow; captured name is written into SOUL.md `User Name` field.
+- On first boot with no stored user name, Create Vault starts minimized so hedgehog intro is unobstructed.
+- On mobile widths, Create Vault initial position is forced to top-left to avoid offscreen/cutoff.
 
 ### Phase 2 Runtime Notes
 - Keep integration thin in `js/agent1c.js`; onboarding behavior should remain centralized in `js/onboarding-hedgey.js`.
