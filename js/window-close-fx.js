@@ -1,4 +1,4 @@
-const MATRIX_CHARS = "01アイウエオカキクケコサシスセソナニヌネノマミムメモラリルレロ🦔❤️🐷瞳";
+const MATRIX_CHARS = "01☺♬♛⛤✶✦✧✺✹✸✷✵✴✳✲✱✰✮✭✪✩✸✹✺✻✼✽✾✿❖❂❃❈❇❖❉❋❖❏❐❑❒⬟⬠⬢⬣⬡▣▤▥▦▧▨▩◆◇◈◉◊○●◎◌◍◐◑◒◓◔◕◖◗★☆✚✛✜✢✣✤✥✦✧✱✶✷✸✹✺✻✼✽✾✿🦔❤️🐷";
 
 export function animateWindowCloseMatrix(win, opts = {}){
   if (!win || !(win instanceof HTMLElement)) return Promise.resolve();
@@ -48,7 +48,7 @@ export function animateWindowCloseMatrix(win, opts = {}){
   const rain = document.createElement("div");
   rain.style.position = "absolute";
   rain.style.inset = "0";
-  rain.style.fontFamily = "monospace";
+  rain.style.fontFamily = "'Noto Sans Symbols 2', 'Noto Sans Symbols', 'Segoe UI Symbol', 'Apple Symbols', 'Arial Unicode MS', monospace";
   rain.style.fontSize = "13px";
   rain.style.fontWeight = "700";
   rain.style.lineHeight = "13px";
@@ -178,7 +178,7 @@ export function animateWindowOpenMatrix(win, opts = {}){
   const rain = document.createElement("div");
   rain.style.position = "absolute";
   rain.style.inset = "0";
-  rain.style.fontFamily = "monospace";
+  rain.style.fontFamily = "'Noto Sans Symbols 2', 'Noto Sans Symbols', 'Segoe UI Symbol', 'Apple Symbols', 'Arial Unicode MS', monospace";
   rain.style.fontSize = "13px";
   rain.style.fontWeight = "700";
   rain.style.lineHeight = "13px";
@@ -289,7 +289,7 @@ export function animateFullscreenMatrix(opts = {}){
   const rain = document.createElement("div");
   rain.style.position = "absolute";
   rain.style.inset = "0";
-  rain.style.fontFamily = "monospace";
+  rain.style.fontFamily = "'Noto Sans Symbols 2', 'Noto Sans Symbols', 'Segoe UI Symbol', 'Apple Symbols', 'Arial Unicode MS', monospace";
   rain.style.fontSize = "13px";
   rain.style.fontWeight = "700";
   rain.style.lineHeight = "13px";
