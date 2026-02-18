@@ -84,7 +84,7 @@ function introWindowHtml(){
         <div class="agent-intro-hero-copy">
           <div class="agent-intro-kicker">Agentic Desktop OS</div>
           <div class="agent-intro-title">Agent<span class="agent-intro-one">1</span>c</div>
-          <div class="agent-intro-sub">An agentic OS in your browser tab where Hitomi the hedgehog helps you run a fully autonomous AI agent with real windows, tools, and loops.</div>
+          <div class="agent-intro-sub">An agentic OS in your browser tab where Hitomi your hedgehog AI runs, controlling her own windows, tools, and apps.</div>
         </div>
       </div>
       <div class="agent-intro-signals">
