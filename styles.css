@@ -2628,3 +2628,14 @@ body.dark .agent-intro-btn-secondary{
 @media (max-width: 640px){
   .agent-preload-logo{ font-size: 28px; }
 }
+.agent-preload-emoji{
+  margin-top: 10px;
+  font-size: 18px;
+  letter-spacing: 6px;
+  color: #f4f2f7;
+  opacity: 0.9;
+  text-shadow: 0 6px 14px rgba(0,0,0,0.45);
+}
+@media (max-width: 640px){
+  .agent-preload-emoji{ font-size: 14px; letter-spacing: 4px; }
+}
