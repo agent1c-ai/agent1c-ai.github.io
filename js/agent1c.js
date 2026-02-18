@@ -3638,23 +3638,25 @@ function introWindowHtml(){
         <div class="agent-intro-hero-copy">
           <div class="agent-intro-kicker">Agentic Desktop OS</div>
           <div class="agent-intro-title">Agent<span class="agent-intro-one">1</span>c</div>
-          <div class="agent-intro-sub">A premium, playful workspace where Hitomi the hedgehog helps you run autonomous workflows with real windows, tools, and loops.</div>
+          <div class="agent-intro-sub">An agentic OS in your browser tab where Hitomi the hedgehog helps you run a fully autonomous AI agent with real windows, tools, and loops.</div>
         </div>
       </div>
       <div class="agent-intro-signals">
         <span class="agent-intro-signal">Cloud-hosted sessions</span>
+        <span class="agent-intro-signal">Access from any device</span>
         <span class="agent-intro-signal">Local-first BYOK option</span>
-        <span class="agent-intro-signal">Relay-ready system tools</span>
         <span class="agent-intro-signal">Markdown-driven agent brain</span>
+        <span class="agent-intro-signal">Relay-ready system tools</span>
       </div>
       <div class="agent-intro-grid">
         <div class="agent-intro-card cloud">
           <div class="agent-intro-card-title">Agent1c.ai (Cloud)</div>
-          <div class="agent-intro-card-sub">Fastest start, no local setup</div>
+          <div class="agent-intro-card-sub">Cloud path is in early access.</div>
           <ul class="agent-intro-list">
-            <li>Persistent hosted sessions and identity</li>
-            <li>Managed infrastructure and smooth onboarding</li>
-            <li>Access from anywhere with one account</li>
+            <li>Early-access cloud path (account required)</li>
+            <li>Currently redirects to Agent1c.me after sign-up</li>
+            <li>Hosted sessions and identity (coming soon)</li>
+            <li>Best for getting started when live</li>
           </ul>
         </div>
         <div class="agent-intro-card local">
@@ -3663,11 +3665,12 @@ function introWindowHtml(){
           <ul class="agent-intro-list">
             <li>Runs directly in your browser tab</li>
             <li>Bring your own keys and optional local relay</li>
-            <li>Great for power users and private workflows</li>
+            <li>No accounts, no servers, no persistence</li>
+            <li>Ideal for power users and private workflows</li>
           </ul>
         </div>
       </div>
-      <div class="agent-intro-note">Choose your route to begin. You can switch paths later.</div>
+      <div class="agent-intro-note">Choose how you want to begin. Agent1c.ai is in early access and currently routes to the local build.</div>
       <div class="agent-row agent-wrap-row agent-intro-cta-row">
         <button id="introGoLocalBtn" class="btn agent-intro-btn agent-intro-btn-secondary" type="button">Open Agent1c.me</button>
         <button id="introContinueCloudBtn" class="btn agent-intro-btn agent-intro-btn-primary" type="button">Continue with Agent1c.ai</button>
