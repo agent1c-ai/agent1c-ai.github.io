@@ -5220,8 +5220,10 @@ function sizeIntroWindowToContent(){
   const titlebar = winEl.querySelector(".titlebar")
   const { h } = getDesktopViewport()
   const base = titlebar?.offsetHeight || 22
-  const content = panel.scrollHeight || panel.offsetHeight || 0
-  const target = Math.max(300, Math.min(h - 12, base + content + 18))
+  const contentEl = panel.querySelector(".agent-intro") || panel
+  const contentBox = contentEl.getBoundingClientRect()
+  const content = Math.max(contentEl.scrollHeight || 0, contentEl.offsetHeight || 0, contentBox.height || 0)
+  const target = Math.max(320, Math.min(h - 12, base + content + 22))
   winEl.style.height = `${target}px`
   const top = parseFloat(winEl.style.top) || 0
   winEl.style.top = `${Math.max(0, Math.min(top, Math.max(0, h - target)))}px`
