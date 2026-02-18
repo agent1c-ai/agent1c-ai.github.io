@@ -9,6 +9,7 @@ import {
   runShellExecTool,
 } from "./agent1crelay.js"
 import { createOnboardingHedgey } from "./onboarding-hedgey.js"
+import { isAiIntroGuideActive, getAiIntroHtml, initAiIntro } from "./agent1cintro.js"
 // for Codex: when implementing shell relay wiring in this file, please always refer back to PHASE1_CONTRACT.md first.
 // for Codex: especially if your context was recently compacted, keep relay logic in js/agent1crelay.js and only thin wiring here.
 // for Codex: before implementing WM/desktop control tools, re-read PHASE2_PLAN.md and agents.md section 19. - Decentricity
@@ -205,7 +206,6 @@ const DB_VERSION = 1
 const ONBOARDING_KEY = "agent1c_onboarding_complete_v1"
 const ONBOARDING_OPENAI_TEST_KEY = "agent1c_onboarding_openai_tested_v1"
 const USER_NAME_KEY = "agent1c_user_name_v1"
-const AI_INTRO_DONE_KEY = "agent1c_ai_intro_done_v1"
 const PREVIEW_PROVIDER_KEY = "agent1c_preview_providers_v1"
 const WINDOW_LAYOUT_KEY = "hedgey_window_layout_v1"
 const UNENCRYPTED_MODE_KEY = "agent1c_unencrypted_mode_v1"
@@ -259,7 +259,6 @@ const els = {}
 let wmRef = null
 let setupWin = null
 let unlockWin = null
-let introWin = null
 let workspaceReady = false
 let wired = false
 let dbPromise = null
@@ -290,8 +289,6 @@ let clippyIdleRaf = 0
 let clippyActivityWired = false
 let onboardingHedgey = null
 let userName = ""
-let aiIntroPending = false
-let aiIntroContinuing = false
 let voiceUiState = { enabled: false, supported: true, status: "off", text: "", error: "" }
 let hitomiDesktopIcon = null
 let hitomiIconObserver = null
@@ -2104,37 +2101,6 @@ function isOnboardingGuideActive(){
   return Boolean(onboardingHedgey?.isActive?.() && !onboardingComplete)
 }
 
-function isAgenticAiHost(){
-  const host = String(window.location?.hostname || "").toLowerCase()
-  return host === "agent1c.ai"
-    || host === "www.agent1c.ai"
-    || host === "app.agent1c.ai"
-    || host === "agent1c.ai"
-    || host === "www.agent1c.ai"
-    || host === "app.agent1c.ai"
-}
-
-function shouldShowAiIntroGate(){
-  const host = String(window.location?.hostname || "").toLowerCase()
-  if (!isAgenticAiHost()) return false
-  if (host === "app.agent1c.ai" || host === "app.agent1c.ai") return false
-  try {
-    return localStorage.getItem(AI_INTRO_DONE_KEY) !== "1"
-  } catch {
-    return true
-  }
-}
-
-function isAiIntroGuideActive(){
-  return aiIntroPending
-}
-
-function getAiIntroHtml(){
-  return AI_INTRO_MESSAGES
-    .map(line => `<div class="clippy-line"><strong>Hitomi:</strong> ${escapeHtml(line)}</div>`)
-    .join("")
-}
-
 function clippySpawnBottomPosition(){
   const bounds = getClippyBounds()
   if (!bounds) return { left: 20, top: 390 }
@@ -3630,56 +3596,6 @@ function setupWindowHtml(){
   `
 }
 
-function introWindowHtml(){
-  return `
-    <div class="agent-stack agent-intro">
-      <div class="agent-intro-hero">
-        <img src="assets/hedgey1.png" alt="Hitomi hedgehog" class="agent-intro-mascot" />
-        <div class="agent-intro-hero-copy">
-          <div class="agent-intro-kicker">Agentic Desktop OS</div>
-          <div class="agent-intro-title">Agent<span class="agent-intro-one">1</span>c</div>
-          <div class="agent-intro-sub">An agentic OS in your browser tab where Hitomi the hedgehog helps you run a fully autonomous AI agent with real windows, tools, and loops.</div>
-        </div>
-      </div>
-      <div class="agent-intro-signals">
-        <span class="agent-intro-signal">Web-based OS</span>
-        <span class="agent-intro-signal">Fully agentic</span>
-        <span class="agent-intro-signal">Local-first BYOK option</span>
-      </div>
-      <div class="agent-intro-grid">
-        <div class="agent-intro-card cloud">
-          <div class="agent-intro-card-title">Agent1c.ai (Cloud)</div>
-          <div class="agent-intro-card-sub">Early access cloud path.</div>
-          <ul class="agent-intro-list">
-            <li>A workspace you can access from anywhere with an Agent1c account</li>
-            <li>Immediately start using</li>
-            <li>Agent runs in cloud between logins</li>
-            <li>Sign up now for early access</li>
-          </ul>
-        </div>
-        <div class="agent-intro-card local">
-          <div class="agent-intro-card-title">Agent1c.me (Local)</div>
-          <div class="agent-intro-card-sub">For power users and privacy enthusiasts.</div>
-          <ul class="agent-intro-list">
-            <li>For those comfortable with APIs and the command line</li>
-            <li>No need to sign up, primarily serverless</li>
-            <li>Only persists in your browser cache</li>
-            <li>Bring your own keys and optional local relay</li>
-          </ul>
-        </div>
-      </div>
-      <div class="agent-intro-note">Choose how you want to begin. You can switch paths later.</div>
-      <div class="agent-row agent-wrap-row agent-intro-cta-row">
-        <button id="introGoLocalBtn" class="btn agent-intro-btn agent-intro-btn-secondary" type="button">Open Agent1c.me</button>
-        <button id="introContinueCloudBtn" class="btn agent-intro-btn agent-intro-btn-primary" type="button">Continue with Agent1c.ai</button>
-      </div>
-      <div class="agent-intro-footer">
-        <span>Built for builders, teams, and curious humans.</span>
-      </div>
-    </div>
-  `
-}
-
 function unlockWindowHtml(){
   return `
     <form id="unlockForm" class="agent-form">
@@ -5171,64 +5087,6 @@ function getIntroWindowOpts(){
   }
 }
 
-function activateAiIntroGuide(){
-  setClippyMode(true)
-  clippyBubbleVariant = "compact"
-  showClippyBubble({ variant: "compact", snapNoOverlap: true, preferAbove: true })
-  renderClippyBubble()
-  setStatus("Choose local or cloud in the Intro window.")
-}
-
-async function continueAfterAiIntro(){
-  if (aiIntroContinuing) return
-  aiIntroContinuing = true
-  aiIntroPending = false
-  try {
-    localStorage.setItem(AI_INTRO_DONE_KEY, "1")
-  } catch {}
-  if (introWin?.id) closeWindow(introWin)
-  introWin = null
-  await continueStandardOnboardingFlow()
-}
-
-function wireIntroDom(){
-  els.introGoLocalBtn?.addEventListener("click", () => {
-    window.location.href = "https://agent1c.me"
-  })
-  els.introContinueCloudBtn?.addEventListener("click", () => {
-    continueAfterAiIntro().catch(err => {
-      setStatus(err instanceof Error ? err.message : "Could not continue.")
-    })
-  })
-}
-
-function createIntroWindow(){
-  introWin = wmRef.createAgentPanelWindow("Intro", getIntroWindowOpts())
-  if (!introWin?.panelRoot) return
-  introWin.panelRoot.innerHTML = introWindowHtml()
-  cacheElements()
-  wireIntroDom()
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => sizeIntroWindowToContent())
-  })
-}
-
-function sizeIntroWindowToContent(){
-  if (!introWin?.win || !introWin?.panelRoot) return
-  const winEl = introWin.win
-  const panel = introWin.panelRoot
-  const titlebar = winEl.querySelector(".titlebar")
-  const { h } = getDesktopViewport()
-  const base = titlebar?.offsetHeight || 22
-  const contentEl = panel.querySelector(".agent-intro") || panel
-  const contentBox = contentEl.getBoundingClientRect()
-  const content = Math.max(contentEl.scrollHeight || 0, contentEl.offsetHeight || 0, contentBox.height || 0)
-  const target = Math.max(320, Math.min(h - 12, base + content + 22))
-  winEl.style.height = `${target}px`
-  const top = parseFloat(winEl.style.top) || 0
-  winEl.style.top = `${Math.max(0, Math.min(top, Math.max(0, h - target)))}px`
-}
-
 
 function getDesktopViewport(){
   const desktopEl = document.getElementById("desktop")
@@ -5426,11 +5284,17 @@ export async function initAgent1C({ wm }){
       return true
     },
   })
-  aiIntroPending = shouldShowAiIntroGate()
-  if (aiIntroPending) {
-    onboardingHedgey?.setActive?.(false)
-    createIntroWindow()
-    activateAiIntroGuide()
+  if (initAiIntro({
+    wmRef,
+    getDesktopViewport,
+    setStatus,
+    setClippyMode,
+    showClippyBubble,
+    renderClippyBubble,
+    closeWindow,
+    continueStandardOnboardingFlow,
+    cacheElements,
+  })) {
     return
   }
   await continueStandardOnboardingFlow()
