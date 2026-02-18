@@ -2109,15 +2109,15 @@ function isAgenticAiHost(){
   return host === "agent1c.ai"
     || host === "www.agent1c.ai"
     || host === "app.agent1c.ai"
-    || host === "agentic.ai"
-    || host === "www.agentic.ai"
-    || host === "app.agentic.ai"
+    || host === "agent1c.ai"
+    || host === "www.agent1c.ai"
+    || host === "app.agent1c.ai"
 }
 
 function shouldShowAiIntroGate(){
   const host = String(window.location?.hostname || "").toLowerCase()
   if (!isAgenticAiHost()) return false
-  if (host === "app.agent1c.ai" || host === "app.agentic.ai") return false
+  if (host === "app.agent1c.ai" || host === "app.agent1c.ai") return false
   try {
     return localStorage.getItem(AI_INTRO_DONE_KEY) !== "1"
   } catch {
@@ -3634,34 +3634,46 @@ function introWindowHtml(){
   return `
     <div class="agent-stack agent-intro">
       <div class="agent-intro-hero">
-        <img src="assets/hedgey1.png" alt="Hitomi hedgehog" />
-        <div>
+        <img src="assets/hedgey1.png" alt="Hitomi hedgehog" class="agent-intro-mascot" />
+        <div class="agent-intro-hero-copy">
+          <div class="agent-intro-kicker">Agentic Desktop OS</div>
           <div class="agent-intro-title">Agent<span class="agent-intro-one">1</span>c</div>
-          <div class="agent-note">A playful agentic OS with real windows and a friendly hedgehog guide.</div>
+          <div class="agent-intro-sub">A premium, playful workspace where Hitomi the hedgehog helps you run autonomous workflows with real windows, tools, and loops.</div>
         </div>
+      </div>
+      <div class="agent-intro-signals">
+        <span class="agent-intro-signal">Cloud-hosted sessions</span>
+        <span class="agent-intro-signal">Local-first BYOK option</span>
+        <span class="agent-intro-signal">Relay-ready system tools</span>
+        <span class="agent-intro-signal">Markdown-driven agent brain</span>
       </div>
       <div class="agent-intro-grid">
-        <div class="agent-intro-card">
+        <div class="agent-intro-card cloud">
           <div class="agent-intro-card-title">Agent1c.ai (Cloud)</div>
+          <div class="agent-intro-card-sub">Fastest start, no local setup</div>
           <ul class="agent-intro-list">
-            <li>Persistent hosted sessions</li>
-            <li>No local setup required</li>
-            <li>Subscription access path</li>
+            <li>Persistent hosted sessions and identity</li>
+            <li>Managed infrastructure and smooth onboarding</li>
+            <li>Access from anywhere with one account</li>
           </ul>
         </div>
-        <div class="agent-intro-card">
+        <div class="agent-intro-card local">
           <div class="agent-intro-card-title">Agent1c.me (Local)</div>
+          <div class="agent-intro-card-sub">Maximum sovereignty and control</div>
           <ul class="agent-intro-list">
-            <li>Runs directly in your tab</li>
-            <li>BYOK with optional local relay</li>
-            <li>No forced login flow</li>
+            <li>Runs directly in your browser tab</li>
+            <li>Bring your own keys and optional local relay</li>
+            <li>Great for power users and private workflows</li>
           </ul>
         </div>
       </div>
-      <div class="agent-note">Choose where you want to start. You can switch any time.</div>
-      <div class="agent-row agent-wrap-row">
-        <button id="introGoLocalBtn" class="btn" type="button">Go to Agent1c.me</button>
-        <button id="introContinueCloudBtn" class="btn" type="button">Continue with Agent1c.ai</button>
+      <div class="agent-intro-note">Choose your route to begin. You can switch paths later.</div>
+      <div class="agent-row agent-wrap-row agent-intro-cta-row">
+        <button id="introGoLocalBtn" class="btn agent-intro-btn agent-intro-btn-secondary" type="button">Open Agent1c.me</button>
+        <button id="introContinueCloudBtn" class="btn agent-intro-btn agent-intro-btn-primary" type="button">Continue with Agent1c.ai</button>
+      </div>
+      <div class="agent-intro-footer">
+        <span>Built for builders, teams, and curious humans.</span>
       </div>
     </div>
   `
@@ -3921,7 +3933,7 @@ function ollamaSetupWindowHtml(){
           <div class="agent-code-card">
             <div class="agent-code-head"><span class="agent-code-label">Add environment block</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupLinuxEnv">Copy</button></div>
             <pre id="ollamaSetupLinuxEnv" class="agent-setup-code"><code>[Service]
-Environment="OLLAMA_ORIGINS=https://app.agentic.ai,https://agentic.ai,https://www.agentic.ai,http://localhost:8000,http://127.0.0.1:8000"
+Environment="OLLAMA_ORIGINS=https://app.agent1c.ai,https://agent1c.ai,https://www.agent1c.ai,http://localhost:8000,http://127.0.0.1:8000"
 Environment="OLLAMA_HOST=127.0.0.1:11434"</code></pre>
           </div>
           <div class="agent-code-card">
@@ -3955,7 +3967,7 @@ sudo systemctl restart ollama</code></pre>
           <div class="agent-setup-title">Step 3: Allow browser CORS</div>
           <div class="agent-code-card">
             <div class="agent-code-head"><span class="agent-code-label">Set launchctl env vars</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupMacEnv">Copy</button></div>
-            <pre id="ollamaSetupMacEnv" class="agent-setup-code"><code>launchctl setenv OLLAMA_ORIGINS "https://app.agentic.ai,https://agentic.ai,https://www.agentic.ai,http://localhost:8000,http://127.0.0.1:8000"
+            <pre id="ollamaSetupMacEnv" class="agent-setup-code"><code>launchctl setenv OLLAMA_ORIGINS "https://app.agent1c.ai,https://agent1c.ai,https://www.agent1c.ai,http://localhost:8000,http://127.0.0.1:8000"
 launchctl setenv OLLAMA_HOST "127.0.0.1:11434"</code></pre>
           </div>
           <div class="agent-note">Then quit and reopen the Ollama app.</div>
@@ -3990,7 +4002,7 @@ pkg install curl -y</code></pre>
           <div class="agent-setup-title">Step 2: Allow browser CORS in Termux</div>
           <div class="agent-code-card">
             <div class="agent-code-head"><span class="agent-code-label">Export runtime env vars</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupAndroidCors">Copy</button></div>
-            <pre id="ollamaSetupAndroidCors" class="agent-setup-code"><code>export OLLAMA_ORIGINS="https://app.agentic.ai,https://agentic.ai,https://www.agentic.ai,http://localhost:8000,http://127.0.0.1:8000"
+            <pre id="ollamaSetupAndroidCors" class="agent-setup-code"><code>export OLLAMA_ORIGINS="https://app.agent1c.ai,https://agent1c.ai,https://www.agent1c.ai,http://localhost:8000,http://127.0.0.1:8000"
 export OLLAMA_HOST="127.0.0.1:11434"</code></pre>
           </div>
           <div class="agent-code-card">
