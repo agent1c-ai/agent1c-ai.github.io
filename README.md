@@ -122,7 +122,7 @@ Open `http://localhost:8000`.
 
 ## Live
 
-- Production domain: `https://agent1c.me`
+- Production domain: `https://agentic.ai`
 - GitHub Pages repo: `https://github.com/agent1c-me/agent1c-me.github.io`
 
 ## Development Notes

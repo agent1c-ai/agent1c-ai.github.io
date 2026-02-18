@@ -62,13 +62,13 @@ function relayInstallBaseUrl(){
     const origin = String(window.location?.origin || "").trim().replace(/\/+$/, "")
     if (origin) return `${origin}/shell-relay`
   } catch {}
-  return "https://agent1c.me/shell-relay"
+  return "https://agentic.ai/shell-relay"
 }
 
 function relaySetupByOs(os){
   const base = relayInstallBaseUrl()
   const installCmd = `curl -fsSL ${base}/install.sh | sh`
-  const healthNoToken = `curl -s -H "Origin: https://agent1c.me" http://127.0.0.1:8765/v1/health`
+  const healthNoToken = `curl -s -H "Origin: https://agentic.ai" http://127.0.0.1:8765/v1/health`
   if (os === "mac") {
     return {
       label: "macOS",
@@ -102,7 +102,7 @@ function relaySetupByOs(os){
       persistCmd: "pkg install -y termux-services termux-api termux-tools\n# Use Termux:Boot or termux-wake-lock to keep relay available.",
       uninstallTitle: "Optional: uninstall relay scripts",
       uninstallCmd: "rm -rf ~/.agent1c-relay",
-      caveat: "Android browsers may block HTTPS->localhost private-network requests. Ensure your browser permits local private-network CORS for agent1c.me.",
+      caveat: "Android browsers may block HTTPS->localhost private-network requests. Ensure your browser permits local private-network CORS for agentic.ai.",
     }
   }
   return {
@@ -127,7 +127,7 @@ Type=simple
 ExecStart=%h/.agent1c-relay/agent1c-relay.sh
 Restart=always
 RestartSec=2
-Environment=AGENT1C_RELAY_ALLOW_ORIGINS=https://agent1c.me,https://www.agent1c.me,http://localhost:8000,http://127.0.0.1:8000
+Environment=AGENT1C_RELAY_ALLOW_ORIGINS=https://app.agentic.ai,https://agentic.ai,https://www.agentic.ai,http://localhost:8000,http://127.0.0.1:8000
 
 [Install]
 WantedBy=default.target

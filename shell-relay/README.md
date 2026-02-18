@@ -14,6 +14,6 @@ Dependencies:
 Quick start:
 
 ```sh
-curl -fsSL https://agent1c.me/shell-relay/install.sh | sh
+curl -fsSL https://agentic.ai/shell-relay/install.sh | sh
 ~/.agent1c-relay/agent1c-relay.sh
 ```

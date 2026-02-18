@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-BASE_URL="${AGENT1C_RELAY_BASE_URL:-https://agent1c.me/shell-relay}"
+BASE_URL="${AGENT1C_RELAY_BASE_URL:-https://agentic.ai/shell-relay}"
 DEST="${AGENT1C_RELAY_HOME:-$HOME/.agent1c-relay}"
 
 mkdir -p "$DEST"

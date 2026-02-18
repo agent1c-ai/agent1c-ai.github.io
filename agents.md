@@ -375,7 +375,7 @@ When hardening security:
 ## 14) Agent1c OS Integration Record (What Was Built)
 
 Product intent (source of truth from user):
-- Build `agent1c.me` as a local-first autonomous agent app that runs in a browser tab.
+- Build `agentic.ai` as a local-first autonomous agent app that runs in a browser tab.
 - BYOK model: provider keys stay local, encrypted in-browser, never sent to non-provider servers.
 - No dependency on app servers for MVP.
 - HedgeyOS is the shell/OS; agent1c windows must be native top-level HedgeyOS windows (not nested WM).
@@ -601,7 +601,7 @@ Status:
 
 Goal:
 - Let Hitomi execute host OS shell commands through a localhost relay process.
-- Keep browser-only app model (`agent1c.me`) while delegating privileged operations to a local process explicitly installed by the user.
+- Keep browser-only app model (`agentic.ai`) while delegating privileged operations to a local process explicitly installed by the user.
 
 Why this exists:
 - HedgeyOS/Agent1c currently cannot reliably access arbitrary web APIs due to CORS and cannot execute host shell directly from browser.
@@ -616,7 +616,7 @@ Why this exists:
 - `127.0.0.1` (or `localhost`) only, never public bind.
 
 2. Strict CORS allowlist:
-- Allow only `https://agent1c.me` and optional dev origins (`http://localhost:*`).
+- Allow only `https://agentic.ai` and optional dev origins (`http://localhost:*`).
 - Reject all other `Origin`.
 
 3. Local auth token:

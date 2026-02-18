@@ -3811,7 +3811,7 @@ function ollamaSetupWindowHtml(){
           <div class="agent-code-card">
             <div class="agent-code-head"><span class="agent-code-label">Add environment block</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupLinuxEnv">Copy</button></div>
             <pre id="ollamaSetupLinuxEnv" class="agent-setup-code"><code>[Service]
-Environment="OLLAMA_ORIGINS=https://agent1c.me,https://www.agent1c.me,http://localhost:8000,http://127.0.0.1:8000"
+Environment="OLLAMA_ORIGINS=https://app.agentic.ai,https://agentic.ai,https://www.agentic.ai,http://localhost:8000,http://127.0.0.1:8000"
 Environment="OLLAMA_HOST=127.0.0.1:11434"</code></pre>
           </div>
           <div class="agent-code-card">
@@ -3845,7 +3845,7 @@ sudo systemctl restart ollama</code></pre>
           <div class="agent-setup-title">Step 3: Allow browser CORS</div>
           <div class="agent-code-card">
             <div class="agent-code-head"><span class="agent-code-label">Set launchctl env vars</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupMacEnv">Copy</button></div>
-            <pre id="ollamaSetupMacEnv" class="agent-setup-code"><code>launchctl setenv OLLAMA_ORIGINS "https://agent1c.me,https://www.agent1c.me,http://localhost:8000,http://127.0.0.1:8000"
+            <pre id="ollamaSetupMacEnv" class="agent-setup-code"><code>launchctl setenv OLLAMA_ORIGINS "https://app.agentic.ai,https://agentic.ai,https://www.agentic.ai,http://localhost:8000,http://127.0.0.1:8000"
 launchctl setenv OLLAMA_HOST "127.0.0.1:11434"</code></pre>
           </div>
           <div class="agent-note">Then quit and reopen the Ollama app.</div>
@@ -3880,7 +3880,7 @@ pkg install curl -y</code></pre>
           <div class="agent-setup-title">Step 2: Allow browser CORS in Termux</div>
           <div class="agent-code-card">
             <div class="agent-code-head"><span class="agent-code-label">Export runtime env vars</span><button class="btn agent-copy-btn" type="button" data-copy-target="ollamaSetupAndroidCors">Copy</button></div>
-            <pre id="ollamaSetupAndroidCors" class="agent-setup-code"><code>export OLLAMA_ORIGINS="https://agent1c.me,https://www.agent1c.me,http://localhost:8000,http://127.0.0.1:8000"
+            <pre id="ollamaSetupAndroidCors" class="agent-setup-code"><code>export OLLAMA_ORIGINS="https://app.agentic.ai,https://agentic.ai,https://www.agentic.ai,http://localhost:8000,http://127.0.0.1:8000"
 export OLLAMA_HOST="127.0.0.1:11434"</code></pre>
           </div>
           <div class="agent-code-card">
