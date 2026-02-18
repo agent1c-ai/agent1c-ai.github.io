@@ -116,8 +116,8 @@ function introWindowHtml(){
       </div>
       <div class="agent-intro-note">Choose how you want to begin. You can switch paths later.</div>
       <div class="agent-row agent-wrap-row agent-intro-cta-row">
-        <button id="introGoLocalBtn" class="btn agent-intro-btn agent-intro-btn-secondary" type="button">Open Agent1c.me</button>
-        <button id="introContinueCloudBtn" class="btn agent-intro-btn agent-intro-btn-primary" type="button">Continue with Agent1c.ai</button>
+        <button id="introGoLocalBtn" class="btn agent-intro-btn agent-intro-btn-secondary" type="button">Run Agent1c.me</button>
+        <button id="introContinueCloudBtn" class="btn agent-intro-btn agent-intro-btn-primary" type="button">Sign up to Agent1c.ai</button>
       </div>
       <div class="agent-intro-footer">
         <span>Built for builders, teams, and curious humans.</span>
