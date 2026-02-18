@@ -160,4 +160,17 @@ Relay setup UX follow-up:
   - style warning prominently (red/high-contrast caution label)
 - macOS note:
   - document that persistence is different (launchd), not systemd
-  - keep Linux/Android systemd instructions isolated from macOS instructions
+- keep Linux/Android systemd instructions isolated from macOS instructions
+
+### 9.1 Phase 2c progress
+
+- Shell Relay Setup now includes optional persistence/service guidance:
+  - Linux: user-level `systemd --user` service install/enable commands.
+  - macOS: launchd persistence note.
+  - Android: Termux persistence note (Termux services/boot), with explicit private-network caveat.
+- Setup also includes optional uninstall commands per platform.
+- Shell Relay tab label `Test` is now `Terminal`, with a Unix-like terminal panel:
+  - command prompt row
+  - scrolling terminal output
+  - Enter-to-run support
+  - append-style command/result transcript

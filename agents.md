@@ -818,6 +818,15 @@ Relay setup UX follow-up is intentionally deferred to Phase 2c:
 - Add clear uninstall flow in a separate tab/section with strong warning style (red caution) to prevent accidental execution.
 - Keep macOS persistence guidance separate (launchd note), not mixed with Linux/Android systemd commands.
 
+### 19.7a Phase 2c implementation notes
+
+- Shell Relay main tabs are now: `Setup`, `Connect`, `Terminal`.
+- `Terminal` is a Unix-like relay shell panel (prompt + append log transcript), replacing the old plain test box.
+- Setup content now includes optional persistence and uninstall blocks:
+  - Linux: `systemd --user` service flow (`daemon-reload`, `enable --now`).
+  - macOS: launchd persistence note.
+  - Android: Termux persistence note (not systemd).
+
 ### 19.8 Phase 2b document authority policy
 
 For current 2b rollout, the shipped doc defaults are authoritative:

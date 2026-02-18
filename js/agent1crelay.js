@@ -80,6 +80,10 @@ function relaySetupByOs(os){
       startCmd: "~/.agent1c-relay/agent1c-relay.sh",
       verifyTitle: "Step 4: Verify relay is alive",
       verifyCmd: healthNoToken,
+      persistTitle: "Optional: persist on startup (launchd)",
+      persistCmd: "Create a launchd plist that runs ~/.agent1c-relay/agent1c-relay.sh at login.",
+      uninstallTitle: "Optional: uninstall relay scripts",
+      uninstallCmd: "rm -rf ~/.agent1c-relay",
       caveat: "Run as normal user (not sudo). If browser blocks local private-network requests, use a browser build that allows localhost private-network CORS from HTTPS origin.",
     }
   }
@@ -94,6 +98,10 @@ function relaySetupByOs(os){
       startCmd: `${installCmd}\n~/.agent1c-relay/agent1c-relay.sh`,
       verifyTitle: "Step 3: Verify + browser private-network note",
       verifyCmd: healthNoToken,
+      persistTitle: "Optional: persist on startup (Termux)",
+      persistCmd: "pkg install -y termux-services termux-api termux-tools\n# Use Termux:Boot or termux-wake-lock to keep relay available.",
+      uninstallTitle: "Optional: uninstall relay scripts",
+      uninstallCmd: "rm -rf ~/.agent1c-relay",
       caveat: "Android browsers may block HTTPS->localhost private-network requests. Ensure your browser permits local private-network CORS for agent1c.me.",
     }
   }
@@ -107,6 +115,31 @@ function relaySetupByOs(os){
     startCmd: "~/.agent1c-relay/agent1c-relay.sh",
     verifyTitle: "Step 4: Verify relay is alive",
     verifyCmd: healthNoToken,
+    persistTitle: "Optional: persist as user systemd service",
+    persistCmd: `mkdir -p ~/.config/systemd/user
+cat > ~/.config/systemd/user/agent1c-relay.service <<'EOF'
+[Unit]
+Description=Agent1c Local Relay
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.agent1c-relay/agent1c-relay.sh
+Restart=always
+RestartSec=2
+Environment=AGENT1C_RELAY_ALLOW_ORIGINS=https://agent1c.me,https://www.agent1c.me,http://localhost:8000,http://127.0.0.1:8000
+
+[Install]
+WantedBy=default.target
+EOF
+systemctl --user daemon-reload
+systemctl --user enable --now agent1c-relay.service
+systemctl --user status --no-pager agent1c-relay.service`,
+    uninstallTitle: "Optional: uninstall relay + service",
+    uninstallCmd: `systemctl --user disable --now agent1c-relay.service || true
+rm -f ~/.config/systemd/user/agent1c-relay.service
+systemctl --user daemon-reload
+rm -rf ~/.agent1c-relay`,
     caveat: "Run as normal user (not sudo). If your distro does not use apt, install jq+socat using your package manager.",
   }
 }
@@ -151,7 +184,7 @@ export function shellRelayWindowHtml(){
       <div class="agent-main-tabs">
         <button id="relayMainTabSetup" class="agent-main-tab active" type="button" data-relay-main-tab="setup">Setup</button>
         <button id="relayMainTabConnect" class="agent-main-tab" type="button" data-relay-main-tab="connect">Connect</button>
-        <button id="relayMainTabTest" class="agent-main-tab" type="button" data-relay-main-tab="test">Test</button>
+        <button id="relayMainTabTerminal" class="agent-main-tab" type="button" data-relay-main-tab="terminal">Terminal</button>
       </div>
       <div id="relayPageSetup" class="agent-relay-page">
         <div class="agent-device-tabs">
@@ -202,15 +235,18 @@ export function shellRelayWindowHtml(){
           <span id="relayWindowStatus" class="agent-note">Relay idle.</span>
         </div>
       </div>
-      <div id="relayPageTest" class="agent-relay-page agent-hidden">
+      <div id="relayPageTerminal" class="agent-relay-page agent-hidden">
         <div id="relayTestWarning" class="agent-note agent-note-warn">Relay not connected yet. Configure and test relay in Connect tab first.</div>
-        <div class="agent-note">Run local shell commands directly through relay (without LLM).</div>
-        <div class="agent-row">
-          <input id="relayTestCommandInput" class="field" type="text" placeholder="echo hello" />
-          <button id="relayTestRunBtn" class="btn" type="button">Run</button>
-          <button id="relayTestClearBtn" class="btn" type="button">Clear</button>
+        <div class="agent-terminal">
+          <div class="agent-terminal-head">agent1c relay terminal</div>
+          <pre id="relayTestOutput" class="agent-terminal-output"></pre>
+          <div class="agent-terminal-row">
+            <span class="agent-terminal-prompt">$</span>
+            <input id="relayTestCommandInput" class="agent-terminal-input" type="text" placeholder="uname -a" />
+            <button id="relayTestRunBtn" class="btn" type="button">Run</button>
+            <button id="relayTestClearBtn" class="btn" type="button">Clear</button>
+          </div>
         </div>
-        <pre id="relayTestOutput" class="agent-setup-code"></pre>
       </div>
     </div>
   `
@@ -219,12 +255,14 @@ export function shellRelayWindowHtml(){
 function renderRelaySetupBody(os){
   const info = relaySetupByOs(os)
   return `
-    <div class="agent-setup-section">
-      <div class="agent-setup-title">${info.label}</div>
+      <div class="agent-setup-section">
+        <div class="agent-setup-title">${info.label}</div>
       ${codeCard(info.depsTitle, info.depsCmd, "deps")}
       ${codeCard(info.installTitle, info.installCmd, "install")}
       ${codeCard(info.startTitle, info.startCmd, "start")}
       ${codeCard(info.verifyTitle, info.verifyCmd, "verify")}
+      ${info.persistTitle && info.persistCmd ? codeCard(info.persistTitle, info.persistCmd, "persist") : ""}
+      ${info.uninstallTitle && info.uninstallCmd ? codeCard(info.uninstallTitle, info.uninstallCmd, "uninstall") : ""}
       <div class="agent-note">${info.caveat}</div>
     </div>
   `
@@ -234,10 +272,10 @@ export function cacheShellRelayElements(byId){
   return {
     relayMainTabSetup: byId("relayMainTabSetup"),
     relayMainTabConnect: byId("relayMainTabConnect"),
-    relayMainTabTest: byId("relayMainTabTest"),
+    relayMainTabTerminal: byId("relayMainTabTerminal"),
     relayPageSetup: byId("relayPageSetup"),
     relayPageConnect: byId("relayPageConnect"),
-    relayPageTest: byId("relayPageTest"),
+    relayPageTerminal: byId("relayPageTerminal"),
     relayNextBtn: byId("relayNextBtn"),
     relayWindowEnabledSelect: byId("relayWindowEnabledSelect"),
     relayWindowTimeoutInput: byId("relayWindowTimeoutInput"),
@@ -338,13 +376,13 @@ export function wireShellRelayDom({ root, els, getRelayConfig, onSaveRelayConfig
   const setMainTab = (tab) => {
     const isSetup = tab === "setup"
     const isConnect = tab === "connect"
-    const isTest = tab === "test"
+    const isTerminal = tab === "terminal"
     els.relayMainTabSetup?.classList.toggle("active", isSetup)
     els.relayMainTabConnect?.classList.toggle("active", isConnect)
-    els.relayMainTabTest?.classList.toggle("active", isTest)
+    els.relayMainTabTerminal?.classList.toggle("active", isTerminal)
     els.relayPageSetup?.classList.toggle("agent-hidden", !isSetup)
     els.relayPageConnect?.classList.toggle("agent-hidden", !isConnect)
-    els.relayPageTest?.classList.toggle("agent-hidden", !isTest)
+    els.relayPageTerminal?.classList.toggle("agent-hidden", !isTerminal)
   }
 
   const saveFromInputs = async () => {
@@ -363,7 +401,7 @@ export function wireShellRelayDom({ root, els, getRelayConfig, onSaveRelayConfig
   setMainTab(defaultMainTab)
   els.relayMainTabSetup?.addEventListener("click", () => setMainTab("setup"))
   els.relayMainTabConnect?.addEventListener("click", () => setMainTab("connect"))
-  els.relayMainTabTest?.addEventListener("click", () => setMainTab("test"))
+  els.relayMainTabTerminal?.addEventListener("click", () => setMainTab("terminal"))
   els.relayNextBtn?.addEventListener("click", () => setMainTab("connect"))
 
   const tabs = Array.from(root.querySelectorAll(".agent-device-tab[data-relay-os]"))
@@ -420,9 +458,22 @@ export function wireShellRelayDom({ root, els, getRelayConfig, onSaveRelayConfig
     const isConnected = relayConnectedOnce()
     els.relayTestWarning?.classList.toggle("agent-hidden", isConnected)
   }
+  const appendTerminal = (line = "") => {
+    if (!els.relayTestOutput) return
+    const text = String(line || "")
+    els.relayTestOutput.textContent = els.relayTestOutput.textContent
+      ? `${els.relayTestOutput.textContent}\n${text}`
+      : text
+    els.relayTestOutput.scrollTop = els.relayTestOutput.scrollHeight
+  }
   updateTestWarning()
   els.relayTestClearBtn?.addEventListener("click", () => {
     if (els.relayTestOutput) els.relayTestOutput.textContent = ""
+  })
+  els.relayTestCommandInput?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return
+    event.preventDefault()
+    els.relayTestRunBtn?.click()
   })
   els.relayTestRunBtn?.addEventListener("click", async () => {
     const command = String(els.relayTestCommandInput?.value || "").trim()
@@ -433,7 +484,7 @@ export function wireShellRelayDom({ root, els, getRelayConfig, onSaveRelayConfig
     try {
       await saveFromInputs()
       updateTestWarning()
-      if (els.relayTestOutput) els.relayTestOutput.textContent = "Running..."
+      appendTerminal(`$ ${command}`)
       const current = normalizeRelayConfig(getRelayConfig?.() || RELAY_DEFAULTS)
       const result = await relayJsonFetch(`${current.baseUrl}/v1/shell/exec`, {
         method: "POST",
@@ -449,20 +500,14 @@ export function wireShellRelayDom({ root, els, getRelayConfig, onSaveRelayConfig
       const truncated = Boolean(result?.truncated)
       const out = String(result?.stdout || "")
       const err = String(result?.stderr || "")
-      if (els.relayTestOutput) {
-        els.relayTestOutput.textContent = [
-          `exitCode=${exitCode}${timedOut ? " timedOut=true" : ""}${truncated ? " truncated=true" : ""}`,
-          "",
-          "[STDOUT]",
-          out || "(empty)",
-          "",
-          "[STDERR]",
-          err || "(empty)",
-        ].join("\n")
-      }
+      appendTerminal(`exit ${exitCode}${timedOut ? " timedOut=true" : ""}${truncated ? " truncated=true" : ""}`)
+      if (out) appendTerminal(out)
+      if (err) appendTerminal(`[stderr]\n${err}`)
+      appendTerminal("")
       setStatus?.("Relay test command completed.")
     } catch (err) {
-      if (els.relayTestOutput) els.relayTestOutput.textContent = err instanceof Error ? err.message : "Command failed."
+      appendTerminal(`[error] ${err instanceof Error ? err.message : "Command failed."}`)
+      appendTerminal("")
       setStatus?.(err instanceof Error ? err.message : "Command failed.")
     }
   })

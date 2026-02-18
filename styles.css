@@ -1939,6 +1939,57 @@
   font-family: "Monaco", "Consolas", "Courier New", monospace;
   min-width: 0;
 }
+.agent-terminal{
+  border: 1px solid var(--line);
+  background: #0c1018;
+  color: #d3ffe0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 220px;
+}
+.agent-terminal-head{
+  border-bottom: 1px solid rgba(211,255,224,0.25);
+  padding: 4px 8px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #9effbd;
+  background: rgba(0,0,0,0.22);
+}
+.agent-terminal-output{
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "Monaco", "Consolas", "Courier New", monospace;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.agent-terminal-row{
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 4px;
+  align-items: center;
+  padding: 6px;
+  border-top: 1px solid rgba(211,255,224,0.25);
+  background: rgba(0,0,0,0.24);
+}
+.agent-terminal-prompt{
+  font-family: "Monaco", "Consolas", "Courier New", monospace;
+  font-size: 12px;
+  color: #9effbd;
+}
+.agent-terminal-input{
+  min-width: 0;
+  border: 1px solid rgba(211,255,224,0.35);
+  background: #141b28;
+  color: #e7fff0;
+  padding: 3px 6px;
+  font: inherit;
+  font-family: "Monaco", "Consolas", "Courier New", monospace;
+  font-size: 11px;
+}
 .agent-meta-row{
   display: flex;
   gap: 10px;
@@ -2287,6 +2338,15 @@ body.dark .agent-code-head{
 body.dark .agent-setup-code{
   background: #121720;
   color: #e9edf7;
+}
+body.dark .agent-terminal{
+  border-color: #5d6678;
+}
+body.dark .agent-terminal-head{
+  border-bottom-color: rgba(147,164,196,0.35);
+}
+body.dark .agent-terminal-row{
+  border-top-color: rgba(147,164,196,0.35);
 }
 body.dark .clippy-bubble{
   background: #1f2530;
