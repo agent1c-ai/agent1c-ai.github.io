@@ -3,17 +3,25 @@
   window.__agent1cPreloadActive = true
 
   const fonts = [
-    '"Times New Roman"',
-    'Georgia',
-    '"Palatino Linotype"',
-    '"Arial Black"',
-    'Impact',
-    '"Trebuchet MS"',
-    'Verdana',
-    'Tahoma',
-    '"Courier New"',
-    '"Lucida Console"',
-  ]
+  '"Times New Roman"',
+  'Georgia',
+  '"Palatino Linotype"',
+  '"Garamond"',
+  '"Book Antiqua"',
+  '"Arial Black"',
+  'Impact',
+  '"Trebuchet MS"',
+  'Verdana',
+  'Tahoma',
+  '"Gill Sans"',
+  '"Franklin Gothic Medium"',
+  '"Lucida Sans"',
+  '"Courier New"',
+  '"Lucida Console"',
+  '"Monaco"',
+  '"Consolas"',
+  '"EnvyCodeRNerd","ChicagoKare","Chicago","Charcoal","Geneva","Tahoma",monospace'
+]
 
   const root = document.body || document.documentElement
   const overlay = document.createElement('div')
@@ -41,7 +49,7 @@
     timer = setInterval(stepFont, 120)
   }
 
-  const totalMs = prefersReduced ? 650 : 1400
+  const totalMs = prefersReduced ? 900 : 2800
   setTimeout(() => {
     if (timer) clearInterval(timer)
     overlay.classList.add('fade-out')
