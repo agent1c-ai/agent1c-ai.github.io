@@ -2603,3 +2603,28 @@ body.dark .agent-intro-btn-secondary{
     flex: 1 1 auto;
   }
 }
+
+/* agent1c preload overlay */
+.agent-preload{
+  position: fixed;
+  inset: 0;
+  background: #0d0d0f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  opacity: 1;
+  transition: opacity 520ms ease;
+}
+.agent-preload.fade-out{ opacity: 0; }
+.agent-preload-logo{
+  font-size: 38px;
+  letter-spacing: 0.08em;
+  color: #f4f2f7;
+  text-shadow: 0 8px 22px rgba(0,0,0,0.5);
+}
+.agent-preload-logo .one{ color: #ff7ab6; }
+
+@media (max-width: 640px){
+  .agent-preload-logo{ font-size: 28px; }
+}
