@@ -2619,6 +2619,8 @@ body.dark .agent-intro-btn-secondary{
 }
 .agent-preload.fade-out{ opacity: 0; }
 .agent-preload-logo{
+  position: relative;
+  z-index: 1;
   font-size: 38px;
   letter-spacing: 0.08em;
   color: #f4f2f7;
@@ -2630,6 +2632,8 @@ body.dark .agent-intro-btn-secondary{
   .agent-preload-logo{ font-size: 28px; }
 }
 .agent-preload-emoji{
+  position: relative;
+  z-index: 1;
   margin-top: 10px;
   font-size: 18px;
   letter-spacing: 6px;

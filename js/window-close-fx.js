@@ -259,3 +259,102 @@ export function animateWindowOpenMatrix(win, opts = {}){
     }, { once: true });
   });
 }
+
+export function animateFullscreenMatrix(opts = {}){
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) return { stop: () => {} };
+
+  const parent = opts.parent instanceof HTMLElement ? opts.parent : document.body;
+  const bounds = parent === document.body
+    ? { width: window.innerWidth, height: window.innerHeight }
+    : { width: parent.clientWidth, height: parent.clientHeight };
+  if (!bounds.width || !bounds.height) return { stop: () => {} };
+
+  const color = String(opts.color || "#ff4fb8");
+  const glow = String(opts.glow || "rgba(255, 79, 184, 0.65)");
+  const duration = Math.max(420, Math.min(1800, Number(opts.durationMs) || 980));
+
+  const layer = document.createElement("div");
+  layer.style.position = parent === document.body ? "fixed" : "absolute";
+  layer.style.left = "0";
+  layer.style.top = "0";
+  layer.style.width = "100%";
+  layer.style.height = "100%";
+  layer.style.zIndex = String(opts.zIndex || 0);
+  layer.style.pointerEvents = "none";
+  layer.style.overflow = "hidden";
+  layer.style.background = "transparent";
+
+  const colWidth = 12;
+  const cols = Math.max(12, Math.min(120, Math.floor(bounds.width / colWidth)));
+  const rain = document.createElement("div");
+  rain.style.position = "absolute";
+  rain.style.inset = "0";
+  rain.style.fontFamily = "monospace";
+  rain.style.fontSize = "13px";
+  rain.style.fontWeight = "700";
+  rain.style.lineHeight = "13px";
+  rain.style.color = color;
+  rain.style.textShadow = `0 0 2px ${glow}, 0 0 8px ${glow}`;
+  rain.style.mixBlendMode = "screen";
+  rain.style.opacity = "0.95";
+
+  const streamAnims = [];
+  for (let i = 0; i < cols; i += 1) {
+    const stream = document.createElement("div");
+    const len = 14 + Math.floor(Math.random() * 30);
+    let text = "";
+    for (let j = 0; j < len; j += 1) {
+      text += MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)];
+      if (j < len - 1) text += "\n";
+    }
+    stream.textContent = text;
+    stream.style.position = "absolute";
+    stream.style.left = `${Math.floor(i * (bounds.width / cols))}px`;
+    stream.style.top = `${-Math.random() * (bounds.height * 1.1)}px`;
+    stream.style.whiteSpace = "pre";
+    stream.style.width = `${colWidth}px`;
+    stream.style.textAlign = "center";
+    stream.style.opacity = `${0.78 + Math.random() * 0.22}`;
+    rain.appendChild(stream);
+
+    const anim = stream.animate(
+      [
+        { transform: "translateY(0px)", opacity: stream.style.opacity },
+        { transform: `translateY(${bounds.height + 80}px)`, opacity: "0.08" },
+      ],
+      {
+        duration: duration * (0.95 + Math.random() * 0.55),
+        easing: "linear",
+        fill: "forwards",
+      },
+    );
+    streamAnims.push(anim);
+  }
+
+  layer.appendChild(rain);
+  parent.appendChild(layer);
+
+  const layerAnim = layer.animate(
+    [
+      { opacity: 1, filter: "brightness(1) blur(0px)" },
+      { opacity: 1, filter: "brightness(1.1) blur(0px)" },
+      { opacity: 0.9, filter: "brightness(1.02) blur(0.2px)" },
+      { opacity: 0.0, filter: "brightness(0.65) blur(1.2px)" },
+    ],
+    { duration, easing: "ease-out", fill: "forwards" },
+  );
+
+  const stop = () => {
+    streamAnims.forEach(anim => anim?.cancel?.());
+    layerAnim?.cancel?.();
+    layer.remove();
+  };
+
+  const t = setTimeout(stop, duration + 120);
+  layerAnim.addEventListener("finish", () => {
+    clearTimeout(t);
+    stop();
+  }, { once: true });
+
+  return { stop };
+}

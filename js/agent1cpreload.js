@@ -1,3 +1,5 @@
+import { animateFullscreenMatrix } from "./window-close-fx.js";
+
 (() => {
   if (window.__agent1cPreloadActive) return
   window.__agent1cPreloadActive = true
@@ -38,9 +40,14 @@
   `
   root.appendChild(overlay)
 
-  const logo = overlay.querySelector('.agent-preload-logo')
-  const emojiRow = overlay.querySelector('.agent-preload-emoji')
-  const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const logo = overlay.querySelector(".agent-preload-logo")
+  const emojiRow = overlay.querySelector(".agent-preload-emoji")
+  const prefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  const totalMs = prefersReduced ? 900 : 2800
+  let matrixFx = null;
+  try {
+    matrixFx = animateFullscreenMatrix({ parent: overlay, durationMs: totalMs, zIndex: 0 });
+  } catch {}
 
   let idx = 0
   let timer = null
@@ -91,14 +98,13 @@
   } else {
     stepFont()
   }
-
-  const totalMs = prefersReduced ? 900 : 2800
   setTimeout(() => {
     if (timer) clearInterval(timer)
     if (emojiTimer) clearInterval(emojiTimer)
     overlay.classList.add('fade-out')
     const cleanup = () => {
       overlay.removeEventListener('transitionend', cleanup)
+      matrixFx?.stop?.();
       overlay.remove()
       window.__agent1cPreloadActive = false
     }
