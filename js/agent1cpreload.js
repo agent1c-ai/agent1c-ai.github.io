@@ -71,17 +71,25 @@
         pi += 1
       }
     }
-    emojiRow.textContent = row.join(' ')
+    emojiRow.textContent = ''
+    row.forEach((emoji) => {
+      const span = document.createElement('span')
+      span.textContent = emoji || ''
+      emojiRow.appendChild(span)
+    })
     if (hogIndex === 4) hogDir = -1
     if (hogIndex === 0) hogDir = 1
     hogIndex += hogDir
   }
 
+  stepEmoji()
+  const emojiInterval = prefersReduced ? 240 : 120
+  emojiTimer = setInterval(stepEmoji, emojiInterval)
   if (!prefersReduced) {
     stepFont()
-    stepEmoji()
     timer = setInterval(stepFont, 120)
-    emojiTimer = setInterval(stepEmoji, 60)
+  } else {
+    stepFont()
   }
 
   const totalMs = prefersReduced ? 900 : 2800
