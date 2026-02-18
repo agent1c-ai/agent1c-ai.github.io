@@ -2115,7 +2115,9 @@ function isAgenticAiHost(){
 }
 
 function shouldShowAiIntroGate(){
+  const host = String(window.location?.hostname || "").toLowerCase()
   if (!isAgenticAiHost()) return false
+  if (host === "app.agent1c.ai" || host === "app.agentic.ai") return false
   try {
     return localStorage.getItem(AI_INTRO_DONE_KEY) !== "1"
   } catch {
