@@ -3651,26 +3651,26 @@ function introWindowHtml(){
       <div class="agent-intro-grid">
         <div class="agent-intro-card cloud">
           <div class="agent-intro-card-title">Agent1c.ai (Cloud)</div>
-          <div class="agent-intro-card-sub">Cloud path is in early access.</div>
+          <div class="agent-intro-card-sub">Early access cloud path.</div>
           <ul class="agent-intro-list">
-            <li>Early-access cloud path (account required)</li>
-            <li>Currently redirects to Agent1c.me after sign-up</li>
-            <li>Hosted sessions and identity (coming soon)</li>
-            <li>Best for getting started when live</li>
+            <li>A workspace you can access from anywhere with an Agent1c account</li>
+            <li>Immediately start using</li>
+            <li>Agent runs in cloud between logins</li>
+            <li>Sign up now for early access</li>
           </ul>
         </div>
         <div class="agent-intro-card local">
           <div class="agent-intro-card-title">Agent1c.me (Local)</div>
-          <div class="agent-intro-card-sub">Maximum sovereignty and control</div>
+          <div class="agent-intro-card-sub">For power users and privacy enthusiasts.</div>
           <ul class="agent-intro-list">
-            <li>Runs directly in your browser tab</li>
+            <li>For those comfortable with APIs and the command line</li>
+            <li>No need to sign up, primarily serverless</li>
+            <li>Only persists in your browser cache</li>
             <li>Bring your own keys and optional local relay</li>
-            <li>No accounts, no servers, no persistence</li>
-            <li>Ideal for power users and private workflows</li>
           </ul>
         </div>
       </div>
-      <div class="agent-intro-note">Choose how you want to begin. Agent1c.ai is in early access and currently routes to the local build.</div>
+      <div class="agent-intro-note">Choose how you want to begin. You can switch paths later.</div>
       <div class="agent-row agent-wrap-row agent-intro-cta-row">
         <button id="introGoLocalBtn" class="btn agent-intro-btn agent-intro-btn-secondary" type="button">Open Agent1c.me</button>
         <button id="introContinueCloudBtn" class="btn agent-intro-btn agent-intro-btn-primary" type="button">Continue with Agent1c.ai</button>
