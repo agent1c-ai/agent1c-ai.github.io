@@ -3642,11 +3642,9 @@ function introWindowHtml(){
         </div>
       </div>
       <div class="agent-intro-signals">
-        <span class="agent-intro-signal">Cloud-hosted sessions</span>
-        <span class="agent-intro-signal">Access from any device</span>
+        <span class="agent-intro-signal">Web-based OS</span>
+        <span class="agent-intro-signal">Fully agentic</span>
         <span class="agent-intro-signal">Local-first BYOK option</span>
-        <span class="agent-intro-signal">Markdown-driven agent brain</span>
-        <span class="agent-intro-signal">Relay-ready system tools</span>
       </div>
       <div class="agent-intro-grid">
         <div class="agent-intro-card cloud">
