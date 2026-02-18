@@ -45,6 +45,8 @@
   let idx = 0
   let timer = null
   let emojiTimer = null
+  let hogIndex = 0
+  let hogDir = 1
   function stepFont(){
     if (!logo) return
     logo.style.fontFamily = fonts[idx % fonts.length] + ', serif'
@@ -59,8 +61,20 @@
       const i = Math.floor(Math.random() * pool.length)
       picks.push(pool.splice(i, 1)[0])
     }
-    const row = ['🦔', ...picks]
+    const row = new Array(5)
+    const pos = hogIndex
+    row[pos] = '🦔'
+    let pi = 0
+    for (let i = 0; i < row.length; i += 1){
+      if (!row[i]) {
+        row[i] = picks[pi] || ''
+        pi += 1
+      }
+    }
     emojiRow.textContent = row.join(' ')
+    if (hogIndex === 4) hogDir = -1
+    if (hogIndex === 0) hogDir = 1
+    hogIndex += hogDir
   }
 
   if (!prefersReduced) {
