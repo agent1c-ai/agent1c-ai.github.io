@@ -206,6 +206,12 @@ export async function createOnboardingHedgey({
     return html
   }
 
+  function emitHitomiText(text){
+    const html = sanitizeTemplateHtml(text)
+    addMessage(`<strong>Hitomi:</strong> ${html}`, { source: "guide", auto: false })
+    return html
+  }
+
   function transitionTo(nextState, { autoEnter = true } = {}){
     if (!nextState || currentState === nextState) return
     currentState = nextState
@@ -295,7 +301,7 @@ export async function createOnboardingHedgey({
         return txt
       }
       const fallback = randomPick(spec?.nlu?.offTopicPolicy?.fallbackPool || [])
-      return emitText(`<strong>Hitomi:</strong> ${escapeHtml(fallback)}`)
+      return emitHitomiText(fallback)
     }
     if (intent === "locality") {
       const txt = emitByKey("locality_answer")
@@ -330,7 +336,7 @@ export async function createOnboardingHedgey({
     }
 
     const fallback = randomPick(spec?.nlu?.offTopicPolicy?.fallbackPool || [])
-    return emitText(`<strong>Hitomi:</strong> ${escapeHtml(fallback)}`)
+    return emitHitomiText(fallback)
   }
 
   async function handleUserInput(text){
@@ -359,7 +365,7 @@ export async function createOnboardingHedgey({
 
     if (!intent) {
       const fallback = randomPick(spec?.nlu?.offTopicPolicy?.fallbackPool || [])
-      return emitText(`<strong>Hitomi:</strong> ${escapeHtml(fallback)}`)
+      return emitHitomiText(fallback)
     }
     return processIntent(intent)
   }

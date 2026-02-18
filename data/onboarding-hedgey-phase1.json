@@ -143,6 +143,16 @@
       },
       {
         "from": "vault_create",
+        "onIntent": "vault_skip",
+        "to": "vault_skip_confirm"
+      },
+      {
+        "from": "vault_skip_confirm",
+        "onIntent": "vault_create",
+        "to": "vault_create"
+      },
+      {
+        "from": "vault_create",
         "onTrigger": "vault_initialized",
         "to": "apis_intro"
       },
