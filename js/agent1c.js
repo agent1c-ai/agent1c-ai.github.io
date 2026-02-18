@@ -5210,7 +5210,25 @@ function createIntroWindow(){
   introWin.panelRoot.innerHTML = introWindowHtml()
   cacheElements()
   wireIntroDom()
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => sizeIntroWindowToContent())
+  })
 }
+
+function sizeIntroWindowToContent(){
+  if (!introWin?.win || !introWin?.panelRoot) return
+  const winEl = introWin.win
+  const panel = introWin.panelRoot
+  const titlebar = winEl.querySelector(".titlebar")
+  const { h } = getDesktopViewport()
+  const base = titlebar?.offsetHeight || 22
+  const content = panel.scrollHeight || panel.offsetHeight || 0
+  const target = Math.max(300, Math.min(h - 12, base + content + 18))
+  winEl.style.height = `${target}px`
+  const top = parseFloat(winEl.style.top) || 0
+  winEl.style.top = `${Math.max(0, Math.min(top, Math.max(0, h - target)))}px`
+}
+
 
 function getDesktopViewport(){
   const desktopEl = document.getElementById("desktop")
