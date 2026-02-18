@@ -333,6 +333,9 @@ export function animateFullscreenMatrix(opts = {}){
 
   layer.appendChild(rain);
   parent.appendChild(layer);
+  if (typeof opts?.onLayer === "function") {
+    try { opts.onLayer(layer); } catch {}
+  }
 
   const layerAnim = layer.animate(
     [

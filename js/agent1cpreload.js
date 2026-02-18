@@ -45,9 +45,20 @@ import { animateFullscreenMatrix } from "./window-close-fx.js";
   const prefersReduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches
   const totalMs = prefersReduced ? 900 : 2800
   let matrixFx = null;
-  try {
-    matrixFx = animateFullscreenMatrix({ parent: overlay, durationMs: totalMs, zIndex: 0 });
-  } catch {}
+  let matrixLayer = null;
+  const startMatrix = () => {
+    if (matrixFx) return
+    try {
+      matrixFx = animateFullscreenMatrix({ parent: overlay, durationMs: totalMs, zIndex: 0, onLayer: (layer) => { matrixLayer = layer } });
+      if (matrixLayer) {
+        matrixLayer.style.opacity = '0'
+        matrixLayer.animate([
+          { opacity: 0 },
+          { opacity: 0.95 },
+        ], { duration: 420, easing: 'ease-out', fill: 'forwards' })
+      }
+    } catch {}
+  }
 
   let idx = 0
   let timer = null
@@ -98,6 +109,9 @@ import { animateFullscreenMatrix } from "./window-close-fx.js";
   } else {
     stepFont()
   }
+  const matrixStartAt = Math.max(120, Math.floor(totalMs * 0.5))
+  setTimeout(startMatrix, matrixStartAt)
+
   setTimeout(() => {
     if (timer) clearInterval(timer)
     if (emojiTimer) clearInterval(emojiTimer)
