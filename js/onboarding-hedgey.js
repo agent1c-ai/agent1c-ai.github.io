@@ -376,6 +376,7 @@ export async function createOnboardingHedgey({
   }
 
   function getPills(){
+    if (awaitingName) return { primary: [], secondary: [] }
     const statePills = spec?.pills?.[currentState] || {}
     const uiCtx = typeof getUiContext === "function" ? (getUiContext() || {}) : {}
     const mapPill = (row) => ({
