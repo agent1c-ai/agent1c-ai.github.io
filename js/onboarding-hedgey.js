@@ -341,16 +341,16 @@ export async function createOnboardingHedgey({
     if (awaitingName) {
       const proposed = extractUserName(text)
       if (!proposed) {
-        return emitText("<strong>Hitomi:</strong> I did not catch that name. Please tell me what I should call you.")
+        addMessage("<strong>Hitomi:</strong> I did not catch that name. Please tell me what I should call you.", { source: "guide", auto: false })
+        return ""
       }
       const ok = await onCaptureName?.(proposed)
       if (!ok) {
-        return emitText("<strong>Hitomi:</strong> Hmm, that name did not stick. Please try once more.")
+        addMessage("<strong>Hitomi:</strong> Hmm, that name did not stick. Please try once more.", { source: "guide", auto: false })
+        return ""
       }
       awaitingName = false
-      emitText(`<strong>Hitomi:</strong> Nice to meet you, ${escapeHtml(proposed)}.`)
-      const m1 = emitByKey("welcome_vault", { auto: true, bypassCooldown: true })
-      if (m1) addMessage(`<strong>Hitomi:</strong> ${m1}`, { source: "guide", auto: true })
+      addMessage(`<strong>Hitomi:</strong> Nice to meet you, ${escapeHtml(proposed)}.`, { source: "guide", auto: false })
       const m2 = emitByKey("explain_vault_choices", { auto: true, bypassCooldown: true })
       if (m2) addMessage(`<strong>Hitomi:</strong> ${m2}`, { source: "guide", auto: true })
       return proposed
