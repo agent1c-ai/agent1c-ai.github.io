@@ -275,6 +275,13 @@ let clippyMode = false
 let clippyUi = null
 let clippyLastAssistantKey = ""
 let clippyBubbleVariant = "full"
+let clippyDragging = false
+let clippyIdleTimer = null
+let clippyIdleRunning = false
+let clippyIdleLastActivityAt = 0
+let clippyIdleBubbleRestore = null
+let clippyIdleRaf = 0
+let clippyActivityWired = false
 let voiceUiState = { enabled: false, supported: true, status: "off", text: "", error: "" }
 let hitomiDesktopIcon = null
 let hitomiIconObserver = null
@@ -2249,6 +2256,161 @@ function hideClippyBubble(){
   clippyUi.bubble.classList.add("clippy-hidden")
 }
 
+function isHedgeyOsTheme(){
+  return document.body?.classList?.contains("hedgeyOS")
+}
+
+function markClippyActivity(){
+  clippyIdleLastActivityAt = Date.now()
+  scheduleClippyIdleHop()
+}
+
+function getClippyBounds(){
+  const desktop = document.getElementById("desktop")
+  const ui = clippyUi
+  if (!desktop || !ui?.root) return null
+  const dw = desktop.clientWidth || 0
+  const dh = desktop.clientHeight || 0
+  const rw = ui.root.offsetWidth || 132
+  const rh = ui.root.offsetHeight || 132
+  const floorPad = isHedgeyOsTheme() ? 2 : 0
+  return {
+    minLeft: 0,
+    maxLeft: Math.max(0, dw - rw),
+    minTop: 0,
+    maxTop: Math.max(0, dh - rh - floorPad),
+  }
+}
+
+function clampClippyPosition(left, top){
+  const bounds = getClippyBounds()
+  if (!bounds) return { left, top }
+  return {
+    left: Math.max(bounds.minLeft, Math.min(left, bounds.maxLeft)),
+    top: Math.max(bounds.minTop, Math.min(top, bounds.maxTop)),
+  }
+}
+
+function setClippyPosition(left, top){
+  const ui = clippyUi
+  if (!ui?.root) return
+  const next = clampClippyPosition(left, top)
+  ui.root.style.left = `${Math.round(next.left)}px`
+  ui.root.style.top = `${Math.round(next.top)}px`
+  positionClippyBubble()
+}
+
+function stopClippyIdleAnimation(){
+  if (clippyIdleRaf) cancelAnimationFrame(clippyIdleRaf)
+  clippyIdleRaf = 0
+  clippyIdleRunning = false
+}
+
+function scheduleClippyIdleHop(){
+  if (clippyIdleTimer) clearTimeout(clippyIdleTimer)
+  if (!clippyMode || !clippyUi?.root || clippyUi.root.classList.contains("clippy-hidden")) return
+  const now = Date.now()
+  const wait = Math.max(14000, 18000 - (now - clippyIdleLastActivityAt))
+  clippyIdleTimer = setTimeout(() => {
+    maybeStartClippyIdleHop()
+  }, wait)
+}
+
+function maybeStartClippyIdleHop(){
+  if (!clippyMode || !clippyUi?.root || clippyUi.root.classList.contains("clippy-hidden")) return
+  if (clippyDragging || clippyIdleRunning) return
+  if ((Date.now() - clippyIdleLastActivityAt) < 13500) {
+    scheduleClippyIdleHop()
+    return
+  }
+  startClippyIdleHopSequence()
+}
+
+function randomHopDestination(curLeft, curTop){
+  const bounds = getClippyBounds()
+  if (!bounds) return { left: curLeft, top: curTop }
+  const tries = 20
+  for (let i = 0; i < tries; i += 1) {
+    const direction = Math.random() < 0.5 ? -1 : 1
+    const dx = direction * (60 + Math.round(Math.random() * 120))
+    const downChance = Math.random() < 0.4
+    const dy = downChance
+      ? (12 + Math.round(Math.random() * 90))
+      : (-18 + Math.round(Math.random() * 42))
+    const left = Math.max(bounds.minLeft, Math.min(curLeft + dx, bounds.maxLeft))
+    const top = Math.max(bounds.minTop, Math.min(curTop + dy, bounds.maxTop))
+    if (Math.abs(left - curLeft) + Math.abs(top - curTop) >= 36) return { left, top }
+  }
+  return {
+    left: Math.max(bounds.minLeft, Math.min(curLeft + (Math.random() < 0.5 ? -48 : 48), bounds.maxLeft)),
+    top: Math.max(bounds.minTop, Math.min(curTop + 24, bounds.maxTop)),
+  }
+}
+
+function animateClippyHop(from, to, durationMs){
+  return new Promise((resolve) => {
+    const ui = clippyUi
+    if (!ui?.root) {
+      resolve()
+      return
+    }
+    const startedAt = performance.now()
+    const arc = 22 + Math.random() * 40
+    const duration = Math.max(260, Math.min(640, Number(durationMs) || 420))
+    const step = (now) => {
+      if (!clippyMode || !clippyUi?.root || clippyUi.root.classList.contains("clippy-hidden")) {
+        stopClippyIdleAnimation()
+        resolve()
+        return
+      }
+      const t = Math.max(0, Math.min(1, (now - startedAt) / duration))
+      const baseX = from.left + (to.left - from.left) * t
+      const baseY = from.top + (to.top - from.top) * t
+      const hop = -4 * arc * t * (1 - t)
+      setClippyPosition(baseX, baseY + hop)
+      if (t >= 1) {
+        resolve()
+        return
+      }
+      clippyIdleRaf = requestAnimationFrame(step)
+    }
+    clippyIdleRaf = requestAnimationFrame(step)
+  })
+}
+
+async function startClippyIdleHopSequence(){
+  if (clippyIdleRunning || !clippyUi?.root) return
+  clippyIdleRunning = true
+  const bubbleWasVisible = !!(clippyUi.bubble && !clippyUi.bubble.classList.contains("clippy-hidden"))
+  clippyIdleBubbleRestore = bubbleWasVisible ? clippyBubbleVariant : null
+  if (bubbleWasVisible) hideClippyBubble()
+  try {
+    const hops = 1 + (Math.random() < 0.5 ? 1 : 0)
+    for (let i = 0; i < hops; i += 1) {
+      if (!clippyMode || clippyDragging) break
+      const curLeft = parseFloat(clippyUi.root.style.left) || 0
+      const curTop = parseFloat(clippyUi.root.style.top) || 0
+      const to = randomHopDestination(curLeft, curTop)
+      await animateClippyHop({ left: curLeft, top: curTop }, to, 360 + Math.random() * 180)
+      if (i < hops - 1) {
+        await new Promise(resolve => setTimeout(resolve, 120 + Math.random() * 220))
+      }
+    }
+  } finally {
+    stopClippyIdleAnimation()
+    if (clippyMode && clippyUi?.root && clippyIdleBubbleRestore) {
+      showClippyBubble({
+        variant: clippyIdleBubbleRestore === "compact" ? "compact" : "full",
+        snapNoOverlap: true,
+        preferAbove: true,
+      })
+    }
+    clippyIdleBubbleRestore = null
+    clippyIdleLastActivityAt = Date.now()
+    scheduleClippyIdleHop()
+  }
+}
+
 function voiceStatusLabel(){
   const s = voiceUiState || {}
   if (!s.supported) return "🎤 Speech recognition unsupported"
@@ -2447,6 +2609,7 @@ function ensureClippyAssistant(){
         </form>
       </div>
     </div>
+    <div class="clippy-shadow" aria-hidden="true"></div>
     <img class="clippy-body" src="assets/hedgey1.png" alt="Hitomi hedgehog assistant" draggable="false" />
   `
   desktop.appendChild(root)
@@ -2526,14 +2689,9 @@ function ensureClippyAssistant(){
     try { target.focus?.() } catch {}
   }
   function clampPos(){
-    const dw = desktop.clientWidth || 0
-    const dh = desktop.clientHeight || 0
-    const rw = root.offsetWidth || 64
-    const rh = root.offsetHeight || 64
-    const left = Math.max(0, Math.min(baseLeft, Math.max(0, dw - rw)))
-    const top = Math.max(0, Math.min(baseTop, Math.max(0, dh - rh)))
-    root.style.left = `${left}px`
-    root.style.top = `${top}px`
+    const next = clampClippyPosition(baseLeft, baseTop)
+    root.style.left = `${Math.round(next.left)}px`
+    root.style.top = `${Math.round(next.top)}px`
     positionClippyBubble()
   }
   body?.addEventListener("pointerdown", (e) => {
@@ -2543,6 +2701,9 @@ function ensureClippyAssistant(){
       return
     }
     e.preventDefault()
+    markClippyActivity()
+    stopClippyIdleAnimation()
+    clippyDragging = true
     dragging = true
     moved = false
     startX = e.clientX
@@ -2564,6 +2725,7 @@ function ensureClippyAssistant(){
   })
   function endDrag(){
     dragging = false
+    clippyDragging = false
   }
   body?.addEventListener("pointerup", (e) => {
     if (!dragging) return
@@ -2597,6 +2759,7 @@ function ensureClippyAssistant(){
     e.preventDefault()
     const text = (input?.value || "").trim()
     if (!text) return
+    markClippyActivity()
     if (input) input.value = ""
     try {
       clippyBubbleVariant = "full"
@@ -2624,6 +2787,17 @@ function ensureClippyAssistant(){
     if (clippyUi.root.contains(e.target)) return
     hideClippyBubble()
   }, true)
+  if (!clippyActivityWired) {
+    clippyActivityWired = true
+    const noteActivity = () => {
+      if (!clippyMode) return
+      markClippyActivity()
+    }
+    window.addEventListener("pointerdown", noteActivity, true)
+    window.addEventListener("keydown", noteActivity, true)
+    window.addEventListener("wheel", noteActivity, { passive: true, capture: true })
+    window.addEventListener("touchstart", noteActivity, { passive: true, capture: true })
+  }
   window.addEventListener("resize", () => {
     positionHitomiDesktopIcon()
     if (!clippyUi?.root) return
@@ -2632,6 +2806,7 @@ function ensureClippyAssistant(){
     clampPos()
     positionClippyBubble()
   })
+  markClippyActivity()
   updateClippyVoiceBadge()
   return clippyUi
 }
@@ -2650,8 +2825,13 @@ function setClippyMode(next){
     clippyLastAssistantKey = latestAssistantMessageKey(messages)
     hideClippyBubble()
     updateClippyVoiceBadge()
+    markClippyActivity()
     setStatus("Clippy mode enabled.")
   } else {
+    if (clippyIdleTimer) clearTimeout(clippyIdleTimer)
+    clippyIdleTimer = null
+    stopClippyIdleAnimation()
+    clippyDragging = false
     hideClippyBubble()
     updateClippyVoiceBadge()
     setStatus("Clippy mode disabled.")
@@ -2663,6 +2843,7 @@ async function handleVoiceCommand(text){
   if (!spoken) return
   try {
     setClippyMode(true)
+    markClippyActivity()
     if (clippyUi?.input) clippyUi.input.value = spoken
     clippyBubbleVariant = "full"
     showClippyBubble({ variant: "full", snapNoOverlap: true, preferAbove: false })

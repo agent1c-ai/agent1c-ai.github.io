@@ -1971,7 +1971,21 @@
   z-index: 3000;
   user-select: none;
 }
+.clippy-shadow{
+  position: absolute;
+  left: 24px;
+  bottom: 8px;
+  width: 86px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.22) 45%, rgba(0,0,0,0.05) 75%, rgba(0,0,0,0) 100%);
+  filter: blur(1px);
+  pointer-events: none;
+  z-index: 0;
+}
 .clippy-body{
+  position: relative;
+  z-index: 1;
   width: 132px;
   height: 132px;
   object-fit: contain;
@@ -2284,6 +2298,9 @@ body.dark .clippy-voice{
   background: rgba(44, 47, 56, 0.96);
   color: #f2f4f8;
   border-color: rgba(255,255,255,0.32);
+}
+body.dark .clippy-shadow{
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.36) 48%, rgba(0,0,0,0.08) 78%, rgba(0,0,0,0) 100%);
 }
 .agent-doc-state{
   margin-top: 4px;
