@@ -1728,6 +1728,53 @@
   min-height: 0;
   overflow: visible;
 }
+.agent-intro{
+  gap: 10px;
+}
+.agent-intro-hero{
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.34);
+  padding: 7px;
+}
+.agent-intro-hero img{
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+.agent-intro-title{
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.1;
+}
+.agent-intro-one{
+  color: #c25588;
+}
+.agent-intro-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.agent-intro-card{
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.28);
+  padding: 7px;
+}
+.agent-intro-card-title{
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.agent-intro-list{
+  margin: 0;
+  padding-left: 16px;
+  font-size: 11px;
+}
+.agent-intro-list li{
+  margin: 0 0 3px;
+}
 .agent-provider-cards{
   display: grid;
   gap: 5px;
@@ -2211,6 +2258,9 @@
   grid-template-columns: 1fr auto;
   gap: 4px;
 }
+.clippy-form.intro-locked{
+  opacity: 0.8;
+}
 .clippy-input{
   min-width: 0;
   border: 1px solid var(--line);
@@ -2219,6 +2269,10 @@
   font: inherit;
   font-size: 11px;
   line-height: 1.2;
+}
+.clippy-input:disabled{
+  background: #e7e2d2;
+  color: #615a54;
 }
 .clippy-send{
   border: 1px solid var(--line);
@@ -2419,4 +2473,5 @@ body.dark .clippy-shadow{
 
 @media (max-width: 860px){
   .agent-grid2{ grid-template-columns: 1fr; }
+  .agent-intro-grid{ grid-template-columns: 1fr; }
 }

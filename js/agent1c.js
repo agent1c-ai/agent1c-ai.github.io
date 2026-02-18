@@ -205,6 +205,7 @@ const DB_VERSION = 1
 const ONBOARDING_KEY = "agent1c_onboarding_complete_v1"
 const ONBOARDING_OPENAI_TEST_KEY = "agent1c_onboarding_openai_tested_v1"
 const USER_NAME_KEY = "agent1c_user_name_v1"
+const AI_INTRO_DONE_KEY = "agent1c_ai_intro_done_v1"
 const PREVIEW_PROVIDER_KEY = "agent1c_preview_providers_v1"
 const WINDOW_LAYOUT_KEY = "hedgey_window_layout_v1"
 const UNENCRYPTED_MODE_KEY = "agent1c_unencrypted_mode_v1"
@@ -258,6 +259,7 @@ const els = {}
 let wmRef = null
 let setupWin = null
 let unlockWin = null
+let introWin = null
 let workspaceReady = false
 let wired = false
 let dbPromise = null
@@ -288,6 +290,8 @@ let clippyIdleRaf = 0
 let clippyActivityWired = false
 let onboardingHedgey = null
 let userName = ""
+let aiIntroPending = false
+let aiIntroContinuing = false
 let voiceUiState = { enabled: false, supported: true, status: "off", text: "", error: "" }
 let hitomiDesktopIcon = null
 let hitomiIconObserver = null
@@ -317,6 +321,12 @@ const wins = {
   shellrelay: null,
   ollamaSetup: null,
 }
+
+const AI_INTRO_MESSAGES = [
+  "Hi friend. I am Hitomi, your tiny hedgehog guide.",
+  "Welcome to Agent1c.ai. This is your cloud-hosted Agent1c OS path.",
+  "Pick one option in the Intro window. I will start setup right after you choose Continue.",
+]
 const previewProviderState = {
   active: "openai",
   editor: "",
@@ -2094,6 +2104,30 @@ function isOnboardingGuideActive(){
   return Boolean(onboardingHedgey?.isActive?.() && !onboardingComplete)
 }
 
+function isAgenticAiHost(){
+  const host = String(window.location?.hostname || "").toLowerCase()
+  return host === "agentic.ai" || host === "www.agentic.ai" || host === "app.agentic.ai"
+}
+
+function shouldShowAiIntroGate(){
+  if (!isAgenticAiHost()) return false
+  try {
+    return localStorage.getItem(AI_INTRO_DONE_KEY) !== "1"
+  } catch {
+    return true
+  }
+}
+
+function isAiIntroGuideActive(){
+  return aiIntroPending
+}
+
+function getAiIntroHtml(){
+  return AI_INTRO_MESSAGES
+    .map(line => `<div class="clippy-line"><strong>Hitomi:</strong> ${escapeHtml(line)}</div>`)
+    .join("")
+}
+
 function clippySpawnBottomPosition(){
   const bounds = getClippyBounds()
   if (!bounds) return { left: 20, top: 390 }
@@ -2131,6 +2165,9 @@ function onboardingGuideUiContext(){
 }
 
 function getClippyChatHtml(){
+  if (isAiIntroGuideActive()) {
+    return getAiIntroHtml()
+  }
   if (isOnboardingGuideActive()) {
     return onboardingHedgey?.getRenderedHtml?.() || `<div class="clippy-line">No setup messages yet.</div>`
   }
@@ -2148,6 +2185,9 @@ function getClippyChatHtml(){
 }
 
 function getClippyCompactHtml(){
+  if (isAiIntroGuideActive()) {
+    return getAiIntroHtml()
+  }
   if (isOnboardingGuideActive()) {
     return onboardingHedgey?.getRenderedHtml?.() || `<div class="clippy-line">No setup messages yet.</div>`
   }
@@ -2655,6 +2695,11 @@ function scrollClippyToBottom(){
 
 function renderOnboardingChips(){
   if (!clippyUi?.chips) return
+  if (isAiIntroGuideActive()) {
+    clippyUi.chips.classList.add("clippy-hidden")
+    clippyUi.chips.innerHTML = ""
+    return
+  }
   if (!isOnboardingGuideActive()) {
     clippyUi.chips.classList.add("clippy-hidden")
     clippyUi.chips.innerHTML = ""
@@ -2676,10 +2721,19 @@ function renderOnboardingChips(){
 
 function renderClippyBubble(){
   if (!clippyUi?.log || !clippyUi?.bubble) return
-  const compact = isOnboardingGuideActive() ? true : (clippyBubbleVariant === "compact")
+  const compact = isAiIntroGuideActive() || isOnboardingGuideActive() ? true : (clippyBubbleVariant === "compact")
   clippyUi.bubble.classList.toggle("compact", compact)
   clippyUi.log.innerHTML = compact ? getClippyCompactHtml() : getClippyChatHtml()
   renderOnboardingChips()
+  if (clippyUi.input) {
+    clippyUi.input.disabled = isAiIntroGuideActive()
+    clippyUi.input.placeholder = isAiIntroGuideActive()
+      ? "Choose an option in Intro window..."
+      : "Write a message..."
+  }
+  if (clippyUi.form) {
+    clippyUi.form.classList.toggle("intro-locked", isAiIntroGuideActive())
+  }
   scrollClippyToBottom()
   requestAnimationFrame(positionClippyBubble)
 }
@@ -2868,6 +2922,10 @@ function ensureClippyAssistant(){
   })
   form?.addEventListener("submit", async (e) => {
     e.preventDefault()
+    if (isAiIntroGuideActive()) {
+      setStatus("Choose an option in the Intro window first.")
+      return
+    }
     const text = (input?.value || "").trim()
     if (!text) return
     markClippyActivity()
@@ -3513,6 +3571,14 @@ function revealPostOpenAiWindows(){
 
 function syncOnboardingGuideActivation(){
   if (!onboardingHedgey) return
+  if (isAiIntroGuideActive()) {
+    onboardingHedgey.setActive(false)
+    setClippyMode(true)
+    positionClippyAtBottom()
+    clippyBubbleVariant = "compact"
+    showClippyBubble({ variant: "compact", snapNoOverlap: true, preferAbove: true })
+    return
+  }
   const shouldBeActive = !onboardingComplete
   onboardingHedgey.setActive(shouldBeActive)
   if (!shouldBeActive) return
@@ -3553,6 +3619,43 @@ function setupWindowHtml(){
         <div class="agent-note agent-note-warn">Warning: If skipped, your API keys are stored locally without encryption.</div>
         <div id="setupStatus" class="agent-note">Create a local vault to continue.</div>
       </form>
+    </div>
+  `
+}
+
+function introWindowHtml(){
+  return `
+    <div class="agent-stack agent-intro">
+      <div class="agent-intro-hero">
+        <img src="assets/hedgey1.png" alt="Hitomi hedgehog" />
+        <div>
+          <div class="agent-intro-title">Agent<span class="agent-intro-one">1</span>c</div>
+          <div class="agent-note">A playful agentic OS with real windows and a friendly hedgehog guide.</div>
+        </div>
+      </div>
+      <div class="agent-intro-grid">
+        <div class="agent-intro-card">
+          <div class="agent-intro-card-title">Agent1c.ai (Cloud)</div>
+          <ul class="agent-intro-list">
+            <li>Persistent hosted sessions</li>
+            <li>No local setup required</li>
+            <li>Subscription access path</li>
+          </ul>
+        </div>
+        <div class="agent-intro-card">
+          <div class="agent-intro-card-title">Agent1c.me (Local)</div>
+          <ul class="agent-intro-list">
+            <li>Runs directly in your tab</li>
+            <li>BYOK with optional local relay</li>
+            <li>No forced login flow</li>
+          </ul>
+        </div>
+      </div>
+      <div class="agent-note">Choose where you want to start. You can switch any time.</div>
+      <div class="agent-row agent-wrap-row">
+        <button id="introGoLocalBtn" class="btn" type="button">Go to Agent1c.me</button>
+        <button id="introContinueCloudBtn" class="btn" type="button">Continue with Agent1c.ai</button>
+      </div>
     </div>
   `
 }
@@ -4018,6 +4121,8 @@ function eventsWindowHtml(){
 
 function cacheElements(){
   Object.assign(els, {
+    introGoLocalBtn: byId("introGoLocalBtn"),
+    introContinueCloudBtn: byId("introContinueCloudBtn"),
     setupForm: byId("setupForm"),
     setupPassphrase: byId("setupPassphrase"),
     setupConfirm: byId("setupConfirm"),
@@ -5021,6 +5126,70 @@ function createSetupWindow(){
   setStatus("Create a vault to continue.")
 }
 
+function getIntroWindowOpts(){
+  const { w, h } = getDesktopViewport()
+  const compact = w <= 760
+  if (compact) {
+    return {
+      panelId: "intro",
+      left: 0,
+      top: 0,
+      width: Math.max(300, w - 8),
+      height: Math.max(320, Math.min(520, h - 24)),
+      closeAsMinimize: false,
+    }
+  }
+  const width = 740
+  const height = 420
+  return {
+    panelId: "intro",
+    left: Math.max(20, Math.round((w - width) / 2)),
+    top: Math.max(28, Math.round((h - height) / 2) - 24),
+    width,
+    height,
+    closeAsMinimize: false,
+  }
+}
+
+function activateAiIntroGuide(){
+  setClippyMode(true)
+  clippyBubbleVariant = "compact"
+  showClippyBubble({ variant: "compact", snapNoOverlap: true, preferAbove: true })
+  renderClippyBubble()
+  setStatus("Choose local or cloud in the Intro window.")
+}
+
+async function continueAfterAiIntro(){
+  if (aiIntroContinuing) return
+  aiIntroContinuing = true
+  aiIntroPending = false
+  try {
+    localStorage.setItem(AI_INTRO_DONE_KEY, "1")
+  } catch {}
+  if (introWin?.id) closeWindow(introWin)
+  introWin = null
+  await continueStandardOnboardingFlow()
+}
+
+function wireIntroDom(){
+  els.introGoLocalBtn?.addEventListener("click", () => {
+    window.location.href = "https://agent1c.me"
+  })
+  els.introContinueCloudBtn?.addEventListener("click", () => {
+    continueAfterAiIntro().catch(err => {
+      setStatus(err instanceof Error ? err.message : "Could not continue.")
+    })
+  })
+}
+
+function createIntroWindow(){
+  introWin = wmRef.createAgentPanelWindow("Intro", getIntroWindowOpts())
+  if (!introWin?.panelRoot) return
+  introWin.panelRoot.innerHTML = introWindowHtml()
+  cacheElements()
+  wireIntroDom()
+}
+
 function getDesktopViewport(){
   const desktopEl = document.getElementById("desktop")
   const w = Math.max(320, Number(desktopEl?.clientWidth) || window.innerWidth || 1024)
@@ -5148,6 +5317,43 @@ async function loadPersistentState(){
   appState.events = events
 }
 
+async function continueStandardOnboardingFlow(){
+  onboardingHedgey?.setActive?.(!onboardingComplete)
+  if (!onboardingComplete && (appState.vaultReady || appState.unencryptedMode)) {
+    onboardingHedgey?.handleTrigger?.("vault_initialized")
+  }
+  const hasAiSecret = await hasAnyAiProviderKey()
+  const onboarding = !hasAiSecret || !onboardingComplete
+
+  if (!appState.vaultReady) {
+    createSetupWindow()
+    if (!userName && setupWin?.id) {
+      minimizeWindow(setupWin)
+    }
+    if (appState.unencryptedMode) {
+      await createWorkspace({ showUnlock: false, onboarding: true })
+      minimizeWindow(setupWin)
+      applyOnboardingWindowState()
+      await addEvent("vault_warning", "WARNING: Your APIs are not encrypted. Click on Create Vault to encrypt your APIs.")
+      setStatus("Unencrypted mode is active. You can configure APIs now.")
+    }
+    syncOnboardingGuideActivation()
+    return
+  }
+
+  await createWorkspace({ showUnlock: true, onboarding })
+  if (appState.unencryptedMode) {
+    await addEvent("vault_warning", "WARNING: Your APIs are not encrypted. Click on Create Vault to encrypt your APIs.")
+  }
+  if (onboarding) {
+    applyOnboardingWindowState()
+    setStatus("Unlock vault, then connect an AI provider to start.")
+  } else {
+    setStatus("Vault locked. Unlock to continue.")
+  }
+  syncOnboardingGuideActivation()
+}
+
 export async function initAgent1C({ wm }){
   wmRef = wm
   loadPreviewProviderState()
@@ -5180,38 +5386,12 @@ export async function initAgent1C({ wm }){
       return true
     },
   })
-  onboardingHedgey.setActive(!onboardingComplete)
-  if (!onboardingComplete && (appState.vaultReady || appState.unencryptedMode)) {
-    onboardingHedgey.handleTrigger("vault_initialized")
-  }
-  const hasAiSecret = await hasAnyAiProviderKey()
-  const onboarding = !hasAiSecret || !onboardingComplete
-
-  if (!appState.vaultReady) {
-    createSetupWindow()
-    if (!userName && setupWin?.id) {
-      minimizeWindow(setupWin)
-    }
-    if (appState.unencryptedMode) {
-      await createWorkspace({ showUnlock: false, onboarding: true })
-      minimizeWindow(setupWin)
-      applyOnboardingWindowState()
-      await addEvent("vault_warning", "WARNING: Your APIs are not encrypted. Click on Create Vault to encrypt your APIs.")
-      setStatus("Unencrypted mode is active. You can configure APIs now.")
-    }
-    syncOnboardingGuideActivation()
+  aiIntroPending = shouldShowAiIntroGate()
+  if (aiIntroPending) {
+    onboardingHedgey?.setActive?.(false)
+    createIntroWindow()
+    activateAiIntroGuide()
     return
   }
-
-  await createWorkspace({ showUnlock: true, onboarding })
-  if (appState.unencryptedMode) {
-    await addEvent("vault_warning", "WARNING: Your APIs are not encrypted. Click on Create Vault to encrypt your APIs.")
-  }
-  if (onboarding) {
-    applyOnboardingWindowState()
-    setStatus("Unlock vault, then connect an AI provider to start.")
-  } else {
-    setStatus("Vault locked. Unlock to continue.")
-  }
-  syncOnboardingGuideActivation()
+  await continueStandardOnboardingFlow()
 }
