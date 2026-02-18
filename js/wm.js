@@ -873,9 +873,154 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     win._setFinderSection = activateNav;
   }
 
+  function normalizedBrowserUrl(raw){
+    const val = String(raw || "").trim();
+    if (!val) return "";
+    if (/^(about:|data:|blob:)/i.test(val)) return val;
+    return /^https?:\/\//i.test(val) ? val : ("https://" + val);
+  }
+
+  function shouldProbeRelay(url){
+    if (!url) return false;
+    if (!/^https?:\/\//i.test(url)) return false;
+    try {
+      const parsed = new URL(url);
+      return parsed.origin !== location.origin;
+    } catch {
+      return false;
+    }
+  }
+
+  function getRelayState(){
+    try {
+      const relay = window.__agent1cRelayState || {};
+      const enabled = relay.enabled === true;
+      const baseUrl = String(relay.baseUrl || "http://127.0.0.1:8765").replace(/\/+$/, "");
+      return { enabled, baseUrl };
+    } catch {
+      return { enabled: false, baseUrl: "http://127.0.0.1:8765" };
+    }
+  }
+
+  function parseHeaderValue(headers, key){
+    const source = String(headers || "");
+    const line = source.split(/\r?\n/).find(row => row.toLowerCase().startsWith(`${String(key || "").toLowerCase()}:`));
+    if (!line) return "";
+    return line.slice(line.indexOf(":") + 1).trim();
+  }
+
+  function isFrameBlockedByHeaders(headers){
+    const xfo = parseHeaderValue(headers, "x-frame-options").toLowerCase();
+    if (xfo.includes("deny") || xfo.includes("sameorigin")) return true;
+    const csp = parseHeaderValue(headers, "content-security-policy").toLowerCase();
+    if (!csp.includes("frame-ancestors")) return false;
+    if (csp.includes("frame-ancestors *")) return false;
+    if (csp.includes("frame-ancestors 'self'")) return true;
+    return true;
+  }
+
+  function extractHtmlTitle(html){
+    const text = String(html || "");
+    const m = text.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    if (!m) return "";
+    const plain = String(m[1] || "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    return plain.slice(0, 120);
+  }
+
+  async function relayFetch(url, mode, maxBytes){
+    const relay = getRelayState();
+    if (!relay.enabled) throw new Error("relay disabled");
+    const resp = await fetch(`${relay.baseUrl}/v1/http/fetch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url,
+        mode: mode || "get",
+        max_bytes: Math.max(80000, Number(maxBytes) || 300000),
+      }),
+    });
+    if (!resp.ok) throw new Error(`relay ${resp.status}`);
+    const json = await resp.json();
+    return json || {};
+  }
+
+  function renderRelayBody(iframe, targetUrl, page){
+    const body = String(page?.body || "");
+    const contentType = String(page?.contentType || "").toLowerCase();
+    if (contentType.includes("text/html") || body.trim().startsWith("<!doctype") || body.trim().startsWith("<html")) {
+      const html = `<base href="${targetUrl}">\n${body}`;
+      iframe.removeAttribute("srcdoc");
+      iframe.src = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
+      return;
+    }
+    const safe = body
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    const html = `<html><head><meta charset="utf-8" /><base href="${targetUrl}"></head><body><pre>${safe}</pre></body></html>`;
+    iframe.removeAttribute("srcdoc");
+    iframe.src = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
+  }
+
+  async function loadUrlIntoIframe(iframe, rawUrl, opts = {}){
+    const setStatus = typeof opts.onStatus === "function" ? opts.onStatus : () => {};
+    const onRelayPage = typeof opts.onRelayPage === "function" ? opts.onRelayPage : null;
+    const raw = String(rawUrl || "").trim();
+    if (!raw) {
+      setStatus("Enter a URL");
+      return { ok: false, finalUrl: "" };
+    }
+
+    const conv = toEmbedUrl(raw, { twitchParent: location.hostname || "localhost" });
+    if (conv.ok){
+      iframe.removeAttribute("srcdoc");
+      iframe.src = conv.embedUrl;
+      setStatus("Embedded via " + conv.provider);
+      return { ok: true, finalUrl: raw, title: "", viaRelay: false };
+    }
+
+    const norm = normalizedBrowserUrl(raw);
+    let openedViaRelay = false;
+    if (shouldProbeRelay(norm)) {
+      try {
+        const probe = await relayFetch(norm, "head", opts.maxBytes || 300000);
+        if (probe.ok && isFrameBlockedByHeaders(probe.headers || "")) {
+          const page = await relayFetch(norm, "get", opts.maxBytes || 300000);
+          if (page.ok) {
+            openedViaRelay = true;
+            const resolvedUrl = String(page.finalUrl || norm);
+            renderRelayBody(iframe, resolvedUrl, page);
+            setStatus("Opened via local relay fallback");
+            const title = extractHtmlTitle(page.body || "");
+            if (onRelayPage) onRelayPage({ page, title, finalUrl: resolvedUrl });
+            return { ok: true, finalUrl: resolvedUrl, title, viaRelay: true };
+          }
+        }
+      } catch {
+        // Direct path fallback below.
+      }
+    }
+    if (!openedViaRelay) {
+      iframe.removeAttribute("srcdoc");
+      iframe.src = norm;
+      if (conv.reason === "twitch_requires_parent"){
+        setStatus("Twitch needs a parent domain; opened raw URL");
+      } else {
+        setStatus("Opened direct URL (no embed)");
+      }
+      return { ok: true, finalUrl: norm, title: "", viaRelay: false };
+    }
+    return { ok: false, finalUrl: norm, title: "", viaRelay: false };
+  }
+
   function wireAppUI(win, url){
     const iframe = win.querySelector("[data-iframe]");
-    iframe.src = url;
+    loadUrlIntoIframe(iframe, url, { maxBytes: 500000 }).catch(() => {
+      iframe.src = normalizedBrowserUrl(url);
+    });
   }
 
   function wireBrowserUI(win){
@@ -894,77 +1039,8 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
       if (status) status.textContent = txt;
     }
 
-    function normalizedUrl(raw){
-      const val = (raw || "").trim();
-      if (!val) return "";
-      if (/^(about:|data:|blob:)/i.test(val)) return val;
-      return /^https?:\/\//i.test(val) ? val : ("https://" + val);
-    }
-
-    function shouldProbeRelay(url){
-      if (!url) return false;
-      if (!/^https?:\/\//i.test(url)) return false;
-      try {
-        const parsed = new URL(url);
-        return parsed.origin !== location.origin;
-      } catch {
-        return false;
-      }
-    }
-
-    function relayBaseUrl(){
-      return "http://127.0.0.1:8765";
-    }
-
-    function parseHeaderValue(headers, key){
-      const source = String(headers || "");
-      const line = source.split(/\r?\n/).find(row => row.toLowerCase().startsWith(`${String(key || "").toLowerCase()}:`));
-      if (!line) return "";
-      return line.slice(line.indexOf(":") + 1).trim();
-    }
-
-    function isFrameBlockedByHeaders(headers){
-      const xfo = parseHeaderValue(headers, "x-frame-options").toLowerCase();
-      if (xfo.includes("deny") || xfo.includes("sameorigin")) return true;
-      const csp = parseHeaderValue(headers, "content-security-policy").toLowerCase();
-      if (!csp.includes("frame-ancestors")) return false;
-      if (csp.includes("frame-ancestors *")) return false;
-      if (csp.includes("frame-ancestors 'self'")) return true;
-      return true;
-    }
-
-    async function relayFetch(url, mode){
-      const resp = await fetch(`${relayBaseUrl()}/v1/http/fetch`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url,
-          mode: mode || "get",
-          max_bytes: 300000,
-        }),
-      });
-      if (!resp.ok) throw new Error(`relay ${resp.status}`);
-      const json = await resp.json();
-      return json || {};
-    }
-
-    function renderRelayBody(targetUrl, page){
-      const body = String(page?.body || "");
-      const contentType = String(page?.contentType || "").toLowerCase();
-      if (contentType.includes("text/html") || body.trim().startsWith("<!doctype") || body.trim().startsWith("<html")) {
-        const html = `<base href="${targetUrl}">\n${body}`;
-        iframe.removeAttribute("srcdoc");
-        iframe.src = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
-        return;
-      }
-      const safe = body
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-      const html = `<html><head><meta charset="utf-8" /><base href="${targetUrl}"></head><body><pre>${safe}</pre></body></html>`;
-      iframe.removeAttribute("srcdoc");
-      iframe.src = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
-    }
+    let lastResolvedUrl = "";
+    let lastResolvedTitle = "";
 
     async function setUrl(u, opts){
       const raw = (u || "").trim();
@@ -980,35 +1056,27 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
         iframe.removeAttribute("srcdoc");
         iframe.src = conv.embedUrl;
         setStatus("Embedded via " + conv.provider);
+        lastResolvedUrl = raw;
+        lastResolvedTitle = "";
       } else {
-        const norm = normalizedUrl(raw);
-        field.value = norm;
-        let openedViaRelay = false;
-        if (shouldProbeRelay(norm)) {
-          try {
-            const probe = await relayFetch(norm, "head");
-            if (seq !== navSeq) return;
-            if (probe.ok && isFrameBlockedByHeaders(probe.headers || "")) {
-              const page = await relayFetch(norm, "get");
-              if (seq !== navSeq) return;
-              if (page.ok) {
-                openedViaRelay = true;
-                renderRelayBody(page.finalUrl || norm, page);
-                setStatus("Opened via local relay fallback");
-              }
-            }
-          } catch {
-            // Direct path fallback below.
-          }
-        }
-        if (!openedViaRelay) {
-          iframe.removeAttribute("srcdoc");
-          iframe.src = norm;
-          if (conv.reason === "twitch_requires_parent"){
-            setStatus("Twitch needs a parent domain; opened raw URL");
-          } else {
-            setStatus("Opened direct URL (no embed)");
-          }
+        const result = await loadUrlIntoIframe(iframe, raw, {
+          onStatus: setStatus,
+          maxBytes: 500000,
+          onRelayPage: ({ title }) => {
+            lastResolvedTitle = title || "";
+          },
+        });
+        if (seq !== navSeq) return;
+        if (result?.ok) {
+          const finalUrl = String(result.finalUrl || normalizedBrowserUrl(raw));
+          field.value = finalUrl;
+          lastResolvedUrl = finalUrl;
+          if (!result.title) lastResolvedTitle = "";
+        } else {
+          const norm = normalizedBrowserUrl(raw);
+          field.value = norm;
+          lastResolvedUrl = norm;
+          lastResolvedTitle = "";
         }
       }
       if (!opts?.noHistory) {
@@ -1042,10 +1110,15 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     }
 
     saveBtn.addEventListener("click", () => {
-      const current = (iframe.getAttribute("src") || field.value || "").trim();
-      const url = /^https?:\/\//i.test(current) ? current : ("https://" + current);
+      const current = (lastResolvedUrl || field.value || "").trim();
+      const url = normalizedBrowserUrl(current);
+      if (!url || /^data:/i.test(url) || /^blob:/i.test(url)) {
+        setStatus("Cannot save this page URL.");
+        return;
+      }
 
       const guessName = (() => {
+        if (lastResolvedTitle) return lastResolvedTitle;
         try{
           const host = new URL(url).hostname.replace(/^www\./i,"");
           return host || "New App";
