@@ -2106,7 +2106,12 @@ function isOnboardingGuideActive(){
 
 function isAgenticAiHost(){
   const host = String(window.location?.hostname || "").toLowerCase()
-  return host === "agentic.ai" || host === "www.agentic.ai" || host === "app.agentic.ai"
+  return host === "agent1c.ai"
+    || host === "www.agent1c.ai"
+    || host === "app.agent1c.ai"
+    || host === "agentic.ai"
+    || host === "www.agentic.ai"
+    || host === "app.agentic.ai"
 }
 
 function shouldShowAiIntroGate(){
