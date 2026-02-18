@@ -18,12 +18,14 @@ export function initThemeToggle({ button }){
 }
 
 export function getTheme(){
-  return localStorage.getItem(THEME_KEY) || "hedgey";
+  const raw = localStorage.getItem(THEME_KEY) || "hedgeyOS";
+  return raw === "hedgey" ? "hedgeyOS" : raw;
 }
 
 export function applyTheme(name, { persist = true } = {}){
   const allowed = ["beos", "system7", "greenscreen", "cyberpunk", "hedgeyOS"];
-  const theme = allowed.includes(name) ? name : "hedgey";
+  const normalized = name === "hedgey" ? "hedgeyOS" : name;
+  const theme = allowed.includes(normalized) ? normalized : "hedgeyOS";
   document.body.classList.toggle("beos", theme === "beos");
   document.body.classList.toggle("system7", theme === "system7");
   document.body.classList.toggle("greenscreen", theme === "greenscreen");

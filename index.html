@@ -17,6 +17,25 @@
 </head>
 
 <body>
+  <script>
+    (function applyBootTheme(){
+      try {
+        var themeKey = "hedgeyos_theme_v1";
+        var darkKey = "hedgeyos_dark_mode";
+        var raw = localStorage.getItem(themeKey) || "hedgeyOS";
+        if (raw === "hedgey") raw = "hedgeyOS";
+        var allowed = { beos: 1, system7: 1, greenscreen: 1, cyberpunk: 1, hedgeyOS: 1 };
+        var theme = allowed[raw] ? raw : "hedgeyOS";
+        var cls = document.body.classList;
+        cls.toggle("beos", theme === "beos");
+        cls.toggle("system7", theme === "system7");
+        cls.toggle("greenscreen", theme === "greenscreen");
+        cls.toggle("cyberpunk", theme === "cyberpunk");
+        cls.toggle("hedgeyOS", theme === "hedgeyOS");
+        cls.toggle("dark", localStorage.getItem(darkKey) === "1");
+      } catch (_) {}
+    })();
+  </script>
   <div class="menubar bevel-out hairline" id="menubar">
     <div class="menu" data-menu="hedgey">
       <span class="menu-label">🦔</span>
