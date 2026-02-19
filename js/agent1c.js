@@ -3456,6 +3456,16 @@ function publishBrowserRelayState(){
   } catch {}
 }
 
+function applyCloudReadableScale(){
+  if (!isCloudAuthHost()) return
+  const root = document.documentElement
+  if (!root) return
+  // Cloud build should be easier to read at a glance versus the denser local build.
+  root.style.setProperty("--font-size", "clamp(13px, 3.2vw, 15px)")
+  root.style.setProperty("--line", "clamp(18px, 4.1vw, 20px)")
+  root.style.setProperty("--icon-size", "38px")
+}
+
 function closeWindow(winObj){
   if (!winObj?.win) return
   const btn = winObj.win.querySelector("[data-close]")
@@ -5590,6 +5600,7 @@ async function continueStandardOnboardingFlow(){
 
 export async function initAgent1C({ wm }){
   wmRef = wm
+  applyCloudReadableScale()
   if (isCloudAuthHost()) {
     setClippyMode(true)
     positionClippyAtRight()
