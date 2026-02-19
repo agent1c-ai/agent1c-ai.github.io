@@ -108,7 +108,7 @@ function authWindowHtml(){
         <span id="authStatus" class="agent-auth-status">Signed out.</span>
       </div>
       <div class="agent-auth-note">
-        Google and X will redirect this tab and return here after login.
+        Google and X open in a new tab. Return here after login.
       </div>
     </div>
   `
@@ -229,9 +229,9 @@ async function openOAuth(provider){
     setStatus?.(msg)
     return
   }
-  updateAuthStatus("Redirecting to provider...")
-  setStatus?.("Redirecting to sign-in provider...")
-  window.location.assign(data.url)
+  window.open(data.url, "_blank", "noopener,noreferrer")
+  updateAuthStatus("Waiting for sign-in in the opened tab...")
+  setStatus?.("Auth tab opened. Complete sign-in, then return.")
 }
 
 async function sendMagicLink(){
@@ -316,31 +316,19 @@ function wireAuthDom(){
   const xBtn = document.getElementById("authXBtn")
   const magicForm = document.getElementById("authMagicForm")
   const refreshBtn = document.getElementById("authRefreshBtn")
-  const hasTouch = typeof window !== "undefined"
-    && (("ontouchstart" in window) || (navigator?.maxTouchPoints || 0) > 0)
-  const evtName = hasTouch ? "touchend" : "click"
-  let lastPressAt = 0
-  const bindPress = (node, fn) => {
-    if (!node) return
-    const run = (event) => {
-      const now = Date.now()
-      if (now - lastPressAt < 350) return
-      lastPressAt = now
-      if (event) {
-        event.preventDefault()
-        event.stopPropagation()
-      }
-      Promise.resolve().then(fn).catch(() => {})
-    }
-    node.addEventListener(evtName, run, hasTouch ? { passive: false } : undefined)
-  }
-  bindPress(googleBtn, () => openOAuth("google"))
-  bindPress(xBtn, () => openOAuth("x"))
+  googleBtn?.addEventListener("click", () => {
+    openOAuth("google").catch(() => {})
+  })
+  xBtn?.addEventListener("click", () => {
+    openOAuth("x").catch(() => {})
+  })
   magicForm?.addEventListener("submit", (event) => {
     event.preventDefault()
     sendMagicLink().catch(() => {})
   })
-  bindPress(refreshBtn, () => checkSessionAndContinue())
+  refreshBtn?.addEventListener("click", () => {
+    checkSessionAndContinue().catch(() => {})
+  })
 }
 
 export async function ensureCloudAuthSession({
