@@ -388,25 +388,19 @@ export async function getCloudAuthAccessToken(){
     } catch {}
   }
   try {
-    const keys = Object.keys(window.localStorage || {})
     const preferred = projectRef ? `sb-${projectRef}-auth-token` : ""
-    const ordered = preferred
-      ? [preferred, ...keys.filter(key => key !== preferred)]
-      : keys
-    for (const key of ordered) {
-      if (!/auth-token/i.test(key)) continue
-      const raw = window.localStorage.getItem(key)
-      if (!raw) continue
-      let parsed = null
-      try { parsed = JSON.parse(raw) } catch { parsed = null }
-      const token = String(
-        parsed?.currentSession?.access_token
-        || parsed?.access_token
-        || parsed?.session?.access_token
-        || ""
-      ).trim()
-      if (token) return token
-    }
+    if (!preferred) return ""
+    const raw = window.localStorage.getItem(preferred)
+    if (!raw) return ""
+    let parsed = null
+    try { parsed = JSON.parse(raw) } catch { parsed = null }
+    const token = String(
+      parsed?.currentSession?.access_token
+      || parsed?.access_token
+      || parsed?.session?.access_token
+      || ""
+    ).trim()
+    if (token) return token
   } catch {}
   return ""
 }
