@@ -253,6 +253,12 @@ const appState = {
     lastTickAt: null,
     telegramLastUpdateId: undefined,
   },
+  cloudCredits: {
+    used: 0,
+    limit: 12000,
+    remaining: 12000,
+    day: "",
+  },
   events: [],
 }
 
@@ -856,6 +862,14 @@ async function xaiChat({ apiKey, model, temperature, systemPrompt, messages }){
       const providerMsg = String(json?.error?.message || json?.msg || json?.error || "").trim()
       const providerCode = String(json?.error?.code || json?.error_code || "").trim()
       throw new Error(`xAI call failed (${response.status})${providerCode ? ` code=${providerCode}` : ""}${providerMsg ? `: ${providerMsg}` : ""}`)
+    }
+    const usage = json?.agent1c_usage
+    if (usage && typeof usage === "object") {
+      appState.cloudCredits.used = Math.max(0, Number(usage.used || 0))
+      appState.cloudCredits.limit = Math.max(1, Number(usage.limit || 12000))
+      appState.cloudCredits.remaining = Math.max(0, Number(usage.remaining || (appState.cloudCredits.limit - appState.cloudCredits.used)))
+      appState.cloudCredits.day = String(usage.day || "")
+      updateCloudCreditsUi()
     }
     const text = json?.choices?.[0]?.message?.content
     if (!text) throw new Error("xAI returned no message.")
@@ -3389,6 +3403,46 @@ async function refreshBadges(){
   await refreshHitomiDesktopIcon()
 }
 
+function formatInt(n){
+  return Number(n || 0).toLocaleString()
+}
+
+function updateCloudCreditsUi(){
+  const used = Math.max(0, Number(appState.cloudCredits.used || 0))
+  const limit = Math.max(1, Number(appState.cloudCredits.limit || 12000))
+  const remaining = Math.max(0, Number(appState.cloudCredits.remaining ?? (limit - used)))
+  if (els.creditsUsed) els.creditsUsed.textContent = `${formatInt(used)}/${formatInt(limit)}`
+  if (els.creditsRemaining) els.creditsRemaining.textContent = formatInt(remaining)
+}
+
+async function refreshCloudUsage(){
+  if (!isCloudAuthHost()) return
+  const cfg = (window.__AGENT1C_SUPABASE_CONFIG && typeof window.__AGENT1C_SUPABASE_CONFIG === "object")
+    ? window.__AGENT1C_SUPABASE_CONFIG
+    : {}
+  const supabaseUrl = String(cfg.url || "").trim().replace(/\/+$/, "")
+  const anonKey = String(cfg.anonKey || "").trim()
+  if (!supabaseUrl || !anonKey) return
+  const token = await getCloudAuthAccessToken()
+  if (!token) return
+  const response = await fetch(`${supabaseUrl}/functions/v1/xai-usage`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: anonKey,
+      "Content-Type": "application/json",
+    },
+  })
+  if (!response.ok) return
+  const json = await response.json().catch(() => null)
+  if (!json || typeof json !== "object") return
+  appState.cloudCredits.used = Math.max(0, Number(json.used || 0))
+  appState.cloudCredits.limit = Math.max(1, Number(json.limit || 12000))
+  appState.cloudCredits.remaining = Math.max(0, Number(json.remaining || (appState.cloudCredits.limit - appState.cloudCredits.used)))
+  appState.cloudCredits.day = String(json.day || "")
+  updateCloudCreditsUi()
+}
+
 function refreshUi(){
   const canUse = canAccessSecrets()
   if (els.chatInput) {
@@ -3440,6 +3494,7 @@ function refreshUi(){
   loadInputsFromState()
   refreshProviderPreviewUi()
   refreshBadges()
+  updateCloudCreditsUi()
   publishBrowserRelayState()
 }
 
@@ -4181,8 +4236,9 @@ function creditsWindowHtml(){
         <span>Plan: <strong>Free</strong></span>
         <span>Provider: <strong>xAI (Grok)</strong></span>
       </div>
-      <div class="agent-note">Daily allocation: <strong>10 prompts/day</strong>.</div>
-      <div class="agent-note">Remaining today: <strong id="creditsRemaining">10</strong></div>
+      <div class="agent-note">Daily allocation: <strong>12,000 tokens/day</strong> (UTC).</div>
+      <div class="agent-note"><strong id="creditsUsed">0/12,000</strong> tokens used today.</div>
+      <div class="agent-note">Remaining today: <strong id="creditsRemaining">12,000</strong></div>
       <div class="agent-row agent-wrap-row">
         <button id="creditsSubscribeBtn" class="btn" type="button" disabled>Subscribe</button>
         <span class="agent-note agent-note-warn">Coming soon</span>
@@ -4340,6 +4396,7 @@ function cacheElements(){
     heartbeatDocInput: byId("heartbeatDocInput"),
     heartbeatLineNums: byId("heartbeatLineNums"),
     eventLog: byId("eventLog"),
+    creditsUsed: byId("creditsUsed"),
     creditsRemaining: byId("creditsRemaining"),
     creditsSubscribeBtn: byId("creditsSubscribeBtn"),
   })
@@ -5459,7 +5516,8 @@ async function createCloudWorkspace(){
   minimizeWindow(wins.tools)
   minimizeWindow(wins.heartbeat)
 
-  await addEvent("cloud_mode", "Cloud mode active. Managed xAI plan: Free (10 prompts/day).")
+  await refreshCloudUsage()
+  await addEvent("cloud_mode", "Cloud mode active. Managed xAI plan: Free (12,000 tokens/day).")
 }
 
 async function loadPersistentState(){
