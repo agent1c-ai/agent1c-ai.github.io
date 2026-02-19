@@ -121,6 +121,7 @@ import { animateFullscreenMatrix } from "./window-close-fx.js";
       matrixFx?.stop?.();
       overlay.remove()
       window.__agent1cPreloadActive = false
+      try { window.dispatchEvent(new Event("agent1c:preload-finished")); } catch {}
     }
     overlay.addEventListener('transitionend', cleanup)
     setTimeout(cleanup, 700)

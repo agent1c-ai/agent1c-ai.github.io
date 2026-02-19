@@ -321,8 +321,6 @@ const wins = {
 
 const AI_INTRO_MESSAGES = [
   "Hi friend. I am Hitomi, your tiny hedgehog guide.",
-  "Welcome to Agent1c.ai. This is your cloud-hosted Agent1c OS path.",
-  "Pick one option in the Intro window. I will start setup right after you choose Continue.",
 ]
 const previewProviderState = {
   active: "openai",
@@ -2115,6 +2113,23 @@ function positionClippyAtBottom(){
   const next = clippySpawnBottomPosition()
   setClippyPosition(next.left, next.top)
 }
+
+function clippySpawnRightPosition(){
+  const bounds = getClippyBounds()
+  if (!bounds) return { left: 20, top: 390 }
+  return {
+    left: bounds.maxLeft,
+    top: bounds.maxTop,
+  }
+}
+
+function positionClippyAtRight(){
+  if (!clippyUi?.root) return
+  const next = clippySpawnRightPosition()
+  setClippyPosition(next.left, next.top)
+  setClippyFacingLeft(true)
+}
+
 
 function nudgeOnboardingBubble({ compact = false } = {}){
   if (!isOnboardingGuideActive()) return
@@ -5291,6 +5306,7 @@ export async function initAgent1C({ wm }){
     setClippyMode,
     showClippyBubble,
     renderClippyBubble,
+    positionClippyAtRight,
     closeWindow,
     continueStandardOnboardingFlow,
     cacheElements,
