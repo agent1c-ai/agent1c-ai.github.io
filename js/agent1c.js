@@ -299,6 +299,7 @@ let hitomiDesktopIcon = null
 let hitomiIconObserver = null
 let hitomiIconRelayoutQueued = false
 let cloudAuthGateActive = false
+let cloudWelcomeBackPromptSent = false
 const thinkingThreadIds = new Set()
 
 const CORE_AGENT_PANEL_IDS = ["chat", "openai", "telegram", "config", "shellrelay", "soul", "tools", "heartbeat", "events", "credits"]
@@ -1840,6 +1841,26 @@ async function buildChatOneBootSystemMessage(){
   ].join("\n")
 }
 
+function buildCloudNameGreetingSystemMessage(name){
+  const safeName = String(name || "").trim() || "friend"
+  return [
+    "System Message: The user has just told you their name.",
+    `Name: ${safeName}`,
+    "Greet the user warmly by name and say one nice thing about their name.",
+    "Keep it short and natural.",
+  ].join("\n")
+}
+
+function buildCloudWelcomeBackSystemMessage(name){
+  const safeName = String(name || "").trim() || "friend"
+  return [
+    "System Message: The user has just reloaded and returned to Agent1c.ai.",
+    `Name: ${safeName}`,
+    "Welcome them back by name and tell one short random cute story from Hedgey Hog Town.",
+    "Keep it to one or two sentences.",
+  ].join("\n")
+}
+
 function pushLocalMessage(threadId, role, content){
   ensureLocalThreadsInitialized()
   const thread = appState.agent.localThreads[threadId]
@@ -3018,6 +3039,11 @@ function ensureClippyAssistant(){
         cloudNameCaptureActive = false
         renderClippyBubble()
         await createCloudWorkspace()
+        await triggerChatOneSystemPrompt(
+          buildCloudNameGreetingSystemMessage(normalized),
+          "name_greeting_replied",
+          `Hitomi greeted ${normalized} after name capture.`,
+        )
         setStatus(`Welcome, ${normalized}.`)
       } catch (err) {
         cloudNameMessages.push(`<div class="clippy-line"><strong>Hitomi:</strong> I could not save that yet. Try again?</div>`)
@@ -4367,6 +4393,43 @@ async function validateTelegramToken(token){
   return { token: candidate, username }
 }
 
+async function triggerChatOneSystemPrompt(systemPrompt, eventName, eventText){
+  const prompt = String(systemPrompt || "").trim()
+  if (!prompt) return
+  const chatOne = getChatOneThread()
+  if (!chatOne?.id) return
+  const runtime = await resolveActiveProviderRuntime()
+  if (runtimeMissingProviderAccess(runtime)) return
+  setThreadThinking(chatOne.id, true)
+  renderChat()
+  try {
+    const promptMessages = (appState.agent.localThreads[chatOne.id]?.messages || []).concat({
+      role: "user",
+      content: prompt,
+      createdAt: Date.now(),
+    })
+    const reply = await providerChatWithTools({
+      provider: runtime.provider,
+      apiKey: runtime.apiKey,
+      model: runtime.model,
+      ollamaBaseUrl: runtime.ollamaBaseUrl,
+      temperature: appState.config.temperature,
+      messages: promptMessages,
+    })
+    pushLocalMessage(chatOne.id, "assistant", reply)
+    if (eventName) await addEvent(eventName, eventText || "System prompt reply generated")
+    await persistState()
+    renderChat()
+    renderClippyBubble()
+    if (clippyMode && clippyUi?.bubble?.classList.contains("clippy-hidden")) {
+      showClippyBubble({ variant: isOnboardingGuideActive() ? "compact" : "full", snapNoOverlap: true, preferAbove: true })
+    }
+  } finally {
+    setThreadThinking(chatOne.id, false)
+    renderChat()
+  }
+}
+
 async function sendChat(text, { threadId } = {}){
   const runtime = await resolveActiveProviderRuntime()
   if (runtimeMissingProviderAccess(runtime)) {
@@ -5476,6 +5539,14 @@ async function continueStandardOnboardingFlow(){
     }
     setClippyBubbleLocked(false)
     await createCloudWorkspace()
+    if (!cloudWelcomeBackPromptSent) {
+      cloudWelcomeBackPromptSent = true
+      await triggerChatOneSystemPrompt(
+        buildCloudWelcomeBackSystemMessage(userName),
+        "welcome_back_replied",
+        `Hitomi welcomed ${userName} back after reload.`,
+      )
+    }
     setStatus(`Welcome back, ${userName}.`)
     return
   }
