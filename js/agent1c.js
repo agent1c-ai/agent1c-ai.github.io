@@ -453,7 +453,20 @@ function clearProviderApiError(provider){
   refreshBadges().catch(() => {})
 }
 
+function hideCloudManagedProviderUi(){
+  if (!isCloudAuthHost()) return
+  if (els.providerCardXai) els.providerCardXai.classList.add("agent-hidden")
+  if (els.aiActiveProviderSelect) {
+    const opt = els.aiActiveProviderSelect.querySelector('option[value="xai"]')
+    if (opt) opt.remove()
+    if (els.aiActiveProviderSelect.value === "xai") els.aiActiveProviderSelect.value = "openai"
+  }
+  if (previewProviderState.active === "xai") previewProviderState.active = "openai"
+  if (previewProviderState.editor === "xai") previewProviderState.editor = ""
+}
+
 function refreshProviderPreviewUi(){
+  hideCloudManagedProviderUi()
   const active = previewProviderState.active
   const editor = previewProviderState.editor
   const hasAnthropic = Boolean(previewProviderState.anthropicValidated)
@@ -864,10 +877,10 @@ async function xaiChat({ apiKey, model, temperature, systemPrompt, messages }){
     if (!response.ok) {
       const providerMsg = String(json?.error?.message || json?.msg || json?.error || "").trim()
       const providerCode = String(json?.error?.code || json?.error_code || "").trim()
-      throw new Error(`xAI call failed (${response.status})${providerCode ? ` code=${providerCode}` : ""}${providerMsg ? `: ${providerMsg}` : ""}`)
+      throw new Error(`Cloud provider call failed (${response.status})${providerCode ? ` code=${providerCode}` : ""}${providerMsg ? `: ${providerMsg}` : ""}`)
     }
     const text = json?.choices?.[0]?.message?.content
-    if (!text) throw new Error("xAI returned no message.")
+    if (!text) throw new Error("Cloud provider returned no message.")
     return String(text).trim()
   }
   const response = await fetch(`${XAI_BASE_URL}/chat/completions`, {
@@ -882,10 +895,10 @@ async function xaiChat({ apiKey, model, temperature, systemPrompt, messages }){
       messages: [{ role: "system", content: systemPrompt }, ...messages.map(m => ({ role: m.role, content: m.content }))],
     }),
   })
-  if (!response.ok) throw new Error(`xAI call failed (${response.status})`)
+  if (!response.ok) throw new Error(`Cloud provider call failed (${response.status})`)
   const json = await response.json()
   const text = json?.choices?.[0]?.message?.content
-  if (!text) throw new Error("xAI returned no message.")
+  if (!text) throw new Error("Cloud provider returned no message.")
   return String(text).trim()
 }
 
@@ -949,13 +962,22 @@ function activeProviderModel(provider){
 
 function providerDisplayName(provider){
   if (provider === "anthropic") return "Anthropic"
-  if (provider === "xai") return "xAI (Grok)"
+  if (provider === "xai") return "Managed Cloud"
   if (provider === "zai") return "z.ai"
   if (provider === "ollama") return "Ollama"
   return "OpenAI"
 }
 
 async function resolveActiveProviderRuntime(){
+  if (isCloudAuthHost()) {
+    return {
+      provider: "xai",
+      model: activeProviderModel("xai"),
+      apiKey: "",
+      ollamaBaseUrl: "",
+      name: "Managed Cloud",
+    }
+  }
   const provider = normalizeProvider(previewProviderState.active || "openai")
   const model = activeProviderModel(provider)
   const secretKey = provider === "openai" || provider === "anthropic" || provider === "xai" || provider === "zai"
@@ -3808,7 +3830,6 @@ function openAiWindowHtml(){
             <select id="aiActiveProviderSelect" class="field">
               <option value="openai">OpenAI</option>
               <option value="anthropic">Anthropic</option>
-              <option value="xai">xAI (Grok)</option>
               <option value="zai">z.ai</option>
               <option value="ollama">Ollama Local</option>
             </select>
@@ -4198,7 +4219,7 @@ function creditsWindowHtml(){
       <div class="agent-note"><strong>Cloud Credits</strong></div>
       <div class="agent-meta-row">
         <span>Plan: <strong>Free</strong></span>
-        <span>Provider: <strong>xAI (Grok)</strong></span>
+        <span>Provider: <strong>Managed Cloud</strong></span>
       </div>
       <div class="agent-note">Daily allocation: <strong>10 prompts/day</strong>.</div>
       <div class="agent-note">Remaining today: <strong id="creditsRemaining">10</strong></div>
@@ -4672,6 +4693,7 @@ function wireUnlockDom(){
 }
 
 function setPreviewProviderEditor(provider){
+  if (isCloudAuthHost() && provider === "xai") return
   if (!["openai", "anthropic", "xai", "zai", "ollama"].includes(provider)) return
   previewProviderState.editor = provider
   persistPreviewProviderState()
@@ -4680,6 +4702,7 @@ function setPreviewProviderEditor(provider){
 }
 
 function setActivePreviewProvider(provider){
+  if (isCloudAuthHost() && provider === "xai") return
   if (!["openai", "anthropic", "xai", "zai", "ollama"].includes(provider)) return
   previewProviderState.active = provider
   previewProviderState.editor = provider
@@ -5464,8 +5487,8 @@ async function createCloudWorkspace(){
   cacheElements()
   wireMainDom()
   wireShellRelayWindowDom(wins.shellrelay)
-  previewProviderState.active = "xai"
-  previewProviderState.editor = "xai"
+  previewProviderState.active = "openai"
+  previewProviderState.editor = ""
   previewProviderState.xaiValidated = true
   persistPreviewProviderState()
   loadInputsFromState()
