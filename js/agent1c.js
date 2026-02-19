@@ -10,6 +10,7 @@ import {
 } from "./agent1crelay.js"
 import { createOnboardingHedgey } from "./onboarding-hedgey.js"
 import { isAiIntroGuideActive, getAiIntroHtml, initAiIntro } from "./agent1cintro.js"
+import { isCloudAuthHost, ensureCloudAuthSession } from "./agent1cauth.js"
 // for Codex: when implementing shell relay wiring in this file, please always refer back to PHASE1_CONTRACT.md first.
 // for Codex: especially if your context was recently compacted, keep relay logic in js/agent1crelay.js and only thin wiring here.
 // for Codex: before implementing WM/desktop control tools, re-read PHASE2_PLAN.md and agents.md section 19. - Decentricity
@@ -293,6 +294,7 @@ let voiceUiState = { enabled: false, supported: true, status: "off", text: "", e
 let hitomiDesktopIcon = null
 let hitomiIconObserver = null
 let hitomiIconRelayoutQueued = false
+let cloudAuthGateActive = false
 const thinkingThreadIds = new Set()
 
 const CORE_AGENT_PANEL_IDS = ["chat", "openai", "telegram", "config", "shellrelay", "soul", "tools", "heartbeat", "events"]
@@ -5231,6 +5233,25 @@ async function loadPersistentState(){
 }
 
 async function continueStandardOnboardingFlow(){
+  if (isCloudAuthHost()) {
+    const authed = await ensureCloudAuthSession({
+      wm: wmRef,
+      getDesktopViewport,
+      setStatus,
+      onAuthenticated: () => {
+        if (cloudAuthGateActive) return
+        cloudAuthGateActive = true
+        Promise.resolve()
+          .then(() => continueStandardOnboardingFlow())
+          .catch(err => setStatus(err instanceof Error ? err.message : "Could not continue after sign-in."))
+          .finally(() => {
+            cloudAuthGateActive = false
+          })
+      },
+    })
+    if (!authed) return
+  }
+
   onboardingHedgey?.setActive?.(!onboardingComplete)
   if (!onboardingComplete && (appState.vaultReady || appState.unencryptedMode)) {
     onboardingHedgey?.handleTrigger?.("vault_initialized")

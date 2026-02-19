@@ -13,7 +13,7 @@
   </script>
   <script src="coi-serviceworker.js"></script>
   <link rel="icon" type="image/png" href="assets/hedgey1.png" />
-  <link rel="stylesheet" href="styles.css?v=20260219l" />
+  <link rel="stylesheet" href="styles.css?v=20260219m" />
   <script type="module" src="js/agent1cpreload.js?v=20260219l"></script>
 </head>
 
@@ -385,6 +385,13 @@
     </div>
   </template>
 
-  <script type="module" src="js/main.js?v=20260219l"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__AGENT1C_SUPABASE_CONFIG = window.__AGENT1C_SUPABASE_CONFIG || {
+      url: "",
+      anonKey: "",
+    };
+  </script>
+  <script type="module" src="js/main.js?v=20260219m"></script>
 </body>
 </html>

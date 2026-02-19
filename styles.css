@@ -1850,6 +1850,53 @@
   opacity: 0.7;
   text-align: right;
 }
+.agent-auth{
+  gap: 8px;
+  min-height: 0;
+}
+.agent-auth-head{
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.45);
+  padding: 6px;
+}
+.agent-auth-title{
+  font-size: 14px;
+  font-weight: 700;
+}
+.agent-auth-sub{
+  font-size: 11px;
+  opacity: 0.88;
+  margin-top: 2px;
+}
+.agent-auth-actions{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+.agent-auth-divider{
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  opacity: 0.76;
+}
+.agent-auth-magic{
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+.agent-auth-status{
+  font-size: 11px;
+  opacity: 0.84;
+}
+.agent-auth-status.error{
+  color: #9f1b1b;
+  opacity: 1;
+}
+.agent-auth-note{
+  font-size: 10px;
+  opacity: 0.72;
+}
 @keyframes introFloat{
   0%{ transform: translateY(0); }
   50%{ transform: translateY(-4px); }
@@ -2576,6 +2623,12 @@ body.dark .agent-intro-btn-primary{
 }
 body.dark .agent-intro-btn-secondary{
   color: #101216;
+}
+body.dark .agent-auth-head{
+  background: rgba(255,255,255,0.08);
+}
+body.dark .agent-auth-status.error{
+  color: #ff9ea7;
 }
 .agent-doc-state{
   margin-top: 4px;
