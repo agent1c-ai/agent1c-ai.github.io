@@ -215,13 +215,6 @@ async function openOAuth(provider){
     setStatus?.(clientInfo.error)
     return
   }
-  // iOS Safari can block popups created after async work. Pre-open immediately in user gesture.
-  let popup = null
-  try {
-    popup = window.open("about:blank", "_blank", "noopener,noreferrer")
-  } catch {
-    popup = null
-  }
   const redirectTo = `${window.location.origin}${window.location.pathname}`
   const { data, error } = await clientInfo.client.auth.signInWithOAuth({
     provider,
@@ -232,25 +225,13 @@ async function openOAuth(provider){
   })
   if (error || !data?.url) {
     const msg = error?.message || "Could not start OAuth sign-in."
-    try { if (popup && !popup.closed) popup.close() } catch {}
     updateAuthStatus(msg, true)
     setStatus?.(msg)
     return
   }
-  let opened = false
-  try {
-    if (popup && !popup.closed) {
-      popup.location.href = data.url
-      opened = true
-    }
-  } catch {}
-  if (!opened) {
-    // Fallback for strict popup blockers: continue auth in the current tab.
-    window.location.assign(data.url)
-    return
-  }
-  updateAuthStatus("Waiting for sign-in in the opened tab...")
-  setStatus?.("Auth tab opened. Complete sign-in, then return.")
+  updateAuthStatus("Redirecting to sign-in...")
+  setStatus?.("Redirecting to sign-in...")
+  window.location.assign(data.url)
 }
 
 async function sendMagicLink(){
@@ -420,25 +401,19 @@ export async function getCloudAuthAccessToken(){
     } catch {}
   }
   try {
-    const keys = Object.keys(window.localStorage || {})
     const preferred = projectRef ? `sb-${projectRef}-auth-token` : ""
-    const ordered = preferred
-      ? [preferred, ...keys.filter(key => key !== preferred)]
-      : keys
-    for (const key of ordered) {
-      if (!/auth-token/i.test(key)) continue
-      const raw = window.localStorage.getItem(key)
-      if (!raw) continue
-      let parsed = null
-      try { parsed = JSON.parse(raw) } catch { parsed = null }
-      const token = String(
-        parsed?.currentSession?.access_token
-        || parsed?.access_token
-        || parsed?.session?.access_token
-        || ""
-      ).trim()
-      if (token) return token
-    }
+    if (!preferred) return ""
+    const raw = window.localStorage.getItem(preferred)
+    if (!raw) return ""
+    let parsed = null
+    try { parsed = JSON.parse(raw) } catch { parsed = null }
+    const token = String(
+      parsed?.currentSession?.access_token
+      || parsed?.access_token
+      || parsed?.session?.access_token
+      || ""
+    ).trim()
+    if (token) return token
   } catch {}
   return ""
 }
