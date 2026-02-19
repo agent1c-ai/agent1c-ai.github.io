@@ -1,0 +1,3 @@
+-- This migration file is intentionally kept as a local no-op placeholder.
+-- The remote project already has this version recorded in schema_migrations.
+-- Keeping this timestamp locally prevents migration history mismatch errors.

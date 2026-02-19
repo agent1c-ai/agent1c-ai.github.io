@@ -789,6 +789,7 @@ async function migratePlaintextSecretsToEncrypted(){
 const XAI_BASE_URL = "https://api.x.ai/v1"
 const ZAI_BASE_URL = "https://api.z.ai/api/coding/paas/v4"
 const CLOUD_XAI_FUNCTION_FALLBACK = "https://gkfhxhrleuauhnuewfmw.supabase.co/functions/v1/xai-chat"
+const CLOUD_XAI_USAGE_FALLBACK = "https://gkfhxhrleuauhnuewfmw.supabase.co/functions/v1/xai-usage"
 
 function normalizeOllamaBaseUrl(value){
   const source = String(value || "").trim()
@@ -879,6 +880,8 @@ async function xaiChat({ apiKey, model, temperature, systemPrompt, messages }){
       const providerCode = String(json?.error?.code || json?.error_code || "").trim()
       throw new Error(`Cloud provider call failed (${response.status})${providerCode ? ` code=${providerCode}` : ""}${providerMsg ? `: ${providerMsg}` : ""}`)
     }
+    if (json?.agent1c_usage) applyCloudUsageToUi(json.agent1c_usage)
+    else refreshCloudCredits().catch(() => {})
     const text = json?.choices?.[0]?.message?.content
     if (!text) throw new Error("Cloud provider returned no message.")
     return String(text).trim()
@@ -900,6 +903,41 @@ async function xaiChat({ apiKey, model, temperature, systemPrompt, messages }){
   const text = json?.choices?.[0]?.message?.content
   if (!text) throw new Error("Cloud provider returned no message.")
   return String(text).trim()
+}
+
+function formatNumber(value){
+  return Number(value || 0).toLocaleString("en-US")
+}
+
+function applyCloudUsageToUi(usage){
+  const used = Math.max(0, Number(usage?.used || 0))
+  const limit = Math.max(1, Number(usage?.limit || 12000))
+  const remaining = Math.max(0, Number(usage?.remaining ?? (limit - used)))
+  if (els.creditsUsed) {
+    els.creditsUsed.textContent = `${formatNumber(used)}/${formatNumber(limit)} tokens used today`
+  }
+  if (els.creditsRemaining) {
+    els.creditsRemaining.textContent = `${formatNumber(remaining)} tokens left`
+  }
+}
+
+async function refreshCloudCredits(){
+  if (!isCloudAuthHost()) return
+  const cfg = (window.__AGENT1C_SUPABASE_CONFIG && typeof window.__AGENT1C_SUPABASE_CONFIG === "object")
+    ? window.__AGENT1C_SUPABASE_CONFIG
+    : {}
+  const supabaseUrl = String(cfg.url || "").trim().replace(/\/+$/, "")
+  const anonKey = String(cfg.anonKey || "").trim()
+  const functionUrl = supabaseUrl ? `${supabaseUrl}/functions/v1/xai-usage` : CLOUD_XAI_USAGE_FALLBACK
+  const accessToken = await getCloudAuthAccessToken()
+  if (!accessToken) return
+  const headers = { Authorization: `Bearer ${accessToken}` }
+  if (anonKey) headers.apikey = anonKey
+  const response = await fetch(functionUrl, { method: "GET", headers })
+  if (!response.ok) return
+  const json = await response.json().catch(() => null)
+  if (!json) return
+  applyCloudUsageToUi(json)
 }
 
 async function zaiChat({ apiKey, model, temperature, systemPrompt, messages }){
@@ -4221,8 +4259,8 @@ function creditsWindowHtml(){
         <span>Plan: <strong>Free</strong></span>
         <span>Provider: <strong>Managed Cloud</strong></span>
       </div>
-      <div class="agent-note">Daily allocation: <strong>10 prompts/day</strong>.</div>
-      <div class="agent-note">Remaining today: <strong id="creditsRemaining">10</strong></div>
+      <div class="agent-note"><strong id="creditsUsed">0/12,000 tokens used today</strong></div>
+      <div class="agent-note">Remaining today: <strong id="creditsRemaining">12,000 tokens left</strong></div>
       <div class="agent-row agent-wrap-row">
         <button id="creditsSubscribeBtn" class="btn" type="button" disabled>Subscribe</button>
         <span class="agent-note agent-note-warn">Coming soon</span>
@@ -4380,6 +4418,7 @@ function cacheElements(){
     heartbeatDocInput: byId("heartbeatDocInput"),
     heartbeatLineNums: byId("heartbeatLineNums"),
     eventLog: byId("eventLog"),
+    creditsUsed: byId("creditsUsed"),
     creditsRemaining: byId("creditsRemaining"),
     creditsSubscribeBtn: byId("creditsSubscribeBtn"),
   })
@@ -5501,6 +5540,7 @@ async function createCloudWorkspace(){
   minimizeWindow(wins.tools)
   minimizeWindow(wins.heartbeat)
 
+  await refreshCloudCredits().catch(() => {})
   await addEvent("cloud_mode", "Cloud mode active. Managed xAI plan: Free (10 prompts/day).")
 }
 
