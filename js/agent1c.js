@@ -1943,7 +1943,7 @@ async function handleFilesystemUploadNotice(uploadedFiles){
   if (!files.length) return
   const summary = files.map(fileMetaLabel).join("; ")
   await addEvent("filesystem_upload_detected", `New uploaded file(s): ${summary}`)
-  if (!canAccessSecrets()) return
+  if (!canAccessSecrets() && !isCloudAuthHost()) return
   const runtime = await resolveActiveProviderRuntime()
   if (runtimeMissingProviderAccess(runtime)) return
   const prompt = [
