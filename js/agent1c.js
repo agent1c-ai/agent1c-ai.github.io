@@ -3393,7 +3393,7 @@ async function refreshBadges(){
     els.anthropicStoredLabel.textContent = `Anthropic API Key ${storageLabelText()}`
   }
   if (els.xaiStoredLabel) {
-    els.xaiStoredLabel.textContent = `xAI API Key ${storageLabelText()}`
+    els.xaiStoredLabel.textContent = `Managed API Key ${storageLabelText()}`
   }
   if (els.zaiStoredLabel) {
     els.zaiStoredLabel.textContent = `z.ai API Key ${storageLabelText()}`
@@ -3891,12 +3891,12 @@ function openAiWindowHtml(){
             </div>
           </div>
           <div id="providerCardXai" class="agent-provider-card" data-provider="xai">
-            <div class="agent-provider-head"><strong>xAI (Grok)</strong><span id="providerPillXai" class="agent-provider-pill warn">Missing key</span></div>
-            <div id="providerNoteXai" class="agent-note">Tap to configure xAI API key.</div>
+            <div class="agent-provider-head"><strong>Managed Cloud</strong><span id="providerPillXai" class="agent-provider-pill warn">Missing key</span></div>
+            <div id="providerNoteXai" class="agent-note">Tap to configure managed provider key.</div>
             <div id="providerSectionXai" class="agent-provider-inline agent-hidden">
               <div id="xaiStoredRow" class="agent-row agent-row-tight agent-hidden">
-                <span id="xaiStoredLabel" class="agent-note">xAI API Key Stored in Vault</span>
-                <button id="xaiEditBtn" class="btn agent-icon-btn" type="button" aria-label="Edit xAI key">✎</button>
+                <span id="xaiStoredLabel" class="agent-note">Managed API Key Stored in Vault</span>
+                <button id="xaiEditBtn" class="btn agent-icon-btn" type="button" aria-label="Edit managed provider key">✎</button>
                 <label class="agent-inline-mini">
                   <span>Model</span>
                   <select id="xaiModelStored" class="field">${renderModelOptions(FALLBACK_XAI_MODELS)}</select>
@@ -3904,10 +3904,10 @@ function openAiWindowHtml(){
               </div>
               <div id="xaiControls">
                 <div class="agent-row agent-row-tight">
-                  <span class="agent-note">xAI API key <span id="xaiBadge" class="agent-badge warn">Missing key</span></span>
+                  <span class="agent-note">Managed API key <span id="xaiBadge" class="agent-badge warn">Missing key</span></span>
                   <div class="agent-inline-key agent-inline-key-wide">
-                    <input id="xaiKeyInput" class="field" type="password" placeholder="xai-..." />
-                    <button id="xaiSavePreviewBtn" class="btn agent-inline-key-btn" type="button" aria-label="Save xAI key">></button>
+                    <input id="xaiKeyInput" class="field" type="password" placeholder="key-..." />
+                    <button id="xaiSavePreviewBtn" class="btn agent-inline-key-btn" type="button" aria-label="Save managed provider key">></button>
                   </div>
                   <label class="agent-inline-mini">
                     <span>Model</span>
@@ -4820,7 +4820,7 @@ function wireProviderPreviewDom(){
         xaiEditing = true
         persistPreviewProviderState()
         refreshProviderPreviewUi()
-        setStatus("xAI key missing.")
+        setStatus("Managed provider key missing.")
         return
       }
       await saveProviderKey("xai", previewProviderState.xaiKey)
@@ -4845,8 +4845,8 @@ function wireProviderPreviewDom(){
       const completed = await maybeCompleteOnboarding()
       if (!completed) nudgeOnboardingBubble({ compact: true })
       setStatus(completed
-        ? `xAI key saved. Onboarding continued (${previewProviderState.xaiModel}).`
-        : `xAI key saved. Active provider switched to xAI (${previewProviderState.xaiModel}).`)
+        ? `Managed provider key saved. Onboarding continued (${previewProviderState.xaiModel}).`
+        : `Managed provider key saved. Active provider switched (${previewProviderState.xaiModel}).`)
     } catch (err) {
       previewProviderState.xaiValidated = false
       xaiEditing = true
@@ -4856,7 +4856,7 @@ function wireProviderPreviewDom(){
         error: err instanceof Error ? err.message : "validation failed",
       })
       nudgeOnboardingBubble({ compact: true })
-      setStatus(err instanceof Error ? err.message : "Could not save xAI key")
+      setStatus(err instanceof Error ? err.message : "Could not save managed provider key")
     }
   })
   els.xaiEditBtn?.addEventListener("click", () => {
@@ -4989,7 +4989,7 @@ function wireProviderPreviewDom(){
       model: previewProviderState.xaiModel,
     })
     nudgeOnboardingBubble({ compact: true })
-    setStatus(`xAI model saved: ${previewProviderState.xaiModel}.`)
+    setStatus(`Managed provider model saved: ${previewProviderState.xaiModel}.`)
   })
   els.xaiModelStored?.addEventListener("change", () => {
     syncXaiModel()
@@ -4998,7 +4998,7 @@ function wireProviderPreviewDom(){
       model: previewProviderState.xaiModel,
     })
     nudgeOnboardingBubble({ compact: true })
-    setStatus(`xAI model saved: ${previewProviderState.xaiModel}.`)
+    setStatus(`Managed provider model saved: ${previewProviderState.xaiModel}.`)
   })
   els.ollamaModelInput?.addEventListener("change", () => {
     syncOllamaModel()
