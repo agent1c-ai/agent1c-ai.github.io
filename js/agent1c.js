@@ -10,7 +10,7 @@ import {
 } from "./agent1crelay.js"
 import { createOnboardingHedgey } from "./onboarding-hedgey.js"
 import { isAiIntroGuideActive, getAiIntroHtml, initAiIntro } from "./agent1cintro.js"
-import { isCloudAuthHost, ensureCloudAuthSession, getCloudAuthAccessToken, refreshCloudAuthAccessToken } from "./agent1cauth.js?v=20260219e"
+import { isCloudAuthHost, ensureCloudAuthSession, getCloudAuthAccessToken } from "./agent1cauth.js?v=20260219c"
 // for Codex: when implementing shell relay wiring in this file, please always refer back to PHASE1_CONTRACT.md first.
 // for Codex: especially if your context was recently compacted, keep relay logic in js/agent1crelay.js and only thin wiring here.
 // for Codex: before implementing WM/desktop control tools, re-read PHASE2_PLAN.md and agents.md section 19. - Decentricity
@@ -842,7 +842,7 @@ async function xaiChat({ apiKey, model, temperature, systemPrompt, messages }){
     const headers = { "Content-Type": "application/json" }
     if (anonKey) headers.apikey = anonKey
     headers.Authorization = `Bearer ${accessToken}`
-    const runCloudRequest = async (token) => fetch(functionUrl, {
+    const response = await fetch(functionUrl, {
       method: "POST",
       headers,
       body: JSON.stringify({
@@ -851,14 +851,6 @@ async function xaiChat({ apiKey, model, temperature, systemPrompt, messages }){
         messages: [{ role: "system", content: systemPrompt }, ...messages.map(m => ({ role: m.role, content: m.content }))],
       }),
     })
-    let response = await runCloudRequest(accessToken)
-    if (response.status === 401) {
-      const refreshed = await refreshCloudAuthAccessToken()
-      if (refreshed) {
-        headers.Authorization = `Bearer ${refreshed}`
-        response = await runCloudRequest(refreshed)
-      }
-    }
     const json = await response.json().catch(() => null)
     if (!response.ok) {
       const providerMsg = String(json?.error?.message || json?.msg || json?.error || "").trim()

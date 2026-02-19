@@ -215,6 +215,13 @@ async function openOAuth(provider){
     setStatus?.(clientInfo.error)
     return
   }
+  // iOS Safari can block popups created after async work. Pre-open immediately in user gesture.
+  let popup = null
+  try {
+    popup = window.open("about:blank", "_blank", "noopener,noreferrer")
+  } catch {
+    popup = null
+  }
   const redirectTo = `${window.location.origin}${window.location.pathname}`
   const { data, error } = await clientInfo.client.auth.signInWithOAuth({
     provider,
@@ -225,11 +232,23 @@ async function openOAuth(provider){
   })
   if (error || !data?.url) {
     const msg = error?.message || "Could not start OAuth sign-in."
+    try { if (popup && !popup.closed) popup.close() } catch {}
     updateAuthStatus(msg, true)
     setStatus?.(msg)
     return
   }
-  window.open(data.url, "_blank", "noopener,noreferrer")
+  let opened = false
+  try {
+    if (popup && !popup.closed) {
+      popup.location.href = data.url
+      opened = true
+    }
+  } catch {}
+  if (!opened) {
+    // Fallback for strict popup blockers: continue auth in the current tab.
+    window.location.assign(data.url)
+    return
+  }
   updateAuthStatus("Waiting for sign-in in the opened tab...")
   setStatus?.("Auth tab opened. Complete sign-in, then return.")
 }
@@ -315,20 +334,33 @@ function wireAuthDom(){
   const googleBtn = document.getElementById("authGoogleBtn")
   const xBtn = document.getElementById("authXBtn")
   const magicForm = document.getElementById("authMagicForm")
+  const magicBtn = document.getElementById("authMagicBtn")
   const refreshBtn = document.getElementById("authRefreshBtn")
-  googleBtn?.addEventListener("click", () => {
-    openOAuth("google").catch(() => {})
-  })
-  xBtn?.addEventListener("click", () => {
-    openOAuth("x").catch(() => {})
-  })
+  let lastPressAt = 0
+  const bindPress = (node, fn) => {
+    if (!node) return
+    const run = (event) => {
+      const now = Date.now()
+      if (now - lastPressAt < 350) return
+      lastPressAt = now
+      if (event) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+      Promise.resolve().then(fn).catch(() => {})
+    }
+    node.addEventListener("click", run)
+    node.addEventListener("touchend", run, { passive: false })
+    node.addEventListener("pointerup", run)
+  }
+  bindPress(googleBtn, () => openOAuth("google"))
+  bindPress(xBtn, () => openOAuth("x"))
   magicForm?.addEventListener("submit", (event) => {
     event.preventDefault()
     sendMagicLink().catch(() => {})
   })
-  refreshBtn?.addEventListener("click", () => {
-    checkSessionAndContinue().catch(() => {})
-  })
+  bindPress(magicBtn, () => sendMagicLink())
+  bindPress(refreshBtn, () => checkSessionAndContinue())
 }
 
 export async function ensureCloudAuthSession({
@@ -388,31 +420,25 @@ export async function getCloudAuthAccessToken(){
     } catch {}
   }
   try {
+    const keys = Object.keys(window.localStorage || {})
     const preferred = projectRef ? `sb-${projectRef}-auth-token` : ""
-    if (!preferred) return ""
-    const raw = window.localStorage.getItem(preferred)
-    if (!raw) return ""
-    let parsed = null
-    try { parsed = JSON.parse(raw) } catch { parsed = null }
-    const token = String(
-      parsed?.currentSession?.access_token
-      || parsed?.access_token
-      || parsed?.session?.access_token
-      || ""
-    ).trim()
-    if (token) return token
+    const ordered = preferred
+      ? [preferred, ...keys.filter(key => key !== preferred)]
+      : keys
+    for (const key of ordered) {
+      if (!/auth-token/i.test(key)) continue
+      const raw = window.localStorage.getItem(key)
+      if (!raw) continue
+      let parsed = null
+      try { parsed = JSON.parse(raw) } catch { parsed = null }
+      const token = String(
+        parsed?.currentSession?.access_token
+        || parsed?.access_token
+        || parsed?.session?.access_token
+        || ""
+      ).trim()
+      if (token) return token
+    }
   } catch {}
   return ""
-}
-
-export async function refreshCloudAuthAccessToken(){
-  if (!isCloudAuthHost()) return ""
-  const clientInfo = getClient()
-  if (!clientInfo.ok) return ""
-  try {
-    const { data } = await clientInfo.client.auth.refreshSession()
-    return String(data?.session?.access_token || "").trim()
-  } catch {
-    return ""
-  }
 }
