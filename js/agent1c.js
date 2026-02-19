@@ -860,20 +860,7 @@ async function xaiChat({ apiKey, model, temperature, systemPrompt, messages }){
     const json = await response.json().catch(() => null)
     if (!response.ok) {
       const providerMsg = String(json?.error?.message || json?.msg || json?.error || "").trim()
-      const providerCode = String(json?.error?.code || json?.error_code || json?.code || "").trim()
-      const usage = json?.usage
-      if (usage && typeof usage === "object") {
-        appState.cloudCredits.used = Math.max(0, Number(usage.used || 0))
-        appState.cloudCredits.limit = Math.max(1, Number(usage.limit || 12000))
-        appState.cloudCredits.remaining = Math.max(0, Number(usage.remaining || (appState.cloudCredits.limit - appState.cloudCredits.used)))
-        appState.cloudCredits.day = String(usage.day || "")
-        updateCloudCreditsUi()
-      }
-      if (response.status === 402 || providerCode.toLowerCase() === "limit_reached") {
-        const used = formatInt(appState.cloudCredits.used || 0)
-        const limit = formatInt(appState.cloudCredits.limit || 12000)
-        throw new Error(`Daily token limit reached (${used}/${limit}). Resets at 00:00 UTC.`)
-      }
+      const providerCode = String(json?.error?.code || json?.error_code || "").trim()
       throw new Error(`xAI call failed (${response.status})${providerCode ? ` code=${providerCode}` : ""}${providerMsg ? `: ${providerMsg}` : ""}`)
     }
     const usage = json?.agent1c_usage

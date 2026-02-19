@@ -25,44 +25,14 @@ function utcDay(){
 }
 
 function normalizeUsage(json: any){
-  const usage = json?.usage ?? {}
-  const prompt = Number(
-    usage?.prompt_tokens
-    ?? usage?.input_tokens
-    ?? usage?.promptTokens
-    ?? usage?.inputTokens
-    ?? usage?.num_input_tokens
-    ?? 0
-  )
-  const completion = Number(
-    usage?.completion_tokens
-    ?? usage?.output_tokens
-    ?? usage?.completionTokens
-    ?? usage?.outputTokens
-    ?? usage?.num_output_tokens
-    ?? 0
-  )
-  const totalFromApi = Number(
-    usage?.total_tokens
-    ?? usage?.totalTokens
-    ?? usage?.num_total_tokens
-    ?? 0
-  )
+  const prompt = Number(json?.usage?.prompt_tokens ?? 0)
+  const completion = Number(json?.usage?.completion_tokens ?? 0)
+  const totalFromApi = Number(json?.usage?.total_tokens ?? 0)
   const inputTokens = Number.isFinite(prompt) && prompt > 0 ? Math.floor(prompt) : 0
   const outputTokens = Number.isFinite(completion) && completion > 0 ? Math.floor(completion) : 0
-  const summed = Math.max(0, inputTokens + outputTokens)
-  let totalTokens = Number.isFinite(totalFromApi) && totalFromApi > 0 ? Math.floor(totalFromApi) : summed
-  // Fallback estimate if provider omits usage fields.
-  if (totalTokens <= 0) {
-    const allMessages = Array.isArray(json?.choices) ? json.choices : []
-    const firstText = String(allMessages?.[0]?.message?.content || "")
-    const promptChars = JSON.stringify(json?.request_messages || "").length
-    const estimate = Math.ceil((promptChars + firstText.length) / 4)
-    totalTokens = Math.max(1, estimate)
-  }
-  if (summed <= 0 && totalTokens > 0) {
-    return { inputTokens: totalTokens, outputTokens: 0, totalTokens }
-  }
+  const totalTokens = Number.isFinite(totalFromApi) && totalFromApi > 0
+    ? Math.floor(totalFromApi)
+    : Math.max(0, inputTokens + outputTokens)
   return { inputTokens, outputTokens, totalTokens }
 }
 
@@ -116,14 +86,13 @@ serve(async (req) => {
   const temperature = body?.temperature ?? 0.4
   const messages = Array.isArray(body?.messages) ? body.messages : []
 
-  const xaiRequest = { model, messages, temperature, stream: false }
   const xaiRes = await fetch("https://api.x.ai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${Deno.env.get("XAI_API_KEY")}`,
     },
-    body: JSON.stringify(xaiRequest),
+    body: JSON.stringify({ model, messages, temperature, stream: false }),
   })
 
   const xaiJson = await xaiRes.json().catch(() => null)
@@ -131,7 +100,7 @@ serve(async (req) => {
     return new Response(JSON.stringify(xaiJson ?? { error: "xAI request failed" }), { status: xaiRes.status, headers })
   }
 
-  const usage = normalizeUsage({ ...xaiJson, request_messages: messages })
+  const usage = normalizeUsage(xaiJson)
   const { data: updatedUsage, error: usageErr } = await adminClient
     .rpc("increment_daily_token_usage", {
       p_user_id: user.id,
