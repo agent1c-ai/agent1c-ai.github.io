@@ -404,3 +404,15 @@ export async function getCloudAuthAccessToken(){
   } catch {}
   return ""
 }
+
+export async function refreshCloudAuthAccessToken(){
+  if (!isCloudAuthHost()) return ""
+  const clientInfo = getClient()
+  if (!clientInfo.ok) return ""
+  try {
+    const { data } = await clientInfo.client.auth.refreshSession()
+    return String(data?.session?.access_token || "").trim()
+  } catch {
+    return ""
+  }
+}
