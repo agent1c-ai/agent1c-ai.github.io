@@ -24,12 +24,45 @@ function utcDay(){
   return new Date().toISOString().slice(0, 10)
 }
 
-function estimateUsage(messages: any[], assistantText: string){
-  const promptChars = JSON.stringify(messages || []).length
-  const replyChars = String(assistantText || "").length
-  const inputTokens = Math.max(1, Math.ceil(promptChars / 4))
-  const outputTokens = Math.max(1, Math.ceil(replyChars / 4))
-  const totalTokens = inputTokens + outputTokens
+function normalizeUsage(json: any){
+  const usage = json?.usage ?? {}
+  const prompt = Number(
+    usage?.prompt_tokens
+    ?? usage?.input_tokens
+    ?? usage?.promptTokens
+    ?? usage?.inputTokens
+    ?? usage?.num_input_tokens
+    ?? 0
+  )
+  const completion = Number(
+    usage?.completion_tokens
+    ?? usage?.output_tokens
+    ?? usage?.completionTokens
+    ?? usage?.outputTokens
+    ?? usage?.num_output_tokens
+    ?? 0
+  )
+  const totalFromApi = Number(
+    usage?.total_tokens
+    ?? usage?.totalTokens
+    ?? usage?.num_total_tokens
+    ?? 0
+  )
+  const inputTokens = Number.isFinite(prompt) && prompt > 0 ? Math.floor(prompt) : 0
+  const outputTokens = Number.isFinite(completion) && completion > 0 ? Math.floor(completion) : 0
+  const summed = Math.max(0, inputTokens + outputTokens)
+  let totalTokens = Number.isFinite(totalFromApi) && totalFromApi > 0 ? Math.floor(totalFromApi) : summed
+  // Fallback estimate if provider omits usage fields.
+  if (totalTokens <= 0) {
+    const allMessages = Array.isArray(json?.choices) ? json.choices : []
+    const firstText = String(allMessages?.[0]?.message?.content || "")
+    const promptChars = JSON.stringify(json?.request_messages || "").length
+    const estimate = Math.ceil((promptChars + firstText.length) / 4)
+    totalTokens = Math.max(1, estimate)
+  }
+  if (summed <= 0 && totalTokens > 0) {
+    return { inputTokens: totalTokens, outputTokens: 0, totalTokens }
+  }
   return { inputTokens, outputTokens, totalTokens }
 }
 
@@ -98,8 +131,7 @@ serve(async (req) => {
     return new Response(JSON.stringify(xaiJson ?? { error: "xAI request failed" }), { status: xaiRes.status, headers })
   }
 
-  const assistantText = String(xaiJson?.choices?.[0]?.message?.content || "")
-  const usage = estimateUsage(messages, assistantText)
+  const usage = normalizeUsage({ ...xaiJson, request_messages: messages })
   const { data: updatedUsage, error: usageErr } = await adminClient
     .rpc("increment_daily_token_usage", {
       p_user_id: user.id,
@@ -108,9 +140,16 @@ serve(async (req) => {
       p_output_tokens: usage.outputTokens,
     })
 
+  if (usageErr) {
+    return new Response(JSON.stringify({
+      error: "Usage accounting failed",
+      code: "usage_write_failed",
+      detail: usageErr.message,
+    }), { status: 500, headers })
+  }
+
   const usageRow = Array.isArray(updatedUsage) ? updatedUsage[0] : updatedUsage
-  const usedFromWrite = Math.max(0, Number(usageRow?.input_tokens || 0) + Number(usageRow?.output_tokens || 0))
-  const used = usageErr ? Math.max(0, usedBefore + usage.totalTokens) : usedFromWrite
+  const used = Math.max(0, Number(usageRow?.input_tokens || 0) + Number(usageRow?.output_tokens || 0))
   const remaining = Math.max(0, DAILY_TOKEN_LIMIT - used)
 
   return new Response(JSON.stringify({
@@ -123,8 +162,6 @@ serve(async (req) => {
       consumed: usage.totalTokens,
       input_tokens: usage.inputTokens,
       output_tokens: usage.outputTokens,
-      persisted: !usageErr,
-      usage_error: usageErr?.message || "",
     },
   }), { status: 200, headers })
 })
