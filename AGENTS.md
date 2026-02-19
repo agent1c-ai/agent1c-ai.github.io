@@ -22,15 +22,6 @@ REVERT MEANS REVERT.
 REVERT MEANS REVERT.
 REVERT MEANS REVERT.
 REVERT MEANS REVERT.
-
-TOKEN/CHAT IMPLEMENTATION LOOP CONTRACT (MANDATORY):
-1. Keep `xai-chat` request/response behavior unchanged for the frontend contract.
-2. Add per-user daily usage tracking in Supabase only as a side-effect.
-3. Never block chat on usage-write failures.
-4. Enforce 12,000/day with conservative overcount.
-5. Keep `Verify JWT with legacy secret` OFF.
-6. Run end-to-end validation before pushing.
-7. If end-to-end fails and cannot be fixed in the current pass, revert the entire project to the initial state and retry from step 1; keep documentation updates, and repeat until end-to-end succeeds.
 REVERT MEANS REVERT.
 REVERT MEANS REVERT.
 REVERT MEANS REVERT.
