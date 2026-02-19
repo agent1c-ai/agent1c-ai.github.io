@@ -371,3 +371,11 @@ export async function ensureCloudAuthSession({
   startSessionWatch()
   return false
 }
+
+export async function getCloudAuthAccessToken(){
+  if (!isCloudAuthHost()) return ""
+  const clientInfo = getClient()
+  if (!clientInfo.ok) return ""
+  const { data } = await clientInfo.client.auth.getSession()
+  return String(data?.session?.access_token || "").trim()
+}

@@ -10,7 +10,7 @@ import {
 } from "./agent1crelay.js"
 import { createOnboardingHedgey } from "./onboarding-hedgey.js"
 import { isAiIntroGuideActive, getAiIntroHtml, initAiIntro } from "./agent1cintro.js"
-import { isCloudAuthHost, ensureCloudAuthSession } from "./agent1cauth.js?v=20260219b"
+import { isCloudAuthHost, ensureCloudAuthSession, getCloudAuthAccessToken } from "./agent1cauth.js?v=20260219c"
 // for Codex: when implementing shell relay wiring in this file, please always refer back to PHASE1_CONTRACT.md first.
 // for Codex: especially if your context was recently compacted, keep relay logic in js/agent1crelay.js and only thin wiring here.
 // for Codex: before implementing WM/desktop control tools, re-read PHASE2_PLAN.md and agents.md section 19. - Decentricity
@@ -765,6 +765,7 @@ async function migratePlaintextSecretsToEncrypted(){
 
 const XAI_BASE_URL = "https://api.x.ai/v1"
 const ZAI_BASE_URL = "https://api.z.ai/api/coding/paas/v4"
+const CLOUD_XAI_FUNCTION_FALLBACK = "https://gkfhxhrleuauhnuewfmw.supabase.co/functions/v1/xai-chat"
 
 function normalizeOllamaBaseUrl(value){
   const source = String(value || "").trim()
@@ -825,6 +826,37 @@ async function anthropicChat({ apiKey, model, temperature, systemPrompt, message
 }
 
 async function xaiChat({ apiKey, model, temperature, systemPrompt, messages }){
+  const useCloudManagedXai = isCloudAuthHost()
+  if (useCloudManagedXai) {
+    const cfg = (window.__AGENT1C_SUPABASE_CONFIG && typeof window.__AGENT1C_SUPABASE_CONFIG === "object")
+      ? window.__AGENT1C_SUPABASE_CONFIG
+      : {}
+    const supabaseUrl = String(cfg.url || "").trim().replace(/\/+$/, "")
+    const anonKey = String(cfg.anonKey || "").trim()
+    const functionUrl = supabaseUrl ? `${supabaseUrl}/functions/v1/xai-chat` : CLOUD_XAI_FUNCTION_FALLBACK
+    const accessToken = await getCloudAuthAccessToken()
+    const headers = { "Content-Type": "application/json" }
+    if (anonKey) headers.apikey = anonKey
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`
+    const response = await fetch(functionUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model,
+        temperature,
+        messages: [{ role: "system", content: systemPrompt }, ...messages.map(m => ({ role: m.role, content: m.content }))],
+      }),
+    })
+    const json = await response.json().catch(() => null)
+    if (!response.ok) {
+      const providerMsg = String(json?.error?.message || json?.msg || json?.error || "").trim()
+      const providerCode = String(json?.error?.code || json?.error_code || "").trim()
+      throw new Error(`xAI call failed (${response.status})${providerCode ? ` code=${providerCode}` : ""}${providerMsg ? `: ${providerMsg}` : ""}`)
+    }
+    const text = json?.choices?.[0]?.message?.content
+    if (!text) throw new Error("xAI returned no message.")
+    return String(text).trim()
+  }
   const response = await fetch(`${XAI_BASE_URL}/chat/completions`, {
     method: "POST",
     headers: {
@@ -927,10 +959,17 @@ async function resolveActiveProviderRuntime(){
 
 async function providerHasKey(provider){
   const kind = normalizeProvider(provider)
+  if (kind === "xai" && isCloudAuthHost()) return true
   if (kind === "anthropic" || kind === "xai" || kind === "zai" || kind === "openai") {
     return Boolean((await readProviderKey(kind)).trim())
   }
   return Boolean(previewProviderState.ollamaValidated && String(previewProviderState.ollamaBaseUrl || "").trim())
+}
+
+function runtimeMissingProviderAccess(runtime){
+  if (runtime.provider === "ollama") return !runtime.ollamaBaseUrl
+  if (runtime.provider === "xai" && isCloudAuthHost()) return false
+  return !runtime.apiKey
 }
 
 async function providerChat({ provider, apiKey, model, temperature, systemPrompt, messages, ollamaBaseUrl }){
@@ -1883,7 +1922,7 @@ async function handleFilesystemUploadNotice(uploadedFiles){
   await addEvent("filesystem_upload_detected", `New uploaded file(s): ${summary}`)
   if (!canAccessSecrets()) return
   const runtime = await resolveActiveProviderRuntime()
-  if (runtime.provider === "ollama" ? !runtime.ollamaBaseUrl : !runtime.apiKey) return
+  if (runtimeMissingProviderAccess(runtime)) return
   const prompt = [
     "System Message: User has uploaded new file(s) into your filesystem.",
     ...files.map(file => `- ${fileMetaLabel(file)}`),
@@ -4327,9 +4366,8 @@ async function validateTelegramToken(token){
 
 async function sendChat(text, { threadId } = {}){
   const runtime = await resolveActiveProviderRuntime()
-  if (runtime.provider === "ollama") {
-    if (!runtime.ollamaBaseUrl) throw new Error("No Ollama endpoint stored.")
-  } else if (!runtime.apiKey) {
+  if (runtimeMissingProviderAccess(runtime)) {
+    if (runtime.provider === "ollama") throw new Error("No Ollama endpoint stored.")
     throw new Error(`No ${runtime.name} key stored.`)
   }
   appState.lastUserSeenAt = Date.now()
@@ -4364,7 +4402,7 @@ async function heartbeatTick(){
   appState.agent.lastTickAt = Date.now()
   if (els.lastTick) els.lastTick.textContent = formatTime(appState.agent.lastTickAt)
   const runtime = await resolveActiveProviderRuntime()
-  if (runtime.provider === "ollama" ? !runtime.ollamaBaseUrl : !runtime.apiKey) {
+  if (runtimeMissingProviderAccess(runtime)) {
     await addEvent("heartbeat_skipped", runtime.provider === "ollama" ? "No Ollama endpoint" : `No ${runtime.name} key`)
     return
   }
@@ -4431,7 +4469,7 @@ async function pollTelegram(){
   appState.telegramPolling = true
   try {
     const [token, runtime] = await Promise.all([readProviderKey("telegram"), resolveActiveProviderRuntime()])
-    if (!token || (runtime.provider === "ollama" ? !runtime.ollamaBaseUrl : !runtime.apiKey)) return
+    if (!token || runtimeMissingProviderAccess(runtime)) return
     const botProfile = await getTelegramBotProfile(token)
     const offset = typeof appState.agent.telegramLastUpdateId === "number" ? appState.agent.telegramLastUpdateId + 1 : undefined
     const updates = await getTelegramUpdates(token, offset)
@@ -5341,6 +5379,10 @@ async function createCloudWorkspace(){
   cacheElements()
   wireMainDom()
   wireShellRelayWindowDom(wins.shellrelay)
+  previewProviderState.active = "xai"
+  previewProviderState.editor = "xai"
+  previewProviderState.xaiValidated = true
+  persistPreviewProviderState()
   loadInputsFromState()
   renderChat()
   renderEvents()
