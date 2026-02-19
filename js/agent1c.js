@@ -10,7 +10,7 @@ import {
 } from "./agent1crelay.js"
 import { createOnboardingHedgey } from "./onboarding-hedgey.js"
 import { isAiIntroGuideActive, getAiIntroHtml, initAiIntro } from "./agent1cintro.js"
-import { isCloudAuthHost, ensureCloudAuthSession, getCloudAuthAccessToken } from "./agent1cauth.js?v=20260219f"
+import { isCloudAuthHost, hasCloudAuthSession, ensureCloudAuthSession, getCloudAuthAccessToken } from "./agent1cauth.js?v=20260219g"
 // for Codex: when implementing shell relay wiring in this file, please always refer back to PHASE1_CONTRACT.md first.
 // for Codex: especially if your context was recently compacted, keep relay logic in js/agent1crelay.js and only thin wiring here.
 // for Codex: before implementing WM/desktop control tools, re-read PHASE2_PLAN.md and agents.md section 19. - Decentricity
@@ -5632,6 +5632,8 @@ async function continueStandardOnboardingFlow(){
 
 export async function initAgent1C({ wm }){
   wmRef = wm
+  const hasExistingCloudSession = isCloudAuthHost() ? await hasCloudAuthSession() : false
+  if (hasExistingCloudSession) cloudAuthSessionReady = true
   applyCloudReadableScale()
   if (isCloudAuthHost()) {
     setClippyMode(true)
@@ -5668,19 +5670,21 @@ export async function initAgent1C({ wm }){
       return true
     },
   })
-  if (initAiIntro({
-    wmRef,
-    getDesktopViewport,
-    setStatus,
-    setClippyMode,
-    showClippyBubble,
-    renderClippyBubble,
-    positionClippyAtRight,
-    closeWindow,
-    continueStandardOnboardingFlow,
-    cacheElements,
-  })) {
-    return
+  if (!hasExistingCloudSession) {
+    if (initAiIntro({
+      wmRef,
+      getDesktopViewport,
+      setStatus,
+      setClippyMode,
+      showClippyBubble,
+      renderClippyBubble,
+      positionClippyAtRight,
+      closeWindow,
+      continueStandardOnboardingFlow,
+      cacheElements,
+    })) {
+      return
+    }
   }
   await continueStandardOnboardingFlow()
 }

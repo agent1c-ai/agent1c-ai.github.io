@@ -61,6 +61,19 @@ export function isCloudAuthHost(){
   return CLOUD_HOSTS.has(hostName())
 }
 
+export async function hasCloudAuthSession(){
+  if (!isCloudAuthHost()) return false
+  const clientInfo = getClient()
+  if (!clientInfo.ok) return false
+  try {
+    const { data, error } = await clientInfo.client.auth.getSession()
+    if (error) return false
+    return Boolean(data?.session)
+  } catch {
+    return false
+  }
+}
+
 function safe(value){
   return String(value || "")
     .replaceAll("&", "&amp;")
