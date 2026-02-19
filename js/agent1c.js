@@ -835,9 +835,12 @@ async function xaiChat({ apiKey, model, temperature, systemPrompt, messages }){
     const anonKey = String(cfg.anonKey || "").trim()
     const functionUrl = supabaseUrl ? `${supabaseUrl}/functions/v1/xai-chat` : CLOUD_XAI_FUNCTION_FALLBACK
     const accessToken = await getCloudAuthAccessToken()
+    if (!accessToken) {
+      throw new Error("Cloud auth token missing. Please sign in again.")
+    }
     const headers = { "Content-Type": "application/json" }
     if (anonKey) headers.apikey = anonKey
-    if (accessToken) headers.Authorization = `Bearer ${accessToken}`
+    headers.Authorization = `Bearer ${accessToken}`
     const response = await fetch(functionUrl, {
       method: "POST",
       headers,

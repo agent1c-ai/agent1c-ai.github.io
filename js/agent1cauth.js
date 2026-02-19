@@ -375,7 +375,38 @@ export async function ensureCloudAuthSession({
 export async function getCloudAuthAccessToken(){
   if (!isCloudAuthHost()) return ""
   const clientInfo = getClient()
-  if (!clientInfo.ok) return ""
-  const { data } = await clientInfo.client.auth.getSession()
-  return String(data?.session?.access_token || "").trim()
+  const cfg = getSupabaseConfig()
+  const projectRef = String(cfg.url || "")
+    .replace(/^https?:\/\//i, "")
+    .split(".")[0]
+    .trim()
+  if (clientInfo.ok) {
+    try {
+      const { data } = await clientInfo.client.auth.getSession()
+      const token = String(data?.session?.access_token || "").trim()
+      if (token) return token
+    } catch {}
+  }
+  try {
+    const keys = Object.keys(window.localStorage || {})
+    const preferred = projectRef ? `sb-${projectRef}-auth-token` : ""
+    const ordered = preferred
+      ? [preferred, ...keys.filter(key => key !== preferred)]
+      : keys
+    for (const key of ordered) {
+      if (!/auth-token/i.test(key)) continue
+      const raw = window.localStorage.getItem(key)
+      if (!raw) continue
+      let parsed = null
+      try { parsed = JSON.parse(raw) } catch { parsed = null }
+      const token = String(
+        parsed?.currentSession?.access_token
+        || parsed?.access_token
+        || parsed?.session?.access_token
+        || ""
+      ).trim()
+      if (token) return token
+    }
+  } catch {}
+  return ""
 }
