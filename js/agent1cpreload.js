@@ -1,6 +1,15 @@
 import { animateFullscreenMatrix } from "./window-close-fx.js";
 
 (() => {
+  const params = new URLSearchParams(window.location.search || "")
+  const isAuthCallback =
+    params.has("code")
+    || params.has("state")
+    || params.has("error")
+    || params.has("error_description")
+    || params.has("access_token")
+    || params.has("refresh_token")
+  if (isAuthCallback) return
   if (window.__agent1cPreloadActive) return
   window.__agent1cPreloadActive = true
 

@@ -28,6 +28,35 @@ function hostName(){
   return String(window.location?.hostname || "").toLowerCase()
 }
 
+function isAuthCallbackUrl(){
+  const params = new URLSearchParams(window.location.search || "")
+  return params.has("code")
+    || params.has("state")
+    || params.has("error")
+    || params.has("error_description")
+    || params.has("access_token")
+    || params.has("refresh_token")
+}
+
+function cleanupAuthCallbackUrl(){
+  if (!window.history?.replaceState) return
+  try {
+    const url = new URL(window.location.href)
+    const keys = ["code", "state", "error", "error_description", "access_token", "refresh_token", "token_type", "expires_in"]
+    let changed = false
+    for (const key of keys) {
+      if (url.searchParams.has(key)) {
+        url.searchParams.delete(key)
+        changed = true
+      }
+    }
+    if (changed) {
+      const next = `${url.pathname}${url.search}${url.hash}`
+      window.history.replaceState({}, "", next)
+    }
+  } catch {}
+}
+
 export function isCloudAuthHost(){
   return CLOUD_HOSTS.has(hostName())
 }
@@ -249,6 +278,7 @@ async function checkSessionAndContinue(){
   authContinuing = true
   updateAuthStatus("Signed in. Continuing setup...")
   setStatus?.("Signed in. Continuing setup.")
+  cleanupAuthCallbackUrl()
   stopSessionWatch()
   closeAuthWindow()
   Promise.resolve().then(() => onAuthenticated?.())
@@ -315,6 +345,10 @@ export async function ensureCloudAuthSession({
 
   const clientInfo = getClient()
   ensureAuthWindow()
+  if (isAuthCallbackUrl()) {
+    updateAuthStatus("Processing sign-in callback...")
+    setStatus?.("Processing sign-in callback...")
+  }
   if (!clientInfo.ok) {
     updateAuthStatus(clientInfo.error, true)
     setStatus?.(clientInfo.error)

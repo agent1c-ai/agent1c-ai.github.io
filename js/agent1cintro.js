@@ -21,6 +21,15 @@ function shouldShowAiIntroGate(){
   const host = String(window.location?.hostname || "").toLowerCase()
   if (!isAgenticAiHost()) return false
   if (host === "app.agent1c.ai" || host === "app.agentic.ai") return false
+  const params = new URLSearchParams(window.location.search || "")
+  const isAuthCallback =
+    params.has("code")
+    || params.has("state")
+    || params.has("error")
+    || params.has("error_description")
+    || params.has("access_token")
+    || params.has("refresh_token")
+  if (isAuthCallback) return false
   return true
 }
 
