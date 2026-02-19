@@ -1,6 +1,4 @@
 // Intro landing flow for agent1c.ai
-const AI_INTRO_DONE_KEY = "agent1c_ai_intro_done_v1"
-
 const AI_INTRO_MESSAGES = [
   "Hi friend. I am Hitomi, your tiny hedgehog guide.",
 ]
@@ -23,11 +21,7 @@ function shouldShowAiIntroGate(){
   const host = String(window.location?.hostname || "").toLowerCase()
   if (!isAgenticAiHost()) return false
   if (host === "app.agent1c.ai" || host === "app.agentic.ai") return false
-  try {
-    return localStorage.getItem(AI_INTRO_DONE_KEY) !== "1"
-  } catch {
-    return true
-  }
+  return true
 }
 
 export function isAiIntroGuideActive(){
@@ -146,9 +140,6 @@ async function continueAfterAiIntro({ closeWindow, continueStandardOnboardingFlo
   if (aiIntroContinuing) return
   aiIntroContinuing = true
   aiIntroPending = false
-  try {
-    localStorage.setItem(AI_INTRO_DONE_KEY, "1")
-  } catch {}
   if (introWin?.id) closeWindow(introWin)
   introWin = null
   await continueStandardOnboardingFlow()

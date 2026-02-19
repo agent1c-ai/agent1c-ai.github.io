@@ -5234,6 +5234,10 @@ async function loadPersistentState(){
 
 async function continueStandardOnboardingFlow(){
   if (isCloudAuthHost()) {
+    if (!clippyMode) {
+      setClippyMode(true)
+      positionClippyAtRight()
+    }
     const authed = await ensureCloudAuthSession({
       wm: wmRef,
       getDesktopViewport,
