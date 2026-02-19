@@ -1,132 +1,170 @@
-# Agent1c.me
+# Agent1c.ai
 
-Agent1c.me is a serverless, AI-enabled browser OS built on HedgeyOS (`hedgeyos.github.io`).
+Agent1c.ai is a hosted Agentic OS built on HedgeyOS. It runs as a web desktop with draggable windows, a persistent assistant persona (Hitomi), and cloud-authenticated chat runtime.
 
-It runs entirely inside a browser tab with no app server. If the tab stays open, Hitomi can keep running autonomous loops and can control a Telegram bot through the configured Bot API token. If the tab closes, runtime stops.
+This repository is the `agent1c.ai` codebase (cloud mode path).  
+`agent1c.me` (local-first BYOK path) is a separate repository.
 
-No logins, no installations, just API attach.
+## Product Modes
 
-## What It Is
+- `agent1c.ai` / `www.agent1c.ai`: intro window + cloud auth flow + cloud runtime.
+- `app.agent1c.ai`: skips intro and enters cloud auth/runtime directly.
+- `agent1c.me`: separate local-first product (not this repo).
 
-- Local-first autonomous agent workspace inside a retro web desktop
-- Bring Your Own Keys (BYOK): OpenAI, Anthropic, xAI (Grok), z.ai, and Telegram credentials are user-provided
-- Vault encryption in-browser for stored provider credentials
-- Direct provider calls from browser to provider APIs
-- No backend required for MVP
+## High-Level Architecture
 
-## Built On HedgeyOS
+## 1) Frontend Runtime (GitHub Pages)
 
-This project is built on HedgeyOS and reuses its browser OS foundations:
+- Pure static frontend (HTML/CSS/JS), no npm build pipeline.
+- HedgeyOS-style desktop shell:
+  - Menubar
+  - Window manager
+  - App launcher
+  - Theme engine (default currently BeOS)
+- Agent windows are top-level HedgeyOS windows, not nested panels.
+- Hitomi hedgehog assistant exists as a floating desktop actor with dialog bubble modes.
 
-- Window manager and desktop shell
-- Menubar and app-launch model
-- Theme system
-- IndexedDB-backed local persistence patterns
+Key modules:
 
-Agent1c.me and HedgeyOS are both by Decentricity.
+- `js/main.js`: bootstraps shell + window manager + agent runtime.
+- `js/wm.js`: core HedgeyOS window manager behavior.
+- `js/agent1c.js`: agent app runtime wiring (chat, loops, events, windows, onboarding runtime).
+- `js/agent1cauth.js`: cloud auth integration helpers.
+- `js/agent1cintro.js`: intro/landing window logic.
+- `js/agent1cpreload.js`: preload animation logic.
+- `js/agent1crelay.js`: local relay integration logic (for shell/browser relay workflows).
+- `js/voice-stt.js`: optional voice recognition controller.
 
-## Core Capabilities
+## 2) Auth Layer (Supabase)
 
-- Top-level agent windows in HedgeyOS (Chat, AI APIs, Telegram API, Loop, SOUL.md, TOOLS.md, heartbeat.md, Events)
-- Dedicated `Shell Relay` window (separate from Config) for localhost shell bridge setup and controls
-- Local threaded chat with rolling context
-- Per-thread memory for local chats
-- Per-chat-id memory isolation for Telegram chats
-- Heartbeat loop and event timeline
-- Tile and Arrange window controls in the menubar
-- Multi-provider runtime routing:
-  - OpenAI (`https://api.openai.com/v1/chat/completions`)
-  - Anthropic (`https://api.anthropic.com/v1/messages`)
-  - xAI Grok (`https://api.x.ai/v1/chat/completions`)
-  - z.ai (`https://open.bigmodel.cn/api/paas/v4/chat/completions`)
+- Supabase Auth is the cloud gate for `.ai`.
+- Supported sign-in methods:
+  - Google OAuth
+  - X OAuth
+  - Magic link
+- Frontend receives auth session and uses bearer token for managed cloud calls.
 
-## Onboarding Flow
+Supabase client config is injected in `index.html` via `window.__AGENT1C_SUPABASE_CONFIG`.
 
-1. First load: only `Create Vault` is shown.
-2. After vault creation: `OpenAI API` and `Events` are shown.
-3. User must complete OpenAI setup:
-   - Save encrypted OpenAI key
-   - Test OpenAI connection
-   - Save OpenAI settings (model and temperature)
-4. After setup is complete, OpenAI window minimizes and the rest of the agent workspace appears.
-5. Telegram setup is optional, but required for Telegram bot bridging.
+## 3) Managed AI Provider Path
 
-## Security Model (MVP)
+- Cloud mode routes chat through Supabase Edge Function:
+  - `POST /functions/v1/xai-chat`
+- xAI API key is server-side only (never exposed to browser).
+- Frontend treats provider as "Managed Cloud" in `.ai` runtime.
 
-- Credentials are encrypted at rest in-browser
-- Vault unlock is passphrase-based
-- No third-party app login flow required for MVP
-- Provider secrets are not sent to any agent1c server because there is no agent1c server in this architecture
+Function source in repo:
 
-## Runtime Notes
+- `supabase/functions/xai-chat/index.ts`
 
-- Agent runtime is tab-bound.
-- Locking vault protects secret access, while loop intent can continue and resume API work after unlock.
-- Telegram bridge runs only when enabled and when required credentials are available.
+Current behavior:
 
-## Shell Relay (Phase 1)
+- Validates authenticated user via Supabase auth token.
+- Proxies request to xAI chat completions.
+- Returns provider response in OpenAI-style `choices[0].message.content` shape consumed by frontend.
+- Includes conservative per-user token accounting metadata on successful responses (`agent1c_usage`) when available.
 
-- `Shell Relay` is a separate HedgeyOS window, not a Config subsection.
-- It provides OS-first setup instructions (Linux, macOS, Android) with copyable code blocks.
-- Relay runtime is shell-only in this phase:
-  - `shell-relay/install.sh`
-  - `shell-relay/agent1c-relay.sh`
-  - `shell-relay/handler.sh`
-- New tool in TOOLS: `shell_exec`.
+## 4) Credits and Quota
 
-## AI Provider Architecture
+Cloud free plan target:
 
-- Provider setup is unified in the `AI APIs` window:
-  - Select a provider card
-  - Save encrypted key
-  - Provider key validation runs immediately
-  - On success, provider can become active
-  - Model selection is stored per provider
-- Active provider controls local chat, heartbeat responses, and Telegram replies.
-- Onboarding continues when at least one AI provider key is valid.
+- 12,000 tokens per user per day (conservative overcount is acceptable).
 
-## Grok Integration Notes
+Implementation principle:
 
-- xAI (Grok) is fully wired, not preview-only.
-- Supported fallback models currently shown in UI:
-  - `grok-4`
-  - `grok-3`
-  - `grok-3-mini`
-- Key validation is live using xAI API calls.
-- xAI status and key/model controls follow the same card behavior as Anthropic and z.ai.
+- Accounting is per-user and server-side in Supabase.
+- Never use provider-global usage as source of truth for per-user enforcement.
+- Chat path must remain resilient:
+  - usage write failures must not break chat response path.
 
-## How To Add Another Provider
+UI:
 
-1. Add provider state fields (`key`, `model`, `validated`) to preview/provider state.
-2. Add provider card UI in `AI APIs` window and wire card DOM IDs.
-3. Add provider chat function (endpoint + headers + response parsing).
-4. Add provider validation function and include it in `validateProviderKey(...)`.
-5. Include provider in:
-   - provider normalization
-   - display name mapping
-   - active runtime secret resolution
-   - provider badge/pill refresh
-   - onboarding key checks
-   - lock/unlock UI disable handling
-6. Route chat/heartbeat/Telegram through the unified provider runtime path.
-7. Keep wording aligned: avoid "Preview" once provider is fully wired.
+- Credits window shows plan and remaining usage for the current day.
+- Subscribe button currently exists as disabled "coming soon" CTA.
 
-## Local Run
+## 5) Agent Runtime Semantics
 
-```bash
-cd agent1c-me.github.io
-python3 -m http.server 8000
-```
+### Editable docs runtime
 
-Open `http://localhost:8000`.
+- `SOUL.md`: persona/system behavior layer.
+- `TOOLS.md`: tool contract and invocation format.
+- `heartbeat.md`: autonomous loop behavior prompt.
 
-## Live
+These docs are exposed as windows and are intended to affect live runtime behavior.
 
-- Production domain: `https://agentic.ai`
-- GitHub Pages repo: `https://github.com/agent1c-me/agent1c-me.github.io`
+### Event-driven behavior
 
-## Development Notes
+- Chat, loop ticks, and system events are written to Events window.
+- Cloud mode includes login-driven prompts (welcome / return flow) and setup hedgehog guidance flow.
 
-- Vanilla HTML, CSS, and JavaScript (no npm dependency chain)
-- Changes should preserve HedgeyOS baseline behavior unless intentionally modified
-- Integration notes and guardrails are documented in `agents.md`
+### Threading model
+
+- Local chat supports multi-threading in UI.
+- Cloud runtime currently uses managed provider path while preserving windowed UX.
+
+## 6) Relay Surfaces
+
+Two relay concepts exist in product design:
+
+- Local shell relay (host-side setup, terminal-style controls, setup instructions).
+- Browser CORS relay path (planned/iterative cloud relay behavior).
+
+Shell relay setup UX is in dedicated window flows and docs (not tied to vault flow in cloud mode).
+
+## 7) Intro + Onboarding Flow (Cloud)
+
+Current cloud funnel:
+
+1. Preload animation.
+2. Intro window (for `agent1c.ai`, skipped on `app.agent1c.ai`).
+3. User selects cloud path.
+4. Auth window (Google/X/Magic link).
+5. On successful auth:
+   - Runtime windows open
+   - Credits window visible
+   - Hitomi setup flow continues in-cloud.
+
+## 8) Supabase Operational Guardrails
+
+Critical setting:
+
+- In Supabase Edge Function `xai-chat`, `Verify JWT with legacy secret` must stay OFF.
+
+Why:
+
+- This project performs auth validation inside function logic against Supabase user session.
+- Accidental JWT legacy verification enablement has repeatedly caused 401/runtime breakages.
+
+## 9) Refactor Orientation
+
+For upcoming refactor, use this repository as three logical layers:
+
+1. Shell layer (HedgeyOS desktop/window manager/theme/input systems).
+2. Agent runtime layer (Hitomi state machine + chat + loops + docs + events).
+3. Cloud integration layer (auth/session/provider proxy/credits/quota).
+
+Keep boundaries explicit:
+
+- `wm.js` remains shell core.
+- `agent1c.js` should orchestrate, not absorb every subsystem.
+- Supabase functions should be stable contracts with minimal frontend branching.
+
+## 10) Related Docs
+
+Extended architecture and implementation planning docs are maintained in:
+
+- `../agent1carchitecture/`
+
+Important planning files there include:
+
+- `AGENT1C_AI_CLOUD_ARCHITECTURE.md`
+- `PHASE1_SUPABASE_AUTH_PLAN.md`
+- `PHASE2_PLAN.md`
+- `PHASE_ONBOARDING_HEDGEY_PLAN.md`
+
+## 11) Deployment
+
+- Static hosting: GitHub Pages.
+- Custom domains: `agent1c.ai`, `www.agent1c.ai`, `app.agent1c.ai`.
+- Supabase project ref for cloud runtime: `gkfhxhrleuauhnuewfmw`.
+
