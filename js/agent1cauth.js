@@ -273,7 +273,7 @@ function wireAuthDom(){
     openOAuth("google").catch(() => {})
   })
   xBtn?.addEventListener("click", () => {
-    openOAuth("twitter").catch(() => {})
+    openOAuth("x").catch(() => {})
   })
   magicForm?.addEventListener("submit", (event) => {
     event.preventDefault()
