@@ -334,20 +334,33 @@ function wireAuthDom(){
   const googleBtn = document.getElementById("authGoogleBtn")
   const xBtn = document.getElementById("authXBtn")
   const magicForm = document.getElementById("authMagicForm")
+  const magicBtn = document.getElementById("authMagicBtn")
   const refreshBtn = document.getElementById("authRefreshBtn")
-  googleBtn?.addEventListener("click", () => {
-    openOAuth("google").catch(() => {})
-  })
-  xBtn?.addEventListener("click", () => {
-    openOAuth("x").catch(() => {})
-  })
+  let lastPressAt = 0
+  const bindPress = (node, fn) => {
+    if (!node) return
+    const run = (event) => {
+      const now = Date.now()
+      if (now - lastPressAt < 350) return
+      lastPressAt = now
+      if (event) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+      Promise.resolve().then(fn).catch(() => {})
+    }
+    node.addEventListener("click", run)
+    node.addEventListener("touchend", run, { passive: false })
+    node.addEventListener("pointerup", run)
+  }
+  bindPress(googleBtn, () => openOAuth("google"))
+  bindPress(xBtn, () => openOAuth("x"))
   magicForm?.addEventListener("submit", (event) => {
     event.preventDefault()
     sendMagicLink().catch(() => {})
   })
-  refreshBtn?.addEventListener("click", () => {
-    checkSessionAndContinue().catch(() => {})
-  })
+  bindPress(magicBtn, () => sendMagicLink())
+  bindPress(refreshBtn, () => checkSessionAndContinue())
 }
 
 export async function ensureCloudAuthSession({
