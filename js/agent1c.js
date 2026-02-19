@@ -281,6 +281,7 @@ let clippyMode = false
 let clippyUi = null
 let clippyLastAssistantKey = ""
 let clippyBubbleVariant = "full"
+let clippyBubbleLocked = false
 let clippyDragging = false
 let clippyIdleTimer = null
 let clippyIdleRunning = false
@@ -290,6 +291,9 @@ let clippyIdleRaf = 0
 let clippyActivityWired = false
 let onboardingHedgey = null
 let userName = ""
+let cloudWorkspaceReady = false
+let cloudNameCaptureActive = false
+let cloudNameMessages = []
 let voiceUiState = { enabled: false, supported: true, status: "off", text: "", error: "" }
 let hitomiDesktopIcon = null
 let hitomiIconObserver = null
@@ -297,7 +301,7 @@ let hitomiIconRelayoutQueued = false
 let cloudAuthGateActive = false
 const thinkingThreadIds = new Set()
 
-const CORE_AGENT_PANEL_IDS = ["chat", "openai", "telegram", "config", "shellrelay", "soul", "tools", "heartbeat", "events"]
+const CORE_AGENT_PANEL_IDS = ["chat", "openai", "telegram", "config", "shellrelay", "soul", "tools", "heartbeat", "events", "credits"]
 const pendingDocSaves = new Set()
 const LEGACY_SOUL_MARKERS = [
   "You are opinionated, independent, and freedom-focused.",
@@ -318,6 +322,7 @@ const wins = {
   heartbeat: null,
   events: null,
   shellrelay: null,
+  credits: null,
   ollamaSetup: null,
 }
 
@@ -2142,6 +2147,21 @@ function nudgeOnboardingBubble({ compact = false } = {}){
   renderClippyBubble()
 }
 
+function setClippyBubbleLocked(next){
+  clippyBubbleLocked = !!next
+  if (clippyBubbleLocked) hideClippyBubble()
+}
+
+function cloudNamePromptHtml(){
+  if (!cloudNameMessages.length) {
+    cloudNameMessages = [
+      `<div class="clippy-line"><strong>Hitomi:</strong> Hi friend. I am Hitomi, your tiny hedgehog guide.</div>`,
+      `<div class="clippy-line"><strong>Hitomi:</strong> What should I call you?</div>`,
+    ]
+  }
+  return cloudNameMessages.join("")
+}
+
 function onboardingGuideUiContext(){
   return {
     providerInputs: {
@@ -2155,6 +2175,9 @@ function onboardingGuideUiContext(){
 }
 
 function getClippyChatHtml(){
+  if (cloudNameCaptureActive) {
+    return cloudNamePromptHtml()
+  }
   if (isAiIntroGuideActive()) {
     return getAiIntroHtml()
   }
@@ -2175,6 +2198,9 @@ function getClippyChatHtml(){
 }
 
 function getClippyCompactHtml(){
+  if (cloudNameCaptureActive) {
+    return cloudNamePromptHtml()
+  }
   if (isAiIntroGuideActive()) {
     return getAiIntroHtml()
   }
@@ -2348,6 +2374,11 @@ function telegramSavedEventText(){
 }
 
 async function refreshHitomiDesktopIcon(){
+  if (isCloudAuthHost()) {
+    ensureHitomiDesktopIcon()
+    positionHitomiDesktopIcon()
+    return
+  }
   const hasAiKey = await hasAnyAiProviderKey()
   const keepForOnboarding = !onboardingComplete
   if (!hasAiKey && !keepForOnboarding) {
@@ -2685,6 +2716,11 @@ function scrollClippyToBottom(){
 
 function renderOnboardingChips(){
   if (!clippyUi?.chips) return
+  if (cloudNameCaptureActive) {
+    clippyUi.chips.classList.add("clippy-hidden")
+    clippyUi.chips.innerHTML = ""
+    return
+  }
   if (isAiIntroGuideActive()) {
     clippyUi.chips.classList.add("clippy-hidden")
     clippyUi.chips.innerHTML = ""
@@ -2711,15 +2747,17 @@ function renderOnboardingChips(){
 
 function renderClippyBubble(){
   if (!clippyUi?.log || !clippyUi?.bubble) return
-  const compact = isAiIntroGuideActive() || isOnboardingGuideActive() ? true : (clippyBubbleVariant === "compact")
+  const compact = cloudNameCaptureActive || isAiIntroGuideActive() || isOnboardingGuideActive() ? true : (clippyBubbleVariant === "compact")
   clippyUi.bubble.classList.toggle("compact", compact)
   clippyUi.log.innerHTML = compact ? getClippyCompactHtml() : getClippyChatHtml()
   renderOnboardingChips()
   if (clippyUi.input) {
     clippyUi.input.disabled = isAiIntroGuideActive()
-    clippyUi.input.placeholder = isAiIntroGuideActive()
+    clippyUi.input.placeholder = cloudNameCaptureActive
+      ? "Type your name..."
+      : (isAiIntroGuideActive()
       ? "Choose an option in Intro window..."
-      : "Write a message..."
+      : "Write a message...")
   }
   if (clippyUi.form) {
     clippyUi.form.classList.toggle("intro-locked", isAiIntroGuideActive())
@@ -2729,6 +2767,7 @@ function renderClippyBubble(){
 }
 
 function showClippyBubble(opts = {}){
+  if (clippyBubbleLocked) return
   if (!clippyUi?.bubble) return
   clippyBubbleVariant = opts.variant === "compact" ? "compact" : "full"
   renderClippyBubble()
@@ -2920,6 +2959,30 @@ function ensureClippyAssistant(){
     if (!text) return
     markClippyActivity()
     if (input) input.value = ""
+    if (cloudNameCaptureActive) {
+      const normalized = normalizeUserName(text)
+      cloudNameMessages.push(`<div class="clippy-line"><strong>User:</strong> ${escapeHtml(text)}</div>`)
+      if (!normalized) {
+        cloudNameMessages.push(`<div class="clippy-line"><strong>Hitomi:</strong> I missed that. What should I call you?</div>`)
+        renderClippyBubble()
+        showClippyBubble({ variant: "compact", snapNoOverlap: true, preferAbove: true })
+        return
+      }
+      try {
+        const ok = await setUserName(normalized)
+        if (!ok) throw new Error("Could not save your name.")
+        cloudNameMessages.push(`<div class="clippy-line"><strong>Hitomi:</strong> Nice to meet you, ${escapeHtml(normalized)}.</div>`)
+        cloudNameMessages.push(`<div class="clippy-line"><strong>Hitomi:</strong> Opening your cloud workspace now.</div>`)
+        cloudNameCaptureActive = false
+        renderClippyBubble()
+        await createCloudWorkspace()
+        setStatus(`Welcome, ${normalized}.`)
+      } catch (err) {
+        cloudNameMessages.push(`<div class="clippy-line"><strong>Hitomi:</strong> I could not save that yet. Try again?</div>`)
+        setStatus(err instanceof Error ? err.message : "Could not save name")
+      }
+      return
+    }
     if (isOnboardingGuideActive()) {
       try {
         await onboardingHedgey?.handleUserInput?.(text)
@@ -3016,7 +3079,7 @@ function setClippyMode(next){
     const thread = getChatOneThread()
     const messages = Array.isArray(thread?.messages) ? thread.messages : []
     clippyLastAssistantKey = latestAssistantMessageKey(messages)
-    hideClippyBubble()
+    if (!clippyBubbleLocked) hideClippyBubble()
     updateClippyVoiceBadge()
     markClippyActivity()
     setStatus("Clippy mode enabled.")
@@ -3085,7 +3148,7 @@ function renderChat(){
     const chatOneMessages = Array.isArray(chatOne?.messages) ? chatOne.messages : []
     const latestKey = latestAssistantMessageKey(chatOneMessages)
     const bubbleHidden = clippyUi?.bubble?.classList.contains("clippy-hidden")
-    if (latestKey && latestKey !== clippyLastAssistantKey && bubbleHidden) {
+    if (!clippyBubbleLocked && latestKey && latestKey !== clippyLastAssistantKey && bubbleHidden) {
       showClippyBubble({ variant: "compact", snapNoOverlap: true, preferAbove: true })
     }
     clippyLastAssistantKey = latestKey || clippyLastAssistantKey
@@ -3560,6 +3623,10 @@ function revealPostOpenAiWindows(){
 }
 
 function syncOnboardingGuideActivation(){
+  if (isCloudAuthHost()) {
+    onboardingHedgey?.setActive(false)
+    return
+  }
   if (!onboardingHedgey) return
   if (isAiIntroGuideActive()) {
     onboardingHedgey.setActive(false)
@@ -4038,6 +4105,24 @@ function configWindowHtml(){
   `
 }
 
+function creditsWindowHtml(){
+  return `
+    <div class="agent-stack">
+      <div class="agent-note"><strong>Cloud Credits</strong></div>
+      <div class="agent-meta-row">
+        <span>Plan: <strong>Free</strong></span>
+        <span>Provider: <strong>xAI (Grok)</strong></span>
+      </div>
+      <div class="agent-note">Daily allocation: <strong>10 prompts/day</strong>.</div>
+      <div class="agent-note">Remaining today: <strong id="creditsRemaining">10</strong></div>
+      <div class="agent-row agent-wrap-row">
+        <button id="creditsSubscribeBtn" class="btn" type="button" disabled>Subscribe</button>
+        <span class="agent-note agent-note-warn">Coming soon</span>
+      </div>
+    </div>
+  `
+}
+
 function soulWindowHtml(){
   return `
     <div class="agent-notepad">
@@ -4187,6 +4272,8 @@ function cacheElements(){
     heartbeatDocInput: byId("heartbeatDocInput"),
     heartbeatLineNums: byId("heartbeatLineNums"),
     eventLog: byId("eventLog"),
+    creditsRemaining: byId("creditsRemaining"),
+    creditsSubscribeBtn: byId("creditsSubscribeBtn"),
   })
   Object.assign(els, cacheShellRelayElements(byId))
 }
@@ -5184,6 +5271,67 @@ async function createWorkspace({ showUnlock, onboarding }) {
   }
 }
 
+function cloudAttentionTarget(){
+  const { w, h } = getDesktopViewport()
+  const mobile = w <= 760
+  if (mobile) {
+    return {
+      left: Math.max(8, Math.round((w - 132) / 2)),
+      top: Math.max(0, h - 164),
+    }
+  }
+  return {
+    left: Math.max(12, Math.round((w - 132) / 2)),
+    top: Math.max(24, Math.round(h * 0.56)),
+  }
+}
+
+async function runCloudAuthAttentionHandoff(){
+  setClippyBubbleLocked(false)
+  setClippyMode(true)
+  const ui = ensureClippyAssistant()
+  if (!ui?.root) return
+  const from = {
+    left: parseFloat(ui.root.style.left) || 0,
+    top: parseFloat(ui.root.style.top) || 0,
+  }
+  const to = cloudAttentionTarget()
+  setClippyFacingLeft(to.left < from.left)
+  await animateClippyHop(from, to, 560)
+  cloudNameCaptureActive = true
+  cloudNameMessages = []
+  clippyBubbleVariant = "compact"
+  showClippyBubble({ variant: "compact", snapNoOverlap: true, preferAbove: true })
+  renderClippyBubble()
+}
+
+async function createCloudWorkspace(){
+  if (cloudWorkspaceReady) return
+  cloudWorkspaceReady = true
+  workspaceReady = true
+  onboardingComplete = true
+  localStorage.setItem(ONBOARDING_KEY, "1")
+  localStorage.setItem(ONBOARDING_OPENAI_TEST_KEY, "1")
+  onboardingHedgey?.setActive?.(false)
+
+  if (!wins.chat?.win?.isConnected) wins.chat = wmRef.createAgentPanelWindow("Chat", { panelId: "chat", left: 20, top: 28, width: 480, height: 320, closeAsMinimize: true })
+  if (wins.chat?.panelRoot) wins.chat.panelRoot.innerHTML = chatWindowHtml()
+
+  if (!wins.events?.win?.isConnected) wins.events = wmRef.createAgentPanelWindow("Events", { panelId: "events", left: 680, top: 360, width: 360, height: 330, closeAsMinimize: true })
+  if (wins.events?.panelRoot) wins.events.panelRoot.innerHTML = eventsWindowHtml()
+
+  if (!wins.credits?.win?.isConnected) wins.credits = wmRef.createAgentPanelWindow("Credits", { panelId: "credits", left: 510, top: 28, width: 430, height: 220, closeAsMinimize: true })
+  if (wins.credits?.panelRoot) wins.credits.panelRoot.innerHTML = creditsWindowHtml()
+
+  cacheElements()
+  wireMainDom()
+  loadInputsFromState()
+  renderChat()
+  renderEvents()
+  refreshUi()
+  await addEvent("cloud_mode", "Cloud mode active. Managed xAI plan: Free (10 prompts/day).")
+}
+
 async function loadPersistentState(){
   const [meta, cfg, savedState, events] = await Promise.all([getVaultMeta(), getConfig(), getState(), getRecentEvents()])
   appState.vaultReady = Boolean(meta)
@@ -5238,6 +5386,7 @@ async function continueStandardOnboardingFlow(){
       setClippyMode(true)
       positionClippyAtRight()
     }
+    setClippyBubbleLocked(true)
     const authed = await ensureCloudAuthSession({
       wm: wmRef,
       getDesktopViewport,
@@ -5254,6 +5403,14 @@ async function continueStandardOnboardingFlow(){
       },
     })
     if (!authed) return
+    if (!userName) {
+      await runCloudAuthAttentionHandoff()
+      return
+    }
+    setClippyBubbleLocked(false)
+    await createCloudWorkspace()
+    setStatus(`Welcome back, ${userName}.`)
+    return
   }
 
   onboardingHedgey?.setActive?.(!onboardingComplete)
@@ -5294,6 +5451,11 @@ async function continueStandardOnboardingFlow(){
 
 export async function initAgent1C({ wm }){
   wmRef = wm
+  if (isCloudAuthHost()) {
+    setClippyMode(true)
+    positionClippyAtRight()
+    setClippyBubbleLocked(true)
+  }
   loadPreviewProviderState()
   onboardingComplete = localStorage.getItem(ONBOARDING_KEY) === "1"
   onboardingOpenAiTested = localStorage.getItem(ONBOARDING_OPENAI_TEST_KEY) === "1"
@@ -5316,7 +5478,7 @@ export async function initAgent1C({ wm }){
     onCaptureName: async (name) => {
       const ok = await setUserName(name)
       if (!ok) return false
-      if (setupWin?.id) {
+      if (!isCloudAuthHost() && setupWin?.id) {
         restoreWindow(setupWin)
         focusWindow(setupWin)
       }
