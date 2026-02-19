@@ -45,20 +45,37 @@ function authWindowHtml(){
   return `
     <div class="agent-stack agent-auth">
       <div class="agent-auth-head">
+        <div class="agent-auth-badge">Agent1c Cloud Access</div>
         <div class="agent-auth-title">Welcome to Agent1c.ai</div>
         <div class="agent-auth-sub">Sign in to continue your hosted Agentic OS setup.</div>
       </div>
       <div class="agent-auth-actions">
-        <button id="authGoogleBtn" class="btn" type="button">Continue with Google</button>
-        <button id="authXBtn" class="btn" type="button">Continue with X</button>
+        <button id="authGoogleBtn" class="btn agent-auth-btn agent-auth-btn-google" type="button">
+          <span class="agent-auth-logo" aria-hidden="true">
+            <svg viewBox="0 0 18 18" width="16" height="16" role="img" focusable="false">
+              <path fill="#EA4335" d="M9 7.2v3.6h5c-.2 1.2-1.5 3.6-5 3.6-3 0-5.5-2.5-5.5-5.5S6 3.4 9 3.4c1.7 0 2.8.7 3.4 1.3l2.3-2.2C13.3 1.2 11.3.3 9 .3 4.2.3.3 4.2.3 9S4.2 17.7 9 17.7c5.2 0 8.6-3.6 8.6-8.8 0-.6-.1-1.1-.1-1.7H9z"/>
+            </svg>
+          </span>
+          <span>Continue with Google</span>
+        </button>
+        <button id="authXBtn" class="btn agent-auth-btn agent-auth-btn-x" type="button">
+          <span class="agent-auth-logo" aria-hidden="true">
+            <svg viewBox="0 0 1200 1227" width="14" height="14" role="img" focusable="false">
+              <path fill="currentColor" d="M714 519 1160 0h-106L667 450 359 0H0l468 682L0 1227h106l409-476 326 476h359L714 519zM569 688l-47-67L149 89h163l301 430 47 67 391 560H888L569 688z"/>
+            </svg>
+          </span>
+          <span>Continue with X</span>
+        </button>
       </div>
-      <div class="agent-auth-divider">or use a magic link</div>
-      <form id="authMagicForm" class="agent-auth-magic" autocomplete="on">
-        <input id="authMagicEmail" class="field" type="email" inputmode="email" placeholder="you@example.com" required />
-        <button id="authMagicBtn" class="btn" type="submit">Send Link</button>
-      </form>
-      <div class="agent-row">
-        <button id="authRefreshBtn" class="btn" type="button">I already signed in</button>
+      <div class="agent-auth-panel">
+        <div class="agent-auth-divider">Or use a magic link</div>
+        <form id="authMagicForm" class="agent-auth-magic" autocomplete="on">
+          <input id="authMagicEmail" class="field" type="email" inputmode="email" placeholder="you@example.com" required />
+          <button id="authMagicBtn" class="btn agent-auth-btn-alt" type="submit">Send Link</button>
+        </form>
+      </div>
+      <div class="agent-row agent-auth-footer-row">
+        <button id="authRefreshBtn" class="btn agent-auth-btn-alt" type="button">I already signed in</button>
         <span id="authStatus" class="agent-auth-status">Signed out.</span>
       </div>
       <div class="agent-auth-note">
