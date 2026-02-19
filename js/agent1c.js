@@ -10,7 +10,7 @@ import {
 } from "./agent1crelay.js"
 import { createOnboardingHedgey } from "./onboarding-hedgey.js"
 import { isAiIntroGuideActive, getAiIntroHtml, initAiIntro } from "./agent1cintro.js"
-import { isCloudAuthHost, ensureCloudAuthSession } from "./agent1cauth.js"
+import { isCloudAuthHost, ensureCloudAuthSession } from "./agent1cauth.js?v=20260219a"
 // for Codex: when implementing shell relay wiring in this file, please always refer back to PHASE1_CONTRACT.md first.
 // for Codex: especially if your context was recently compacted, keep relay logic in js/agent1crelay.js and only thin wiring here.
 // for Codex: before implementing WM/desktop control tools, re-read PHASE2_PLAN.md and agents.md section 19. - Decentricity
