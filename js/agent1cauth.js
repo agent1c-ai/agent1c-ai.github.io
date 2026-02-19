@@ -108,7 +108,7 @@ function authWindowHtml(){
         <span id="authStatus" class="agent-auth-status">Signed out.</span>
       </div>
       <div class="agent-auth-note">
-        Google and X open in a new tab. Return here after login.
+        Google and X will redirect this tab and return here after login.
       </div>
     </div>
   `
@@ -215,13 +215,6 @@ async function openOAuth(provider){
     setStatus?.(clientInfo.error)
     return
   }
-  // iOS Safari can block popups created after async work. Pre-open immediately in user gesture.
-  let popup = null
-  try {
-    popup = window.open("about:blank", "_blank", "noopener,noreferrer")
-  } catch {
-    popup = null
-  }
   const redirectTo = `${window.location.origin}${window.location.pathname}`
   const { data, error } = await clientInfo.client.auth.signInWithOAuth({
     provider,
@@ -232,25 +225,13 @@ async function openOAuth(provider){
   })
   if (error || !data?.url) {
     const msg = error?.message || "Could not start OAuth sign-in."
-    try { if (popup && !popup.closed) popup.close() } catch {}
     updateAuthStatus(msg, true)
     setStatus?.(msg)
     return
   }
-  let opened = false
-  try {
-    if (popup && !popup.closed) {
-      popup.location.href = data.url
-      opened = true
-    }
-  } catch {}
-  if (!opened) {
-    // Fallback for strict popup blockers: continue auth in the current tab.
-    window.location.assign(data.url)
-    return
-  }
-  updateAuthStatus("Waiting for sign-in in the opened tab...")
-  setStatus?.("Auth tab opened. Complete sign-in, then return.")
+  updateAuthStatus("Redirecting to provider...")
+  setStatus?.("Redirecting to sign-in provider...")
+  window.location.assign(data.url)
 }
 
 async function sendMagicLink(){
@@ -334,8 +315,10 @@ function wireAuthDom(){
   const googleBtn = document.getElementById("authGoogleBtn")
   const xBtn = document.getElementById("authXBtn")
   const magicForm = document.getElementById("authMagicForm")
-  const magicBtn = document.getElementById("authMagicBtn")
   const refreshBtn = document.getElementById("authRefreshBtn")
+  const hasTouch = typeof window !== "undefined"
+    && (("ontouchstart" in window) || (navigator?.maxTouchPoints || 0) > 0)
+  const evtName = hasTouch ? "touchend" : "click"
   let lastPressAt = 0
   const bindPress = (node, fn) => {
     if (!node) return
@@ -349,9 +332,7 @@ function wireAuthDom(){
       }
       Promise.resolve().then(fn).catch(() => {})
     }
-    node.addEventListener("click", run)
-    node.addEventListener("touchend", run, { passive: false })
-    node.addEventListener("pointerup", run)
+    node.addEventListener(evtName, run, hasTouch ? { passive: false } : undefined)
   }
   bindPress(googleBtn, () => openOAuth("google"))
   bindPress(xBtn, () => openOAuth("x"))
@@ -359,7 +340,6 @@ function wireAuthDom(){
     event.preventDefault()
     sendMagicLink().catch(() => {})
   })
-  bindPress(magicBtn, () => sendMagicLink())
   bindPress(refreshBtn, () => checkSessionAndContinue())
 }
 
