@@ -299,6 +299,7 @@ let hitomiDesktopIcon = null
 let hitomiIconObserver = null
 let hitomiIconRelayoutQueued = false
 let cloudAuthGateActive = false
+let cloudAuthSessionReady = false
 let cloudWelcomeBackPromptSent = false
 const thinkingThreadIds = new Set()
 
@@ -721,6 +722,14 @@ function lockVault(){
 
 function canAccessSecrets(){
   return Boolean(appState.unlocked || appState.unencryptedMode)
+}
+
+function canUseAgentRuntime(){
+  if (isCloudAuthHost()) {
+    const xaiErr = String(previewProviderState?.providerErrors?.xai || "").trim()
+    return Boolean(cloudAuthSessionReady) && !xaiErr
+  }
+  return canAccessSecrets()
 }
 
 function setUnencryptedMode(enabled){
@@ -1943,7 +1952,7 @@ async function handleFilesystemUploadNotice(uploadedFiles){
   if (!files.length) return
   const summary = files.map(fileMetaLabel).join("; ")
   await addEvent("filesystem_upload_detected", `New uploaded file(s): ${summary}`)
-  if (!canAccessSecrets() && !isCloudAuthHost()) return
+  if (!canUseAgentRuntime()) return
   const runtime = await resolveActiveProviderRuntime()
   if (runtimeMissingProviderAccess(runtime)) return
   const prompt = [
@@ -3389,7 +3398,7 @@ async function refreshBadges(){
 }
 
 function refreshUi(){
-  const canUse = canAccessSecrets()
+  const canUse = canUseAgentRuntime()
   if (els.chatInput) {
     els.chatInput.disabled = false
     els.chatInput.placeholder = "Write a message..."
@@ -4474,7 +4483,7 @@ async function sendChat(text, { threadId } = {}){
 
 async function heartbeatTick(){
   if (!appState.running) return
-  if (!canAccessSecrets()) return
+  if (!canUseAgentRuntime()) return
   appState.agent.lastTickAt = Date.now()
   if (els.lastTick) els.lastTick.textContent = formatTime(appState.agent.lastTickAt)
   const runtime = await resolveActiveProviderRuntime()
@@ -4533,7 +4542,7 @@ function stopTelegramLoop(){
 
 function refreshTelegramLoop(){
   stopTelegramLoop()
-  if (!canAccessSecrets() || !appState.telegramEnabled) return
+  if (!canUseAgentRuntime() || !appState.telegramEnabled) return
   appState.telegramTimer = setInterval(() => {
     pollTelegram().catch(() => {})
   }, appState.telegramPollMs)
@@ -4541,7 +4550,7 @@ function refreshTelegramLoop(){
 }
 
 async function pollTelegram(){
-  if (appState.telegramPolling || !canAccessSecrets() || !appState.telegramEnabled) return
+  if (appState.telegramPolling || !canUseAgentRuntime() || !appState.telegramEnabled) return
   appState.telegramPolling = true
   try {
     const [token, runtime] = await Promise.all([readProviderKey("telegram"), resolveActiveProviderRuntime()])
@@ -5246,7 +5255,7 @@ function wireMainDom(){
   })
 
   els.startLoopBtn?.addEventListener("click", async () => {
-    if (!canAccessSecrets()) {
+    if (!canUseAgentRuntime()) {
       setStatus("Initialize or unlock vault first.")
       return
     }
@@ -5542,6 +5551,7 @@ async function continueStandardOnboardingFlow(){
           })
       },
     })
+    cloudAuthSessionReady = Boolean(authed)
     if (!authed) return
     if (!userName) {
       await runCloudAuthAttentionHandoff()
