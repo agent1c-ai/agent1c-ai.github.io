@@ -890,3 +890,14 @@ If setup behavior looks wrong, check in this order:
 1. `data/onboarding-hedgey-phase1.json` (source of truth)
 2. `js/onboarding-hedgey.js` (state/trigger engine)
 3. `js/agent1c.js` integration hooks in `wireSetupDom`, `wireProviderPreviewDom`, `initAgent1C`
+
+---
+
+## 21) Cross-Repo Delta Source
+
+Before porting or restoring behavior between `.ai` and `.me`, read:
+
+1. `CLOUD_VS_LOCAL_DIFF.md` (this repo)
+2. `../agent1c-me.github.io/LOCAL_VS_CLOUD_DIFF.md` (sovereign counterpart)
+
+Treat those two docs as the explicit intent-vs-drift map.

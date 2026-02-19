@@ -161,10 +161,10 @@ Important planning files there include:
 - `PHASE1_SUPABASE_AUTH_PLAN.md`
 - `PHASE2_PLAN.md`
 - `PHASE_ONBOARDING_HEDGEY_PLAN.md`
+- `../agent1c-ai.github.io/CLOUD_VS_LOCAL_DIFF.md` (explicit `.ai` vs `.me` behavior map)
 
 ## 11) Deployment
 
 - Static hosting: GitHub Pages.
 - Custom domains: `agent1c.ai`, `www.agent1c.ai`, `app.agent1c.ai`.
 - Supabase project ref for cloud runtime: `gkfhxhrleuauhnuewfmw`.
-
