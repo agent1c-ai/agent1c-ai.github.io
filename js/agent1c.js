@@ -3429,9 +3429,10 @@ function refreshUi(){
   if (els.loopHeartbeatMinInput) els.loopHeartbeatMinInput.disabled = !canUse
   if (els.telegramPollInput) els.telegramPollInput.disabled = !canUse
   if (els.telegramEnabledSelect) els.telegramEnabledSelect.disabled = !canUse
-  if (els.soulInput) els.soulInput.disabled = !canUse
-  if (els.toolsInput) els.toolsInput.disabled = !canUse
-  if (els.heartbeatDocInput) els.heartbeatDocInput.disabled = !canUse
+  // Keep core agent docs live-editable regardless of vault gate.
+  if (els.soulInput) els.soulInput.disabled = false
+  if (els.toolsInput) els.toolsInput.disabled = false
+  if (els.heartbeatDocInput) els.heartbeatDocInput.disabled = false
   if (els.startLoopBtn) els.startLoopBtn.disabled = !canUse || appState.running
   if (els.stopLoopBtn) els.stopLoopBtn.disabled = !appState.running
   if (els.telegramSaveBtn) els.telegramSaveBtn.textContent = appState.unencryptedMode ? "Save Token (Local)" : "Save Token"
