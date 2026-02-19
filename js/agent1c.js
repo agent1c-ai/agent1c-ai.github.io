@@ -5317,6 +5317,21 @@ async function createCloudWorkspace(){
   if (!wins.chat?.win?.isConnected) wins.chat = wmRef.createAgentPanelWindow("Chat", { panelId: "chat", left: 20, top: 28, width: 480, height: 320, closeAsMinimize: true })
   if (wins.chat?.panelRoot) wins.chat.panelRoot.innerHTML = chatWindowHtml()
 
+  if (!wins.config?.win?.isConnected) wins.config = wmRef.createAgentPanelWindow("Config", { panelId: "config", left: 20, top: 356, width: 430, height: 220, closeAsMinimize: true })
+  if (wins.config?.panelRoot) wins.config.panelRoot.innerHTML = configWindowHtml()
+
+  if (!wins.shellrelay?.win?.isConnected) wins.shellrelay = wmRef.createAgentPanelWindow("Shell Relay", { panelId: "shellrelay", left: 1045, top: 360, width: 460, height: 470, closeAsMinimize: true })
+  if (wins.shellrelay?.panelRoot) wins.shellrelay.panelRoot.innerHTML = shellRelayWindowHtml()
+
+  if (!wins.soul?.win?.isConnected) wins.soul = wmRef.createAgentPanelWindow("SOUL.md", { panelId: "soul", left: 20, top: 644, width: 320, height: 330, closeAsMinimize: true })
+  if (wins.soul?.panelRoot) wins.soul.panelRoot.innerHTML = soulWindowHtml()
+
+  if (!wins.tools?.win?.isConnected) wins.tools = wmRef.createAgentPanelWindow("TOOLS.md", { panelId: "tools", left: 680, top: 360, width: 360, height: 280, closeAsMinimize: true })
+  if (wins.tools?.panelRoot) wins.tools.panelRoot.innerHTML = toolsWindowHtml()
+
+  if (!wins.heartbeat?.win?.isConnected) wins.heartbeat = wmRef.createAgentPanelWindow("heartbeat.md", { panelId: "heartbeat", left: 350, top: 644, width: 320, height: 330, closeAsMinimize: true })
+  if (wins.heartbeat?.panelRoot) wins.heartbeat.panelRoot.innerHTML = heartbeatWindowHtml()
+
   if (!wins.events?.win?.isConnected) wins.events = wmRef.createAgentPanelWindow("Events", { panelId: "events", left: 680, top: 360, width: 360, height: 330, closeAsMinimize: true })
   if (wins.events?.panelRoot) wins.events.panelRoot.innerHTML = eventsWindowHtml()
 
@@ -5325,10 +5340,17 @@ async function createCloudWorkspace(){
 
   cacheElements()
   wireMainDom()
+  wireShellRelayWindowDom(wins.shellrelay)
   loadInputsFromState()
   renderChat()
   renderEvents()
   refreshUi()
+
+  minimizeWindow(wins.shellrelay)
+  minimizeWindow(wins.soul)
+  minimizeWindow(wins.tools)
+  minimizeWindow(wins.heartbeat)
+
   await addEvent("cloud_mode", "Cloud mode active. Managed xAI plan: Free (10 prompts/day).")
 }
 
