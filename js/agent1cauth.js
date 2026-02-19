@@ -215,6 +215,13 @@ async function openOAuth(provider){
     setStatus?.(clientInfo.error)
     return
   }
+  // iOS Safari can block popups created after async work. Pre-open immediately in user gesture.
+  let popup = null
+  try {
+    popup = window.open("about:blank", "_blank", "noopener,noreferrer")
+  } catch {
+    popup = null
+  }
   const redirectTo = `${window.location.origin}${window.location.pathname}`
   const { data, error } = await clientInfo.client.auth.signInWithOAuth({
     provider,
@@ -225,11 +232,23 @@ async function openOAuth(provider){
   })
   if (error || !data?.url) {
     const msg = error?.message || "Could not start OAuth sign-in."
+    try { if (popup && !popup.closed) popup.close() } catch {}
     updateAuthStatus(msg, true)
     setStatus?.(msg)
     return
   }
-  window.open(data.url, "_blank", "noopener,noreferrer")
+  let opened = false
+  try {
+    if (popup && !popup.closed) {
+      popup.location.href = data.url
+      opened = true
+    }
+  } catch {}
+  if (!opened) {
+    // Fallback for strict popup blockers: continue auth in the current tab.
+    window.location.assign(data.url)
+    return
+  }
   updateAuthStatus("Waiting for sign-in in the opened tab...")
   setStatus?.("Auth tab opened. Complete sign-in, then return.")
 }
