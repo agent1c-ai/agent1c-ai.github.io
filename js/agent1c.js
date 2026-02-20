@@ -3810,16 +3810,20 @@ function unlockWindowHtml(){
 function chatWindowHtml(){
   return `
     <div class="agent-stack">
-      <div class="agent-row agent-wrap-row">
-        <select id="chatThreadSelect" class="field"></select>
-        <button id="chatNewBtn" class="btn" type="button">New Chat</button>
-        <button id="chatClearBtn" class="btn" type="button">Clear Chat</button>
+      <div class="agent-pane agent-pane-chrome">
+        <div class="agent-row agent-wrap-row">
+          <select id="chatThreadSelect" class="field"></select>
+          <button id="chatNewBtn" class="btn" type="button">New Chat</button>
+          <button id="chatClearBtn" class="btn" type="button">Clear Chat</button>
+        </div>
       </div>
-      <div id="chatLog" class="agent-log"></div>
-      <form id="chatForm" class="agent-row">
-        <input id="chatInput" class="field" type="text" />
-        <button id="chatSendBtn" class="btn" type="submit">Send</button>
-      </form>
+      <div id="chatLog" class="agent-log agent-pane agent-pane-canvas"></div>
+      <div class="agent-pane agent-pane-chrome">
+        <form id="chatForm" class="agent-row">
+          <input id="chatInput" class="field" type="text" />
+          <button id="chatSendBtn" class="btn" type="submit">Send</button>
+        </form>
+      </div>
     </div>
   `
 }
@@ -4179,40 +4183,46 @@ function telegramWindowHtml(){
 function configWindowHtml(){
   return `
     <div class="agent-stack">
-      <div class="agent-grid2">
-        <label class="agent-form-label">
-          <span>Rolling context max messages</span>
-          <input id="contextInput" class="field" type="number" min="4" max="64" step="1" />
-        </label>
-        <label class="agent-form-label">
-          <span>Temperature</span>
-          <input id="temperatureInput" class="field" type="number" min="0" max="1.5" step="0.1" />
-        </label>
-      </div>
-      <label class="agent-form-label">
-        <span>Heartbeat every (min)</span>
-        <div class="agent-stepper">
-          <input id="loopHeartbeatMinInput" class="field" type="number" min="1" step="1" />
-          <div class="agent-stepper-buttons">
-            <button id="loopHeartbeatUpBtn" class="btn agent-stepper-btn" type="button" aria-label="Increase heartbeat minutes">+</button>
-            <button id="loopHeartbeatDownBtn" class="btn agent-stepper-btn" type="button" aria-label="Decrease heartbeat minutes">-</button>
-          </div>
+      <div class="agent-pane agent-pane-chrome">
+        <div class="agent-grid2">
+          <label class="agent-form-label">
+            <span>Rolling context max messages</span>
+            <input id="contextInput" class="field" type="number" min="4" max="64" step="1" />
+          </label>
+          <label class="agent-form-label">
+            <span>Temperature</span>
+            <input id="temperatureInput" class="field" type="number" min="0" max="1.5" step="0.1" />
+          </label>
         </div>
-      </label>
-      <div class="agent-row agent-wrap-row">
-        <button id="startLoopBtn" class="btn" type="button">Start Agent Loop</button>
-        <button id="stopLoopBtn" class="btn" type="button">Stop Loop</button>
       </div>
-      <div class="agent-row agent-wrap-row">
-        <button id="openShellRelayBtn" class="btn" type="button">Shell Relay...</button>
-        <span class="agent-note">Open shell relay setup and controls.</span>
+      <div class="agent-pane agent-pane-chrome">
+        <label class="agent-form-label">
+          <span>Heartbeat every (min)</span>
+          <div class="agent-stepper">
+            <input id="loopHeartbeatMinInput" class="field" type="number" min="1" step="1" />
+            <div class="agent-stepper-buttons">
+              <button id="loopHeartbeatUpBtn" class="btn agent-stepper-btn" type="button" aria-label="Increase heartbeat minutes">+</button>
+              <button id="loopHeartbeatDownBtn" class="btn agent-stepper-btn" type="button" aria-label="Decrease heartbeat minutes">-</button>
+            </div>
+          </div>
+        </label>
+        <div class="agent-row agent-wrap-row">
+          <button id="startLoopBtn" class="btn" type="button">Start Agent Loop</button>
+          <button id="stopLoopBtn" class="btn" type="button">Stop Loop</button>
+        </div>
       </div>
-      <div class="agent-meta-row">
-        <span>Loop status: <strong id="loopStatus">idle</strong></span>
-        <span>Last tick: <strong id="lastTick">never</strong></span>
-      </div>
-      <div class="agent-meta-row">
-        <span>Agent status: <strong id="agentStatus">idle</strong></span>
+      <div class="agent-pane agent-pane-canvas">
+        <div class="agent-row agent-wrap-row">
+          <button id="openShellRelayBtn" class="btn" type="button">Shell Relay...</button>
+          <span class="agent-note">Open shell relay setup and controls.</span>
+        </div>
+        <div class="agent-meta-row">
+          <span>Loop status: <strong id="loopStatus">idle</strong></span>
+          <span>Last tick: <strong id="lastTick">never</strong></span>
+        </div>
+        <div class="agent-meta-row">
+          <span>Agent status: <strong id="agentStatus">idle</strong></span>
+        </div>
       </div>
     </div>
   `
@@ -4221,16 +4231,22 @@ function configWindowHtml(){
 function creditsWindowHtml(){
   return `
     <div class="agent-stack">
-      <div class="agent-note"><strong>Cloud Credits</strong></div>
-      <div class="agent-meta-row">
-        <span>Plan: <strong>Free</strong></span>
-        <span>Provider: <strong>Managed Cloud</strong></span>
+      <div class="agent-pane agent-pane-chrome">
+        <div class="agent-note"><strong>Cloud Credits</strong></div>
+        <div class="agent-meta-row">
+          <span>Plan: <strong>Free</strong></span>
+          <span>Provider: <strong>Managed Cloud</strong></span>
+        </div>
       </div>
-      <div class="agent-note"><strong id="creditsUsed">0/12,000 tokens used today</strong></div>
-      <div class="agent-note">Remaining today: <strong id="creditsRemaining">12,000 tokens left</strong></div>
-      <div class="agent-row agent-wrap-row">
-        <button id="creditsSubscribeBtn" class="btn" type="button" disabled>Subscribe</button>
-        <span class="agent-note agent-note-warn">Coming soon</span>
+      <div class="agent-pane agent-pane-canvas">
+        <div class="agent-note"><strong id="creditsUsed">0/12,000 tokens used today</strong></div>
+        <div class="agent-note">Remaining today: <strong id="creditsRemaining">12,000 tokens left</strong></div>
+      </div>
+      <div class="agent-pane agent-pane-chrome">
+        <div class="agent-row agent-wrap-row">
+          <button id="creditsSubscribeBtn" class="btn" type="button" disabled>Subscribe</button>
+          <span class="agent-note agent-note-warn">Coming soon</span>
+        </div>
       </div>
     </div>
   `
