@@ -4379,6 +4379,14 @@ function creditsWindowHtml(){
   `
 }
 
+function applyCreditsWindowMinSize(){
+  const win = wins?.credits?.win
+  if (!win) return
+  // Keep plan buttons visible while still fitting typical phone widths.
+  win.style.minWidth = "260px"
+  win.style.minHeight = "245px"
+}
+
 function soulWindowHtml(){
   return `
     <div class="agent-notepad">
@@ -5661,6 +5669,7 @@ async function createCloudWorkspace(){
 
   if (!wins.credits?.win?.isConnected) wins.credits = wmRef.createAgentPanelWindow("Credits", { panelId: "credits", left: 510, top: 28, width: 430, height: 300, closeAsMinimize: true })
   if (wins.credits?.panelRoot) wins.credits.panelRoot.innerHTML = creditsWindowHtml()
+  applyCreditsWindowMinSize()
 
   cacheElements()
   wireMainDom()
