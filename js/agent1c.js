@@ -882,11 +882,15 @@ function applyCloudUsageToUi(usage){
   const used = Math.max(0, Number(usage?.used || 0))
   const limit = Math.max(1, Number(usage?.limit || 12000))
   const remaining = Math.max(0, Number(usage?.remaining ?? (limit - used)))
+  const planName = String(usage?.plan_name || usage?.plan_tier || "").trim()
   if (els.creditsUsed) {
     els.creditsUsed.textContent = `${formatNumber(used)}/${formatNumber(limit)} tokens used today`
   }
   if (els.creditsRemaining) {
     els.creditsRemaining.textContent = `${formatNumber(remaining)} tokens left`
+  }
+  if (els.creditsPlan && planName) {
+    els.creditsPlan.textContent = planName
   }
 }
 
@@ -4270,7 +4274,7 @@ function creditsWindowHtml(){
       <div class="agent-pane agent-pane-chrome">
         <div class="agent-note"><strong>Cloud Credits</strong></div>
         <div class="agent-meta-row">
-          <span>Plan: <strong>Free</strong></span>
+          <span>Plan: <strong id="creditsPlan">Free</strong></span>
           <span>Provider: <strong>Managed Cloud</strong></span>
         </div>
       </div>
@@ -4439,6 +4443,7 @@ function cacheElements(){
     eventLog: byId("eventLog"),
     creditsUsed: byId("creditsUsed"),
     creditsRemaining: byId("creditsRemaining"),
+    creditsPlan: byId("creditsPlan"),
     creditsSubscribeBtn: byId("creditsSubscribeBtn"),
   })
   Object.assign(els, cacheShellRelayElements(byId))
