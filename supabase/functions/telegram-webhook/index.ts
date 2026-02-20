@@ -115,7 +115,9 @@ serve(async (req) => {
       .update({ used_at: new Date().toISOString() })
       .eq("id", challengeRes.data.id)
 
-    await sendTelegramMessage(botToken, chatId, "Linked! Keep your Agent1c.ai tab open and message me here anytime.")
+    const handle = username ? `@${username.replace(/^@+/, "")}` : ""
+    const display = handle || firstName || "friend"
+    await sendTelegramMessage(botToken, chatId, `Linked, ${display}! Keep your Agent1c.ai tab open and message me here anytime.`)
     return json({ ok: true, linked: true, user_id: userId })
   }
 

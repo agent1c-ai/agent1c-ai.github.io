@@ -64,6 +64,7 @@ serve(async (req) => {
 
   const body = await req.json().catch(() => null) as {
     inbox_id?: number
+    inbox_ids?: number[]
     telegram_chat_id?: number
     reply_text?: string
   } | null
@@ -92,14 +93,20 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "telegram_send_failed" }), { status: 502, headers })
   }
 
-  if (body.inbox_id) {
+  const inboxIds = Array.isArray(body.inbox_ids)
+    ? body.inbox_ids.map(v => Number(v)).filter(v => Number.isFinite(v) && v > 0)
+    : []
+  if (Number(body.inbox_id) > 0) inboxIds.push(Number(body.inbox_id))
+  const uniqueInboxIds = Array.from(new Set(inboxIds))
+
+  if (uniqueInboxIds.length) {
     await adminClient
       .from("telegram_inbox")
       .update({
         delivered_at: new Date().toISOString(),
         reply_text: String(body.reply_text || "").slice(0, 3900),
       })
-      .eq("id", body.inbox_id)
+      .in("id", uniqueInboxIds)
       .eq("user_id", user.id)
       .is("delivered_at", null)
   }

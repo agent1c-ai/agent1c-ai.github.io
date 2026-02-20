@@ -1117,29 +1117,57 @@ async function pollCloudTelegramInbox(){
     const json = await cloudTelegramRequest("telegram-poll", CLOUD_TELEGRAM_POLL_FALLBACK, "GET")
     const items = Array.isArray(json?.items) ? json.items : (Array.isArray(json?.messages) ? json.messages : [])
     if (!items.length) return
+
+    const grouped = new Map()
     for (const item of items) {
       const inboxId = Number(item?.id || 0)
-      const text = String(item?.message_text || "").trim()
+      const text = String(item?.message_text || item?.text || "").trim()
       if (!inboxId || !text) continue
+      const chatId = Number(item?.telegram_chat_id || item?.chat_id || 0)
       const tgUserId = String(item?.telegram_user_id || "")
       const username = String(item?.telegram_username || "").trim()
       const firstName = String(item?.telegram_first_name || "").trim()
+      const key = `${chatId || 0}:${tgUserId || ""}`
+      const entry = grouped.get(key) || {
+        chatId,
+        tgUserId,
+        username,
+        firstName,
+        inboxIds: [],
+        texts: [],
+      }
+      entry.inboxIds.push(inboxId)
+      entry.texts.push(text)
+      if (!entry.username && username) entry.username = username
+      if (!entry.firstName && firstName) entry.firstName = firstName
+      if (!entry.tgUserId && tgUserId) entry.tgUserId = tgUserId
+      if (!entry.chatId && chatId) entry.chatId = chatId
+      grouped.set(key, entry)
+    }
+
+    for (const entry of grouped.values()) {
+      const tgUserId = String(entry.tgUserId || "")
+      const username = String(entry.username || "").trim()
+      const firstName = String(entry.firstName || "").trim()
       const chatObj = {
-        id: tgUserId || String(item?.chat_id || ""),
+        id: tgUserId || String(entry.chatId || ""),
         type: "private",
         username,
         first_name: firstName || username || "telegram",
       }
       const thread = ensureTelegramThread(chatObj)
       if (!thread) continue
-      pushLocalMessage(thread.id, "user", text)
+      const mergedText = entry.texts.length <= 1
+        ? String(entry.texts[0] || "")
+        : `Telegram messages while your tab was offline:\n${entry.texts.map(line => `- ${line}`).join("\n")}`
+      pushLocalMessage(thread.id, "user", mergedText)
       renderChat()
       const reply = await respondForThread(thread.id)
       const sendText = String(reply || "").trim()
       if (!sendText) continue
       await cloudTelegramRequest("telegram-send", CLOUD_TELEGRAM_SEND_FALLBACK, "POST", {
-        inbox_id: inboxId,
-        telegram_chat_id: Number(item?.telegram_chat_id || item?.chat_id || 0),
+        inbox_ids: entry.inboxIds,
+        telegram_chat_id: Number(entry.chatId || 0),
         reply_text: sendText.slice(0, 3900),
       })
       await addEvent("telegram_replied", `Replied to Telegram chat ${thread.label || username || tgUserId}`)
