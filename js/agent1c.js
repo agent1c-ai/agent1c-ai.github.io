@@ -10,7 +10,7 @@ import {
 } from "./agent1crelay.js"
 import { createOnboardingHedgey } from "./onboarding-hedgey.js"
 import { isAiIntroGuideActive, getAiIntroHtml, initAiIntro } from "./agent1cintro.js"
-import { isCloudAuthHost, hasCloudAuthSession, ensureCloudAuthSession, getCloudAuthAccessToken } from "./agent1cauth.js?v=20260219g"
+import { isCloudAuthHost, hasCloudAuthSession, ensureCloudAuthSession, getCloudAuthAccessToken, getCloudAuthIdentity } from "./agent1cauth.js?v=20260220a"
 // for Codex: when implementing shell relay wiring in this file, please always refer back to PHASE1_CONTRACT.md first.
 // for Codex: especially if your context was recently compacted, keep relay logic in js/agent1crelay.js and only thin wiring here.
 // for Codex: before implementing WM/desktop control tools, re-read PHASE2_PLAN.md and agents.md section 19. - Decentricity
@@ -878,6 +878,26 @@ function formatNumber(value){
   return Number(value || 0).toLocaleString("en-US")
 }
 
+function applyCloudIdentityToUi(identity){
+  if (!els.creditsAccount) return
+  const provider = String(identity?.provider || "").toLowerCase()
+  const handle = String(identity?.handle || "").trim()
+  const email = String(identity?.email || "").trim()
+  if (provider === "x" || provider === "twitter") {
+    els.creditsAccount.textContent = handle ? `@${handle.replace(/^@+/, "")}` : "X account"
+    return
+  }
+  if (provider === "google") {
+    els.creditsAccount.textContent = email || "Google account"
+    return
+  }
+  if (email) {
+    els.creditsAccount.textContent = email
+    return
+  }
+  els.creditsAccount.textContent = "Signed in"
+}
+
 function applyCloudUsageToUi(usage){
   const used = Math.max(0, Number(usage?.used || 0))
   const limit = Math.max(1, Number(usage?.limit || 12000))
@@ -892,6 +912,13 @@ function applyCloudUsageToUi(usage){
   if (els.creditsPlan && planName) {
     els.creditsPlan.textContent = planName
   }
+}
+
+async function refreshCloudIdentity(){
+  if (!isCloudAuthHost()) return
+  const identity = await getCloudAuthIdentity().catch(() => null)
+  if (!identity) return
+  applyCloudIdentityToUi(identity)
 }
 
 async function refreshCloudCredits(){
@@ -912,6 +939,7 @@ async function refreshCloudCredits(){
   const json = await response.json().catch(() => null)
   if (!json) return
   applyCloudUsageToUi(json)
+  await refreshCloudIdentity().catch(() => {})
 }
 
 async function zaiChat({ apiKey, model, temperature, systemPrompt, messages }){
@@ -4277,6 +4305,7 @@ function creditsWindowHtml(){
           <span>Plan: <strong id="creditsPlan">Free</strong></span>
           <span>Provider: <strong>Managed Cloud</strong></span>
         </div>
+        <div class="agent-note">Account: <strong id="creditsAccount">Signed out</strong></div>
       </div>
       <div class="agent-pane agent-pane-canvas">
         <div class="agent-note"><strong id="creditsUsed">0/12,000 tokens used today</strong></div>
@@ -4444,6 +4473,7 @@ function cacheElements(){
     creditsUsed: byId("creditsUsed"),
     creditsRemaining: byId("creditsRemaining"),
     creditsPlan: byId("creditsPlan"),
+    creditsAccount: byId("creditsAccount"),
     creditsSubscribeBtn: byId("creditsSubscribeBtn"),
   })
   Object.assign(els, cacheShellRelayElements(byId))

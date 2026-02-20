@@ -430,3 +430,48 @@ export async function getCloudAuthAccessToken(){
   } catch {}
   return ""
 }
+
+export async function getCloudAuthIdentity(){
+  if (!isCloudAuthHost()) return { provider: "", handle: "", email: "" }
+  const clientInfo = getClient()
+  if (!clientInfo.ok) return { provider: "", handle: "", email: "" }
+  try {
+    const { data, error } = await clientInfo.client.auth.getSession()
+    if (error || !data?.session?.user) return { provider: "", handle: "", email: "" }
+    const user = data.session.user
+    const identities = Array.isArray(user.identities) ? user.identities : []
+    const providerRaw = String(
+      user?.app_metadata?.provider
+      || user?.user_metadata?.provider
+      || identities[0]?.provider
+      || ""
+    ).toLowerCase()
+    const provider = providerRaw === "twitter" ? "x" : providerRaw
+    const identity =
+      identities.find((it) => String(it?.provider || "").toLowerCase() === providerRaw)
+      || identities.find((it) => String(it?.provider || "").toLowerCase() === provider)
+      || identities[0]
+      || null
+    const idData = (identity && typeof identity.identity_data === "object" && identity.identity_data)
+      ? identity.identity_data
+      : {}
+    const handle = String(
+      idData?.user_name
+      || idData?.preferred_username
+      || idData?.username
+      || user?.user_metadata?.user_name
+      || user?.user_metadata?.preferred_username
+      || user?.user_metadata?.username
+      || ""
+    ).trim()
+    const email = String(
+      user?.email
+      || idData?.email
+      || user?.user_metadata?.email
+      || ""
+    ).trim()
+    return { provider, handle, email }
+  } catch {
+    return { provider: "", handle: "", email: "" }
+  }
+}
