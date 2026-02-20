@@ -1911,23 +1911,57 @@ async function buildChatOneBootSystemMessage(){
   ].join("\n")
 }
 
-function buildCloudNameGreetingSystemMessage(name){
-  const safeName = String(name || "").trim() || "friend"
-  return [
-    "System Message: The user has just told you their name.",
-    `Name: ${safeName}`,
-    "Greet the user warmly by name and say one nice thing about their name.",
-    "Keep it short and natural.",
-  ].join("\n")
+function randomFrom(list){
+  if (!Array.isArray(list) || !list.length) return ""
+  const idx = Math.floor(Math.random() * list.length)
+  return String(list[idx] || "")
 }
 
-function buildCloudWelcomeBackSystemMessage(name){
+function buildProgrammaticHitomiGreeting(name, { welcomeBack = false } = {}){
   const safeName = String(name || "").trim() || "friend"
-  return [
-    "System Message: The user has just reloaded and returned to Agent1c.ai.",
-    `Name: ${safeName}`,
-    "Welcome them back by name in exactly one sentence. Do not tell a story.",
-  ].join("\n")
+  if (welcomeBack) {
+    const lead = randomFrom([
+      `Welcome back, ${safeName}`,
+      `Hi again, ${safeName}`,
+      `Hey ${safeName}, welcome back`,
+      `Good to see you again, ${safeName}`,
+    ])
+    const tail = randomFrom([
+      "glad you're here.",
+      "I missed you.",
+      "hope your day is going nicely.",
+      "ready when you are.",
+    ])
+    return `${lead}, ${tail}`
+  }
+  const open = randomFrom([
+    `Nice to meet you, ${safeName}.`,
+    `Hi ${safeName}, happy to meet you.`,
+    `Hey ${safeName}, lovely name.`,
+    `Yay, ${safeName}, nice to meet you.`,
+  ])
+  const follow = randomFrom([
+    "That name sounds warm and friendly.",
+    "I love your name.",
+    "It has such a nice vibe.",
+    "It feels bright and kind.",
+  ])
+  return `${open} ${follow}`
+}
+
+async function injectProgrammaticHitomiMessage(message, eventName, eventText){
+  const text = String(message || "").trim()
+  if (!text) return
+  const chatOne = getChatOneThread()
+  if (!chatOne?.id) return
+  pushLocalMessage(chatOne.id, "assistant", text)
+  if (eventName) await addEvent(eventName, eventText || "Programmatic message emitted")
+  await persistState()
+  renderChat()
+  renderClippyBubble()
+  if (clippyMode && clippyUi?.bubble?.classList.contains("clippy-hidden")) {
+    showClippyBubble({ variant: isOnboardingGuideActive() ? "compact" : "full", snapNoOverlap: true, preferAbove: true })
+  }
 }
 
 function pushLocalMessage(threadId, role, content){
@@ -3014,8 +3048,8 @@ function ensureClippyAssistant(){
         cloudNameCaptureActive = false
         renderClippyBubble()
         await createCloudWorkspace()
-        await triggerChatOneSystemPrompt(
-          buildCloudNameGreetingSystemMessage(normalized),
+        await injectProgrammaticHitomiMessage(
+          buildProgrammaticHitomiGreeting(normalized, { welcomeBack: false }),
           "name_greeting_replied",
           `Hitomi greeted ${normalized} after name capture.`,
         )
@@ -5603,8 +5637,8 @@ async function continueStandardOnboardingFlow(){
     await createCloudWorkspace()
     if (!cloudWelcomeBackPromptSent) {
       cloudWelcomeBackPromptSent = true
-      await triggerChatOneSystemPrompt(
-        buildCloudWelcomeBackSystemMessage(userName),
+      await injectProgrammaticHitomiMessage(
+        buildProgrammaticHitomiGreeting(userName, { welcomeBack: true }),
         "welcome_back_replied",
         `Hitomi welcomed ${userName} back after reload.`,
       )
