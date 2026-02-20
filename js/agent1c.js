@@ -759,7 +759,7 @@ async function migratePlaintextSecretsToEncrypted(){
 const XAI_BASE_URL = "https://api.x.ai/v1"
 const ZAI_BASE_URL = "https://api.z.ai/api/coding/paas/v4"
 const CLOUD_XAI_FUNCTION_FALLBACK = "https://gkfhxhrleuauhnuewfmw.supabase.co/functions/v1/xai-chat"
-const GUMROAD_CHECKOUT_FALLBACK = "https://store.agent1c.ai/l/agentic"
+const GUMROAD_CHECKOUT_FALLBACK = "https://store.agent1c.ai/l/agent1c"
 
 function normalizeOllamaBaseUrl(value){
   const source = String(value || "").trim()
