@@ -759,7 +759,9 @@ async function migratePlaintextSecretsToEncrypted(){
 const XAI_BASE_URL = "https://api.x.ai/v1"
 const ZAI_BASE_URL = "https://api.z.ai/api/coding/paas/v4"
 const CLOUD_XAI_FUNCTION_FALLBACK = "https://gkfhxhrleuauhnuewfmw.supabase.co/functions/v1/xai-chat"
-const GUMROAD_CHECKOUT_FALLBACK = "https://store.agent1c.ai/"
+const GUMROAD_CHECKOUT_FALLBACK = "https://decentricity.gumroad.com/l/agent1c"
+const GUMROAD_PRODUCT_PERMALINK_FALLBACK = "pepwol"
+const GUMROAD_OPTION_ID_FALLBACK = "98AbzG0GpRSmTGZg3ekKEA=="
 
 function normalizeOllamaBaseUrl(value){
   const source = String(value || "").trim()
@@ -931,6 +933,20 @@ function getBillingCheckoutBaseUrl(){
   return raw
 }
 
+function getBillingPlanConfig(plan){
+  const cfg = (window.__AGENT1C_BILLING_CONFIG && typeof window.__AGENT1C_BILLING_CONFIG === "object")
+    ? window.__AGENT1C_BILLING_CONFIG
+    : {}
+  const plans = (cfg.plans && typeof cfg.plans === "object") ? cfg.plans : {}
+  const key = String(plan || "monthly").toLowerCase()
+  const selected = key === "six_months" || key === "sixmonths" ? (plans.sixMonths || plans.sixmonths || null) : (plans.monthly || null)
+  const recurrence = String(selected?.recurrence || (key === "six_months" || key === "sixmonths" ? "biannually" : "monthly")).trim()
+  const price = Number.isFinite(Number(selected?.price)) ? Number(selected.price) : (recurrence === "biannually" ? 900 : 200)
+  const product = String(cfg.productPermalink || GUMROAD_PRODUCT_PERMALINK_FALLBACK).trim() || GUMROAD_PRODUCT_PERMALINK_FALLBACK
+  const optionId = String(cfg.optionId || GUMROAD_OPTION_ID_FALLBACK).trim() || GUMROAD_OPTION_ID_FALLBACK
+  return { recurrence, price, product, optionId }
+}
+
 async function openCreditsCheckout(){
   return openCreditsCheckoutForPlan("monthly")
 }
@@ -944,13 +960,14 @@ async function openCreditsCheckoutForPlan(plan = "monthly"){
   } catch {
     url = new URL(GUMROAD_CHECKOUT_FALLBACK)
   }
+  const planCfg = getBillingPlanConfig(plan)
   url.searchParams.set("wanted", "true")
   url.searchParams.set("source", "agent1c.ai")
-  if (String(plan).toLowerCase() === "six_months") {
-    url.searchParams.set("billing_cycle", "6_months")
-  } else {
-    url.searchParams.set("billing_cycle", "monthly")
-  }
+  url.searchParams.set("product", planCfg.product)
+  url.searchParams.set("option", planCfg.optionId)
+  url.searchParams.set("recurrence", planCfg.recurrence)
+  url.searchParams.set("price", String(planCfg.price))
+  url.searchParams.set("rent", "false")
   const identity = await getCloudAuthIdentity().catch(() => null)
   if (identity) {
     const email = String(identity.email || "").trim()
@@ -4354,8 +4371,8 @@ function creditsWindowHtml(){
       <div class="agent-pane agent-pane-chrome">
         <div class="agent-note"><strong>Choose plan</strong></div>
         <div class="agent-row agent-wrap-row credits-subscribe-row">
-          <button id="creditsSubscribeMonthlyBtn" class="btn agent-credits-subscribe-btn" type="button">$2 / month</button>
-          <button id="creditsSubscribeSixMonthBtn" class="btn agent-credits-subscribe-btn" type="button">$9 / 6 months</button>
+          <button id="creditsSubscribeMonthlyBtn" class="btn agent-credits-subscribe-btn" type="button">$2 / month · 100,000 tokens/day</button>
+          <button id="creditsSubscribeSixMonthBtn" class="btn agent-credits-subscribe-btn" type="button">$9 / 6 months · 100,000 tokens/day</button>
         </div>
       </div>
     </div>
@@ -5642,7 +5659,7 @@ async function createCloudWorkspace(){
   if (!wins.events?.win?.isConnected) wins.events = wmRef.createAgentPanelWindow("Events", { panelId: "events", left: 680, top: 360, width: 360, height: 330, closeAsMinimize: true })
   if (wins.events?.panelRoot) wins.events.panelRoot.innerHTML = eventsWindowHtml()
 
-  if (!wins.credits?.win?.isConnected) wins.credits = wmRef.createAgentPanelWindow("Credits", { panelId: "credits", left: 510, top: 28, width: 430, height: 260, closeAsMinimize: true })
+  if (!wins.credits?.win?.isConnected) wins.credits = wmRef.createAgentPanelWindow("Credits", { panelId: "credits", left: 510, top: 28, width: 430, height: 300, closeAsMinimize: true })
   if (wins.credits?.panelRoot) wins.credits.panelRoot.innerHTML = creditsWindowHtml()
 
   cacheElements()

@@ -2024,6 +2024,9 @@
   padding: 6px 10px;
   font-weight: 700;
   border-radius: 6px;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.2;
   background: linear-gradient(180deg, #ff9fda, #f278c4);
   border-color: #be5f96;
   color: #2a0d1e;
