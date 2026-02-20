@@ -932,6 +932,10 @@ function getBillingCheckoutBaseUrl(){
 }
 
 async function openCreditsCheckout(){
+  return openCreditsCheckoutForPlan("monthly")
+}
+
+async function openCreditsCheckoutForPlan(plan = "monthly"){
   if (!isCloudAuthHost()) return
   const base = getBillingCheckoutBaseUrl()
   let url
@@ -942,6 +946,11 @@ async function openCreditsCheckout(){
   }
   url.searchParams.set("wanted", "true")
   url.searchParams.set("source", "agent1c.ai")
+  if (String(plan).toLowerCase() === "six_months") {
+    url.searchParams.set("billing_cycle", "6_months")
+  } else {
+    url.searchParams.set("billing_cycle", "monthly")
+  }
   const identity = await getCloudAuthIdentity().catch(() => null)
   if (identity) {
     const email = String(identity.email || "").trim()
@@ -4343,8 +4352,10 @@ function creditsWindowHtml(){
         <div class="agent-note">Remaining today: <strong id="creditsRemaining">12,000 tokens left</strong></div>
       </div>
       <div class="agent-pane agent-pane-chrome">
-        <div class="agent-row agent-wrap-row">
-          <button id="creditsSubscribeBtn" class="btn" type="button">Subscribe</button>
+        <div class="agent-note"><strong>Choose plan</strong></div>
+        <div class="agent-row agent-wrap-row credits-subscribe-row">
+          <button id="creditsSubscribeMonthlyBtn" class="btn agent-credits-subscribe-btn" type="button">$2 / month</button>
+          <button id="creditsSubscribeSixMonthBtn" class="btn agent-credits-subscribe-btn" type="button">$9 / 6 months</button>
         </div>
       </div>
     </div>
@@ -4505,6 +4516,8 @@ function cacheElements(){
     creditsPlan: byId("creditsPlan"),
     creditsAccount: byId("creditsAccount"),
     creditsSubscribeBtn: byId("creditsSubscribeBtn"),
+    creditsSubscribeMonthlyBtn: byId("creditsSubscribeMonthlyBtn"),
+    creditsSubscribeSixMonthBtn: byId("creditsSubscribeSixMonthBtn"),
   })
   Object.assign(els, cacheShellRelayElements(byId))
 }
@@ -5269,11 +5282,21 @@ function wireMainDom(){
   els.openShellRelayBtn?.addEventListener("click", () => {
     openShellRelayWindow()
   })
-  if (els.creditsSubscribeBtn) {
-    els.creditsSubscribeBtn.disabled = !isCloudAuthHost()
-    els.creditsSubscribeBtn.addEventListener("click", async () => {
+  if (els.creditsSubscribeMonthlyBtn) {
+    els.creditsSubscribeMonthlyBtn.disabled = !isCloudAuthHost()
+    els.creditsSubscribeMonthlyBtn.addEventListener("click", async () => {
       try {
-        await openCreditsCheckout()
+        await openCreditsCheckoutForPlan("monthly")
+      } catch (err) {
+        setStatus(err instanceof Error ? err.message : "Could not open checkout")
+      }
+    })
+  }
+  if (els.creditsSubscribeSixMonthBtn) {
+    els.creditsSubscribeSixMonthBtn.disabled = !isCloudAuthHost()
+    els.creditsSubscribeSixMonthBtn.addEventListener("click", async () => {
+      try {
+        await openCreditsCheckoutForPlan("six_months")
       } catch (err) {
         setStatus(err instanceof Error ? err.message : "Could not open checkout")
       }
@@ -5619,7 +5642,7 @@ async function createCloudWorkspace(){
   if (!wins.events?.win?.isConnected) wins.events = wmRef.createAgentPanelWindow("Events", { panelId: "events", left: 680, top: 360, width: 360, height: 330, closeAsMinimize: true })
   if (wins.events?.panelRoot) wins.events.panelRoot.innerHTML = eventsWindowHtml()
 
-  if (!wins.credits?.win?.isConnected) wins.credits = wmRef.createAgentPanelWindow("Credits", { panelId: "credits", left: 510, top: 28, width: 430, height: 220, closeAsMinimize: true })
+  if (!wins.credits?.win?.isConnected) wins.credits = wmRef.createAgentPanelWindow("Credits", { panelId: "credits", left: 510, top: 28, width: 430, height: 260, closeAsMinimize: true })
   if (wins.credits?.panelRoot) wins.credits.panelRoot.innerHTML = creditsWindowHtml()
 
   cacheElements()

@@ -2016,6 +2016,21 @@
 .agent-auth-btn-x:hover{
   background: linear-gradient(180deg, #191d24, #0e1117);
 }
+.credits-subscribe-row{
+  margin-top: 4px;
+}
+.agent-credits-subscribe-btn{
+  min-height: 30px;
+  padding: 6px 10px;
+  font-weight: 700;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #ff9fda, #f278c4);
+  border-color: #be5f96;
+  color: #2a0d1e;
+}
+.agent-credits-subscribe-btn:hover{
+  background: linear-gradient(180deg, #ffb2e2, #f789cd);
+}
 .agent-auth-btn-alt{
   min-height: 27px;
 }
@@ -2895,6 +2910,10 @@ body.dark .agent-auth-btn-google{
 }
 body.dark .agent-auth-btn-x{
   border-color: rgba(255,255,255,0.15);
+}
+body.dark .agent-credits-subscribe-btn{
+  color: #2d1022;
+  border-color: #cb73a8;
 }
 body.dark .agent-auth-status.error{
   color: #ff9ea7;
