@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const DAILY_TOKEN_LIMIT = 12000
+const APPROX_CHARS_PER_TOKEN = 4.2
 const ALLOWED_ORIGINS = new Set([
   "https://agent1c.ai",
   "https://www.agent1c.ai",
@@ -30,13 +31,13 @@ function utcDay(){
 
 function estimateTokensFromText(text: string){
   const chars = String(text || "").length
-  return Math.max(1, Math.ceil(chars / 3))
+  return Math.max(1, Math.ceil(chars / APPROX_CHARS_PER_TOKEN))
 }
 
 function estimateInputTokens(messages: Array<{ role?: string; content?: string }>, model: string){
   const body = JSON.stringify(messages || [])
-  const modelOverhead = Math.max(8, Math.ceil(String(model || "").length / 2))
-  return estimateTokensFromText(body) + modelOverhead + 32
+  const modelOverhead = Math.max(6, Math.ceil(String(model || "").length / 3))
+  return estimateTokensFromText(body) + modelOverhead + 16
 }
 
 function estimateOutputTokens(replyText: string, providerOutputTokens: number){
