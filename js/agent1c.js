@@ -1901,6 +1901,9 @@ async function runToolCall(call){
 async function providerChatWithTools({ provider, apiKey, model, temperature, messages, ollamaBaseUrl }){
   const working = (messages || []).map(m => ({ role: m.role, content: m.content }))
   const systemPrompt = buildSystemPrompt()
+  if (String(appState.agent.soulMd || "").trim()) {
+    await addEvent("persona_reanchoring", "Persona Reanchoring...")
+  }
   const autoResults = await maybeInjectAutoToolResults(working)
   if (autoResults.length) {
     await addEvent("tool_results_generated", autoResults.map(line => String(line).split("\n")[0]).join(" | "))
