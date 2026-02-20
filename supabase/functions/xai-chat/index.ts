@@ -48,14 +48,15 @@ function estimateOutputTokens(replyText: string, providerOutputTokens: number){
 async function getTodayUsage(adminClient: ReturnType<typeof createClient>, userId: string, day: string){
   const { data, error } = await adminClient
     .from("daily_token_usage")
-    .select("input_tokens,output_tokens")
+    .select("input_tokens,output_tokens,updated_at")
     .eq("user_id", userId)
     .eq("usage_date", day)
     .maybeSingle()
   if (error) throw new Error(`usage_read_failed:${error.message}`)
   const input = Math.max(0, Number(data?.input_tokens || 0))
   const output = Math.max(0, Number(data?.output_tokens || 0))
-  return { input, output, used: input + output }
+  const updatedAt = String(data?.updated_at || "")
+  return { input, output, used: input + output, updatedAt }
 }
 
 async function bumpTodayUsage(
@@ -83,7 +84,7 @@ async function bumpTodayUsage(
       updated_at: new Date().toISOString(),
     }, { onConflict: "user_id,usage_date" })
   if (error) throw new Error(`usage_write_failed:${error.message}`)
-  return { input: nextInput, output: nextOutput, used: nextInput + nextOutput }
+  return { input: nextInput, output: nextOutput, used: nextInput + nextOutput, updatedAt: new Date().toISOString() }
 }
 
 serve(async (req) => {
@@ -108,15 +109,18 @@ serve(async (req) => {
   }
 
   const day = utcDay()
+  const nowUtc = new Date().toISOString()
   if (req.method === "GET") {
     const usage = await getTodayUsage(adminClient, user.id, day).catch(() => ({ input: 0, output: 0, used: 0 }))
     return new Response(JSON.stringify({
+      server_utc: nowUtc,
       day,
       limit: DAILY_TOKEN_LIMIT,
       used: usage.used,
       remaining: Math.max(0, DAILY_TOKEN_LIMIT - usage.used),
       input_tokens: usage.input,
       output_tokens: usage.output,
+      last_updated_at: usage.updatedAt || null,
     }), { status: 200, headers })
   }
 
@@ -173,11 +177,13 @@ serve(async (req) => {
     if (usageAfter) {
       responseJson.agent1c_usage = {
         day,
+        server_utc: nowUtc,
         limit: DAILY_TOKEN_LIMIT,
         used: usageAfter.used,
         remaining: Math.max(0, DAILY_TOKEN_LIMIT - usageAfter.used),
         counted_input_tokens: inputToCount,
         counted_output_tokens: outputToCount,
+        last_updated_at: usageAfter.updatedAt || null,
       }
     }
   }
