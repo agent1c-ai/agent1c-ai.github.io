@@ -56,8 +56,9 @@ serve(async (req) => {
   if (chatType !== "private") return json({ ok: true, ignored: true, reason: "non_private_chat" })
 
   const startMatch = /^\/start(?:\s+(.+))?$/i.exec(text)
-  if (startMatch) {
-    const startCode = String(startMatch[1] || "").trim()
+  const plainCodeMatch = /^[A-Za-z0-9_-]{10,64}$/.exec(text)
+  const startCode = String(startMatch?.[1] || (plainCodeMatch ? plainCodeMatch[0] : "") || "").trim()
+  if (startMatch || plainCodeMatch) {
     if (!startCode) {
       await sendTelegramMessage(botToken, chatId, "Open Agent1c.ai and press Telegram → Generate Code, then use that link here.")
       return json({ ok: true, linked: false, reason: "missing_start_code" })
