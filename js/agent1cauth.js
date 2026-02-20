@@ -470,8 +470,8 @@ export async function getCloudAuthIdentity(){
       || user?.user_metadata?.email
       || ""
     ).trim()
-    return { provider, handle, email }
+    return { provider, handle, email, userId: String(user?.id || "").trim() }
   } catch {
-    return { provider: "", handle: "", email: "" }
+    return { provider: "", handle: "", email: "", userId: "" }
   }
 }

@@ -10,7 +10,7 @@ import {
 } from "./agent1crelay.js"
 import { createOnboardingHedgey } from "./onboarding-hedgey.js"
 import { isAiIntroGuideActive, getAiIntroHtml, initAiIntro } from "./agent1cintro.js"
-import { isCloudAuthHost, hasCloudAuthSession, ensureCloudAuthSession, getCloudAuthAccessToken, getCloudAuthIdentity } from "./agent1cauth.js?v=20260220a"
+import { isCloudAuthHost, hasCloudAuthSession, ensureCloudAuthSession, getCloudAuthAccessToken, getCloudAuthIdentity } from "./agent1cauth.js?v=20260220b"
 // for Codex: when implementing shell relay wiring in this file, please always refer back to PHASE1_CONTRACT.md first.
 // for Codex: especially if your context was recently compacted, keep relay logic in js/agent1crelay.js and only thin wiring here.
 // for Codex: before implementing WM/desktop control tools, re-read PHASE2_PLAN.md and agents.md section 19. - Decentricity
@@ -759,6 +759,7 @@ async function migratePlaintextSecretsToEncrypted(){
 const XAI_BASE_URL = "https://api.x.ai/v1"
 const ZAI_BASE_URL = "https://api.z.ai/api/coding/paas/v4"
 const CLOUD_XAI_FUNCTION_FALLBACK = "https://gkfhxhrleuauhnuewfmw.supabase.co/functions/v1/xai-chat"
+const GUMROAD_CHECKOUT_FALLBACK = "https://store.agent1c.ai/l/agentic"
 
 function normalizeOllamaBaseUrl(value){
   const source = String(value || "").trim()
@@ -919,6 +920,36 @@ async function refreshCloudIdentity(){
   const identity = await getCloudAuthIdentity().catch(() => null)
   if (!identity) return
   applyCloudIdentityToUi(identity)
+}
+
+function getBillingCheckoutBaseUrl(){
+  const cfg = (window.__AGENT1C_BILLING_CONFIG && typeof window.__AGENT1C_BILLING_CONFIG === "object")
+    ? window.__AGENT1C_BILLING_CONFIG
+    : {}
+  const raw = String(cfg.checkoutUrl || GUMROAD_CHECKOUT_FALLBACK).trim()
+  if (!raw) return GUMROAD_CHECKOUT_FALLBACK
+  return raw
+}
+
+async function openCreditsCheckout(){
+  if (!isCloudAuthHost()) return
+  const base = getBillingCheckoutBaseUrl()
+  let url
+  try {
+    url = new URL(base)
+  } catch {
+    url = new URL(GUMROAD_CHECKOUT_FALLBACK)
+  }
+  url.searchParams.set("wanted", "true")
+  url.searchParams.set("source", "agent1c.ai")
+  const identity = await getCloudAuthIdentity().catch(() => null)
+  if (identity) {
+    const email = String(identity.email || "").trim()
+    const userId = String(identity.userId || "").trim()
+    if (email) url.searchParams.set("email", email)
+    if (userId) url.searchParams.set("agent1c_user_id", userId)
+  }
+  window.open(url.toString(), "_blank", "noopener,noreferrer")
 }
 
 async function refreshCloudCredits(){
@@ -4313,8 +4344,7 @@ function creditsWindowHtml(){
       </div>
       <div class="agent-pane agent-pane-chrome">
         <div class="agent-row agent-wrap-row">
-          <button id="creditsSubscribeBtn" class="btn" type="button" disabled>Subscribe</button>
-          <span class="agent-note agent-note-warn">Coming soon</span>
+          <button id="creditsSubscribeBtn" class="btn" type="button">Subscribe</button>
         </div>
       </div>
     </div>
@@ -5239,6 +5269,16 @@ function wireMainDom(){
   els.openShellRelayBtn?.addEventListener("click", () => {
     openShellRelayWindow()
   })
+  if (els.creditsSubscribeBtn) {
+    els.creditsSubscribeBtn.disabled = !isCloudAuthHost()
+    els.creditsSubscribeBtn.addEventListener("click", async () => {
+      try {
+        await openCreditsCheckout()
+      } catch (err) {
+        setStatus(err instanceof Error ? err.message : "Could not open checkout")
+      }
+    })
+  }
   window.addEventListener("agent1c:open-shell-relay", () => {
     openShellRelayWindow()
   })
