@@ -28,3 +28,68 @@ Execution behavior:
 Production implementation rule:
 - If you find a kludge in code, explicitly highlight it before extending that area.
 - If the requested feature depends on that kludge, first propose and execute the kludge cleanup path, then implement the new feature on top of the cleaned path.
+
+TELEGRAM CLOUD RELAY MODEL (Agent1c.ai, tab-online only):
+- Product constraint:
+  - Telegram replies are allowed only while the user's linked Agent1c.ai browser tab is online.
+  - Backend is relay/security only (Telegram token + routing), not LLM runtime, and not doc/context storage.
+- Core split:
+  - Backend (Supabase): receives Telegram webhooks, verifies link ownership, forwards inbound messages to active tab, posts outbound replies back to Telegram.
+  - Frontend tab: keeps SOUL/TOOLS/heartbeat/context locally, runs LLM, composes Telegram replies.
+
+Telegram Connect window (must exist in Agent1c.ai UI):
+- Window title: `Telegram`.
+- Purpose text: connect your Telegram account to Hitomi (@HitomiTalbot).
+- States:
+  - `Not linked`
+  - `Link code ready`
+  - `Linked as @username`
+  - `Waiting for tab` / `Offline`
+- Required controls:
+  - `Generate Code` button (requests one-time `/start <code>` payload from backend).
+  - `Open Telegram` button/link that opens:
+    - `https://t.me/HitomiTalbot?start=<code>`
+    - (Telegram converts this to `/start <code>` automatically)
+  - Read-only code display + copy button.
+  - Link status line.
+  - `Unlink` button.
+- UX requirement:
+  - User should not need to manually type `/start`.
+  - The open link must directly launch DM with bot and carry the start payload.
+
+Linking and routing:
+- `telegram-link-init` (auth required):
+  - Creates short-lived, one-time start code tied to authenticated user id.
+  - Returns deep link + expiry.
+- `telegram-webhook` (bot ingress, secret-verified):
+  - On `/start <code>`: validate code, bind `telegram_user_id -> app_user_id`.
+  - On normal DM: route to currently active browser session for that linked app user.
+- `telegram-link-status` (auth required):
+  - Returns linked state, username, and whether an active browser session is online.
+
+Online session requirement:
+- Browser keeps an authenticated live channel/session heartbeat to relay.
+- Relay routes Telegram DMs only to active session(s) of linked user.
+- If no live tab session: bot sends offline notice (open Agent1c.ai tab to continue).
+- Session lease timeout must be explicit (e.g. 20-30s).
+
+Security constraints:
+- Telegram bot token lives only in Supabase secrets.
+- Webhook requests validated with Telegram secret header/token.
+- Never trust Telegram username for identity; use immutable `telegram_user_id`.
+- Enforce DM-only behavior (ignore groups/channels unless explicitly added later).
+
+Implementation gaps checklist (must resolve before coding):
+- Define active-session arbitration if multiple tabs are online:
+  - newest session wins, or
+  - explicit primary tab election.
+- Define request/response timeout behavior for Telegram:
+  - If tab doesn't answer in time, send graceful fallback message.
+- Define ordering guarantees:
+  - Preserve per-chat message order when forwarding to browser.
+- Define rate limits:
+  - Per-telegram-user and per-app-user throttles to prevent abuse loops.
+- Define unlink semantics:
+  - Unlink from app UI and optional unlink command from Telegram DM.
+- Define observability:
+  - Event logging for code generation, link success/failure, route failures, timeout responses.
