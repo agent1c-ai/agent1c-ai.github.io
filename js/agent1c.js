@@ -267,6 +267,8 @@ let voiceUiState = { enabled: false, supported: true, status: "off", text: "", e
 let cloudAuthGateActive = false
 let cloudAuthSessionReady = false
 let cloudWelcomeBackPromptSent = false
+let cloudTelegramLink = { linked: false, username: "", firstName: "", lastName: "", userId: null, chatId: null, botUsername: "HitomiTalbot", startCode: "", deepLink: "", expiresAt: null }
+let cloudTelegramPolling = false
 let eventToastExpanded = false
 let eventToastDismissedThroughId = 0
 const thinkingThreadIds = new Set()
@@ -759,6 +761,10 @@ async function migratePlaintextSecretsToEncrypted(){
 const XAI_BASE_URL = "https://api.x.ai/v1"
 const ZAI_BASE_URL = "https://api.z.ai/api/coding/paas/v4"
 const CLOUD_XAI_FUNCTION_FALLBACK = "https://gkfhxhrleuauhnuewfmw.supabase.co/functions/v1/xai-chat"
+const CLOUD_TELEGRAM_LINK_INIT_FALLBACK = "https://gkfhxhrleuauhnuewfmw.supabase.co/functions/v1/telegram-link-init"
+const CLOUD_TELEGRAM_LINK_STATUS_FALLBACK = "https://gkfhxhrleuauhnuewfmw.supabase.co/functions/v1/telegram-link-status"
+const CLOUD_TELEGRAM_POLL_FALLBACK = "https://gkfhxhrleuauhnuewfmw.supabase.co/functions/v1/telegram-poll"
+const CLOUD_TELEGRAM_SEND_FALLBACK = "https://gkfhxhrleuauhnuewfmw.supabase.co/functions/v1/telegram-send"
 const GUMROAD_CHECKOUT_FALLBACK = "https://decentricity.gumroad.com/l/agent1c"
 const GUMROAD_PRODUCT_PERMALINK_FALLBACK = "pepwol"
 const GUMROAD_OPTION_ID_FALLBACK = "98AbzG0GpRSmTGZg3ekKEA=="
@@ -767,6 +773,20 @@ function normalizeOllamaBaseUrl(value){
   const source = String(value || "").trim()
   if (!source) return ""
   return source.replace(/\/+$/, "")
+}
+
+function getSupabaseConfig(){
+  const cfg = (window.__AGENT1C_SUPABASE_CONFIG && typeof window.__AGENT1C_SUPABASE_CONFIG === "object")
+    ? window.__AGENT1C_SUPABASE_CONFIG
+    : {}
+  const supabaseUrl = String(cfg.url || "").trim().replace(/\/+$/, "")
+  const anonKey = String(cfg.anonKey || "").trim()
+  return { supabaseUrl, anonKey }
+}
+
+function cloudFunctionUrl(name, fallback){
+  const { supabaseUrl } = getSupabaseConfig()
+  return supabaseUrl ? `${supabaseUrl}/functions/v1/${name}` : fallback
 }
 
 async function openAiChat({ apiKey, model, temperature, systemPrompt, messages }){
@@ -1003,6 +1023,132 @@ async function refreshCloudCredits(){
   if (!json) return
   applyCloudUsageToUi(json)
   await refreshCloudIdentity().catch(() => {})
+}
+
+async function cloudTelegramRequest(functionName, fallbackUrl, method = "GET", body = null){
+  if (!isCloudAuthHost()) throw new Error("Cloud mode only")
+  const functionUrl = cloudFunctionUrl(functionName, fallbackUrl)
+  const accessToken = await getCloudAuthAccessToken()
+  if (!accessToken) throw new Error("Cloud auth token missing. Please sign in again.")
+  const { anonKey } = getSupabaseConfig()
+  const headers = { Authorization: `Bearer ${accessToken}` }
+  if (anonKey) headers.apikey = anonKey
+  if (body !== null) headers["Content-Type"] = "application/json"
+  const response = await fetch(functionUrl, {
+    method,
+    headers,
+    body: body === null ? undefined : JSON.stringify(body),
+    cache: "no-store",
+  })
+  const json = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    const msg = String(json?.error || json?.message || "").trim()
+    throw new Error(`Telegram cloud call failed (${response.status})${msg ? `: ${msg}` : ""}`)
+  }
+  return json
+}
+
+function updateCloudTelegramUi(){
+  if (!isCloudAuthHost()) return
+  if (els.telegramCloudBot) {
+    els.telegramCloudBot.textContent = `@${cloudTelegramLink.botUsername || "HitomiTalbot"}`
+  }
+  if (els.telegramCloudStatus) {
+    els.telegramCloudStatus.className = `agent-badge ${cloudTelegramLink.linked ? "ok" : "warn"}`
+    els.telegramCloudStatus.textContent = cloudTelegramLink.linked ? "Linked" : "Not linked"
+  }
+  if (els.telegramCloudLinkedUser) {
+    const username = String(cloudTelegramLink.username || "").trim()
+    els.telegramCloudLinkedUser.textContent = username ? `Linked as @${username.replace(/^@+/, "")}` : (cloudTelegramLink.linked ? "Linked" : "Not linked")
+  }
+  if (els.telegramCloudCode) {
+    const code = String(cloudTelegramLink.startCode || "").trim()
+    els.telegramCloudCode.value = code ? `/start ${code}` : ""
+  }
+  if (els.telegramCloudOpenBtn) {
+    const deep = String(cloudTelegramLink.deepLink || "").trim()
+    els.telegramCloudOpenBtn.disabled = !deep
+  }
+  if (els.telegramCloudExpires && cloudTelegramLink.expiresAt) {
+    const when = new Date(String(cloudTelegramLink.expiresAt))
+    const time = Number.isFinite(when.getTime()) ? when.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""
+    els.telegramCloudExpires.textContent = time ? `Code expires at ${time}` : ""
+  } else if (els.telegramCloudExpires) {
+    els.telegramCloudExpires.textContent = ""
+  }
+}
+
+async function refreshCloudTelegramLinkState(){
+  if (!isCloudAuthHost()) return
+  try {
+    const json = await cloudTelegramRequest("telegram-link-status", CLOUD_TELEGRAM_LINK_STATUS_FALLBACK, "GET")
+    cloudTelegramLink = {
+      ...cloudTelegramLink,
+      linked: Boolean(json?.linked),
+      username: String(json?.telegram_username || ""),
+      firstName: String(json?.telegram_first_name || ""),
+      lastName: String(json?.telegram_last_name || ""),
+      userId: Number.isFinite(Number(json?.telegram_user_id)) ? Number(json.telegram_user_id) : null,
+      chatId: Number.isFinite(Number(json?.telegram_chat_id)) ? Number(json.telegram_chat_id) : null,
+      botUsername: String(json?.bot_username || cloudTelegramLink.botUsername || "HitomiTalbot"),
+    }
+  } catch {}
+  updateCloudTelegramUi()
+}
+
+async function generateCloudTelegramLinkCode(){
+  const json = await cloudTelegramRequest("telegram-link-init", CLOUD_TELEGRAM_LINK_INIT_FALLBACK, "POST", {})
+  cloudTelegramLink = {
+    ...cloudTelegramLink,
+    linked: Boolean(json?.linked),
+    username: String(json?.telegram_username || cloudTelegramLink.username || ""),
+    botUsername: String(json?.bot_username || cloudTelegramLink.botUsername || "HitomiTalbot"),
+    startCode: String(json?.start_code || ""),
+    deepLink: String(json?.deep_link || ""),
+    expiresAt: String(json?.expires_at || ""),
+  }
+  updateCloudTelegramUi()
+}
+
+async function pollCloudTelegramInbox(){
+  if (!isCloudAuthHost() || cloudTelegramPolling || !canUseAgentRuntime() || !cloudTelegramLink.linked) return
+  cloudTelegramPolling = true
+  try {
+    const json = await cloudTelegramRequest("telegram-poll", CLOUD_TELEGRAM_POLL_FALLBACK, "GET")
+    const items = Array.isArray(json?.items) ? json.items : []
+    if (!items.length) return
+    for (const item of items) {
+      const inboxId = Number(item?.id || 0)
+      const text = String(item?.message_text || "").trim()
+      if (!inboxId || !text) continue
+      const tgUserId = String(item?.telegram_user_id || "")
+      const username = String(item?.telegram_username || "").trim()
+      const firstName = String(item?.telegram_first_name || "").trim()
+      const chatObj = {
+        id: tgUserId || String(item?.chat_id || ""),
+        type: "private",
+        username,
+        first_name: firstName || username || "telegram",
+      }
+      const thread = ensureTelegramThread(chatObj)
+      if (!thread) continue
+      pushLocalMessage(thread.id, "user", text)
+      renderChat()
+      const reply = await respondForThread(thread.id)
+      const sendText = String(reply || "").trim()
+      if (!sendText) continue
+      await cloudTelegramRequest("telegram-send", CLOUD_TELEGRAM_SEND_FALLBACK, "POST", {
+        inbox_id: inboxId,
+        text: sendText.slice(0, 3900),
+      })
+      await addEvent("telegram_replied", `Replied to Telegram chat ${thread.label || username || tgUserId}`)
+    }
+    await persistState()
+  } catch (err) {
+    setStatus(err instanceof Error ? err.message : "Telegram cloud polling failed")
+  } finally {
+    cloudTelegramPolling = false
+  }
 }
 
 async function zaiChat({ apiKey, model, temperature, systemPrompt, messages }){
@@ -3596,6 +3742,10 @@ function refreshUi(){
   if (els.loopHeartbeatMinInput) els.loopHeartbeatMinInput.disabled = !canUse
   if (els.telegramPollInput) els.telegramPollInput.disabled = !canUse
   if (els.telegramEnabledSelect) els.telegramEnabledSelect.disabled = !canUse
+  if (els.telegramCloudGenerateBtn) els.telegramCloudGenerateBtn.disabled = !canUse
+  if (els.telegramCloudRefreshBtn) els.telegramCloudRefreshBtn.disabled = !canUse
+  if (els.telegramCloudCopyBtn) els.telegramCloudCopyBtn.disabled = !canUse
+  if (els.telegramCloudOpenBtn) els.telegramCloudOpenBtn.disabled = !canUse || !String(cloudTelegramLink.deepLink || "").trim()
   // Keep core agent docs live-editable regardless of vault gate.
   if (els.soulInput) els.soulInput.disabled = false
   if (els.toolsInput) els.toolsInput.disabled = false
@@ -3608,6 +3758,7 @@ function refreshUi(){
   loadInputsFromState()
   refreshProviderPreviewUi()
   refreshBadges()
+  updateCloudTelegramUi()
   publishBrowserRelayState()
 }
 
@@ -4274,6 +4425,35 @@ export OLLAMA_HOST="127.0.0.1:11434"</code></pre>
 }
 
 function telegramWindowHtml(){
+  if (isCloudAuthHost()) {
+    return `
+      <div class="agent-stack">
+        <div class="agent-pane agent-pane-chrome">
+          <div class="agent-meta-row">
+            <span>Bot: <strong id="telegramCloudBot">@HitomiTalbot</strong></span>
+            <span>Status: <span id="telegramCloudStatus" class="agent-badge warn">Not linked</span></span>
+          </div>
+          <div id="telegramCloudLinkedUser" class="agent-note">Not linked</div>
+        </div>
+        <div class="agent-pane agent-pane-canvas">
+          <div class="agent-note">Tap to connect your Telegram DM to Hitomi.</div>
+          <div class="agent-row agent-wrap-row">
+            <button id="telegramCloudGenerateBtn" class="btn" type="button">Generate Code</button>
+            <button id="telegramCloudOpenBtn" class="btn" type="button" disabled>Open Telegram</button>
+            <button id="telegramCloudRefreshBtn" class="btn" type="button">Refresh</button>
+          </div>
+          <label class="agent-form-label">
+            <span>Start command</span>
+            <div class="agent-inline-key">
+              <input id="telegramCloudCode" class="field" type="text" readonly placeholder="/start ..." />
+              <button id="telegramCloudCopyBtn" class="btn agent-inline-key-btn" type="button" aria-label="Copy start command">⧉</button>
+            </div>
+          </label>
+          <div id="telegramCloudExpires" class="agent-note"></div>
+        </div>
+      </div>
+    `
+  }
   return `
     <div class="agent-stack">
       <div id="telegramStoredRow" class="agent-row agent-hidden">
@@ -4519,6 +4699,15 @@ function cacheElements(){
     telegramControls: byId("telegramControls"),
     telegramEditBtn: byId("telegramEditBtn"),
     telegramBadge: byId("telegramBadge"),
+    telegramCloudBot: byId("telegramCloudBot"),
+    telegramCloudStatus: byId("telegramCloudStatus"),
+    telegramCloudLinkedUser: byId("telegramCloudLinkedUser"),
+    telegramCloudGenerateBtn: byId("telegramCloudGenerateBtn"),
+    telegramCloudOpenBtn: byId("telegramCloudOpenBtn"),
+    telegramCloudRefreshBtn: byId("telegramCloudRefreshBtn"),
+    telegramCloudCode: byId("telegramCloudCode"),
+    telegramCloudCopyBtn: byId("telegramCloudCopyBtn"),
+    telegramCloudExpires: byId("telegramCloudExpires"),
     modelInput: byId("modelInput"),
     modelInputEdit: byId("modelInputEdit"),
     heartbeatInput: byId("heartbeatInput"),
@@ -4730,6 +4919,14 @@ function stopTelegramLoop(){
 
 function refreshTelegramLoop(){
   stopTelegramLoop()
+  if (isCloudAuthHost()) {
+    if (!canUseAgentRuntime()) return
+    appState.telegramTimer = setInterval(() => {
+      pollCloudTelegramInbox().catch(() => {})
+    }, 4000)
+    pollCloudTelegramInbox().catch(() => {})
+    return
+  }
   if (!canUseAgentRuntime() || !appState.telegramEnabled) return
   appState.telegramTimer = setInterval(() => {
     pollTelegram().catch(() => {})
@@ -5423,34 +5620,65 @@ function wireMainDom(){
     }
   })
 
-  els.telegramForm?.addEventListener("submit", async (e) => {
-    e.preventDefault()
-    try {
-      await saveProviderKey("telegram", els.telegramTokenInput.value)
-      const token = els.telegramTokenInput.value.trim()
-      els.telegramTokenInput.value = ""
-      telegramEditing = false
-      await addEvent("provider_key_saved", telegramSavedEventText())
-      const { username } = await validateTelegramToken(token)
-      await refreshBadges()
-      setStatus(`Telegram token saved and validated for @${username}.`)
+  if (isCloudAuthHost()) {
+    els.telegramCloudGenerateBtn?.addEventListener("click", async () => {
+      try {
+        await generateCloudTelegramLinkCode()
+        setStatus("Telegram code generated. Open Telegram and tap Start.")
+      } catch (err) {
+        setStatus(err instanceof Error ? err.message : "Could not generate Telegram code")
+      }
+    })
+    els.telegramCloudOpenBtn?.addEventListener("click", () => {
+      const deep = String(cloudTelegramLink.deepLink || "").trim()
+      if (!deep) return
+      window.open(deep, "_blank", "noopener,noreferrer")
+    })
+    els.telegramCloudCopyBtn?.addEventListener("click", async () => {
+      const text = String(els.telegramCloudCode?.value || "").trim()
+      if (!text) return
+      try {
+        await navigator.clipboard.writeText(text)
+        setStatus("Copied Telegram start command.")
+      } catch {
+        setStatus("Could not copy command.")
+      }
+    })
+    els.telegramCloudRefreshBtn?.addEventListener("click", async () => {
+      await refreshCloudTelegramLinkState()
+      setStatus(cloudTelegramLink.linked ? "Telegram account linked." : "Telegram not linked yet.")
       refreshTelegramLoop()
-    } catch (err) {
-      telegramEditing = true
-      await refreshBadges()
-      setStatus(err instanceof Error ? err.message : "Could not save Telegram token")
-    }
-  })
+    })
+  } else {
+    els.telegramForm?.addEventListener("submit", async (e) => {
+      e.preventDefault()
+      try {
+        await saveProviderKey("telegram", els.telegramTokenInput.value)
+        const token = els.telegramTokenInput.value.trim()
+        els.telegramTokenInput.value = ""
+        telegramEditing = false
+        await addEvent("provider_key_saved", telegramSavedEventText())
+        const { username } = await validateTelegramToken(token)
+        await refreshBadges()
+        setStatus(`Telegram token saved and validated for @${username}.`)
+        refreshTelegramLoop()
+      } catch (err) {
+        telegramEditing = true
+        await refreshBadges()
+        setStatus(err instanceof Error ? err.message : "Could not save Telegram token")
+      }
+    })
 
-  els.telegramTestBtn?.addEventListener("click", async () => {
-    try {
-      const token = (els.telegramTokenInput.value || "").trim() || (await readProviderKey("telegram"))
-      const { username } = await validateTelegramToken(token)
-      setStatus(`Telegram token works for @${username}.`)
-    } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Telegram token test failed")
-    }
-  })
+    els.telegramTestBtn?.addEventListener("click", async () => {
+      try {
+        const token = (els.telegramTokenInput.value || "").trim() || (await readProviderKey("telegram"))
+        const { username } = await validateTelegramToken(token)
+        setStatus(`Telegram token works for @${username}.`)
+      } catch (err) {
+        setStatus(err instanceof Error ? err.message : "Telegram token test failed")
+      }
+    })
+  }
 
   els.openaiEditBtn?.addEventListener("click", async () => {
     openAiEditing = true
@@ -5658,6 +5886,9 @@ async function createCloudWorkspace(){
   if (!wins.config?.win?.isConnected) wins.config = wmRef.createAgentPanelWindow("Config", { panelId: "config", left: 20, top: 356, width: 430, height: 220, closeAsMinimize: true })
   if (wins.config?.panelRoot) wins.config.panelRoot.innerHTML = configWindowHtml()
 
+  if (!wins.telegram?.win?.isConnected) wins.telegram = wmRef.createAgentPanelWindow("Telegram", { panelId: "telegram", left: 460, top: 356, width: 420, height: 240, closeAsMinimize: true })
+  if (wins.telegram?.panelRoot) wins.telegram.panelRoot.innerHTML = telegramWindowHtml()
+
   if (!wins.shellrelay?.win?.isConnected) wins.shellrelay = wmRef.createAgentPanelWindow("Shell Relay", { panelId: "shellrelay", left: 1045, top: 360, width: 460, height: 470, closeAsMinimize: true })
   if (wins.shellrelay?.panelRoot) wins.shellrelay.panelRoot.innerHTML = shellRelayWindowHtml()
 
@@ -5688,9 +5919,16 @@ async function createCloudWorkspace(){
   renderChat()
   renderEvents()
   refreshUi()
+  await refreshCloudTelegramLinkState().catch(() => {})
+  refreshTelegramLoop()
   ensurePersonaDesktopFolder()
 
   minimizeWindow(wins.shellrelay)
+  if (!cloudTelegramLink.linked) {
+    restoreWindow(wins.telegram)
+  } else {
+    minimizeWindow(wins.telegram)
+  }
   minimizeWindow(wins.soul)
   minimizeWindow(wins.tools)
   minimizeWindow(wins.heartbeat)
