@@ -4,9 +4,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 const FREE_DAILY_TOKEN_LIMIT = 12000
 const PAID_DAILY_TOKEN_LIMIT = 100000
 const APPROX_CHARS_PER_TOKEN = 4.2
-// Temporary test boundary: reset daily usage at 02:10 UTC.
-const RESET_HOUR_UTC = 2
-const RESET_MINUTE_UTC = 10
 const ALLOWED_ORIGINS = new Set([
   "https://agent1c.ai",
   "https://www.agent1c.ai",
@@ -30,14 +27,7 @@ function corsHeadersFor(origin: string | null){
 }
 
 function utcDay(){
-  const now = new Date()
-  const shiftMs = (RESET_HOUR_UTC * 60 + RESET_MINUTE_UTC) * 60 * 1000
-  return new Date(now.getTime() - shiftMs).toISOString().slice(0, 10)
-}
-
-function bucketStartMs(day: string){
-  const shiftMs = (RESET_HOUR_UTC * 60 + RESET_MINUTE_UTC) * 60 * 1000
-  return Date.parse(`${day}T00:00:00.000Z`) + shiftMs
+  return new Date().toISOString().slice(0, 10)
 }
 
 function estimateTokensFromText(text: string){
@@ -112,12 +102,6 @@ async function getTodayUsage(adminClient: ReturnType<typeof createClient>, userI
   const input = Math.max(0, Number(data?.input_tokens || 0))
   const output = Math.max(0, Number(data?.output_tokens || 0))
   const updatedAt = String(data?.updated_at || "")
-  if (data && updatedAt) {
-    const updatedAtMs = Date.parse(updatedAt)
-    if (Number.isFinite(updatedAtMs) && updatedAtMs < bucketStartMs(day)) {
-      return { input: 0, output: 0, used: 0, updatedAt }
-    }
-  }
   return { input, output, used: input + output, updatedAt }
 }
 
