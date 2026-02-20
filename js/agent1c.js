@@ -225,6 +225,7 @@ const appState = {
   },
   events: [],
 }
+const SOUL_REANCHOR_EVERY_USER_TURNS = 5
 
 const els = {}
 let wmRef = null
@@ -270,6 +271,7 @@ let cloudAuthSessionReady = false
 let cloudWelcomeBackPromptSent = false
 let cloudTelegramLink = { linked: false, username: "", firstName: "", lastName: "", userId: null, chatId: null, botUsername: "HitomiTalbot", startCode: "", deepLink: "", expiresAt: null }
 let cloudTelegramPolling = false
+const pendingSoulReanchorThreadIds = new Set()
 let eventToastExpanded = false
 let eventToastDismissedThroughId = 0
 const thinkingThreadIds = new Set()
@@ -1400,7 +1402,7 @@ async function providerChat({ provider, apiKey, model, temperature, systemPrompt
   }
 }
 
-function buildSystemPrompt(){
+function buildSystemPromptWithCadence({ includeSoul } = {}){
   const soul = String(appState.agent.soulMd || "").trim()
   const tools = String(appState.agent.toolsMd || "").trim()
   const hardPolicy = [
@@ -1415,8 +1417,28 @@ function buildSystemPrompt(){
     "- Use single-action confirmations, for example: I can do <one action> now. Should I proceed?",
     "- Avoid option lists like A or B.",
   ].join("\n")
-  if (soul && tools) return `${soul}\n\n${tools}\n\n${hardPolicy}`
-  return soul || tools || "You are a helpful assistant."
+  const parts = []
+  if (includeSoul && soul) parts.push(soul)
+  if (tools) parts.push(tools)
+  parts.push(hardPolicy)
+  return parts.join("\n\n")
+}
+
+function userTurnCount(messages){
+  return (messages || []).filter(m => String(m?.role || "") === "user").length
+}
+
+function shouldInjectSoulForTurn({ threadId, messages, forceSoulReanchor } = {}){
+  if (forceSoulReanchor) return true
+  const id = String(threadId || "").trim()
+  if (!id) return false
+  if (pendingSoulReanchorThreadIds.has(id)) {
+    pendingSoulReanchorThreadIds.delete(id)
+    return true
+  }
+  const turns = userTurnCount(messages || [])
+  if (turns <= 1) return true
+  return turns % SOUL_REANCHOR_EVERY_USER_TURNS === 0
 }
 
 function parseToolCalls(text){
@@ -1898,10 +1920,11 @@ async function runToolCall(call){
   return `TOOL_RESULT ${call.name}: unsupported`
 }
 
-async function providerChatWithTools({ provider, apiKey, model, temperature, messages, ollamaBaseUrl }){
+async function providerChatWithTools({ provider, apiKey, model, temperature, messages, ollamaBaseUrl, threadId, forceSoulReanchor }){
   const working = (messages || []).map(m => ({ role: m.role, content: m.content }))
-  const systemPrompt = buildSystemPrompt()
-  if (String(appState.agent.soulMd || "").trim()) {
+  const includeSoul = shouldInjectSoulForTurn({ threadId, messages: working, forceSoulReanchor })
+  const systemPrompt = buildSystemPromptWithCadence({ includeSoul })
+  if (includeSoul) {
     await addEvent("persona_reanchoring", "Persona Reanchoring...")
   }
   const autoResults = await maybeInjectAutoToolResults(working)
@@ -2120,6 +2143,7 @@ function ensureLocalThreadsInitialized(){
     }
     appState.agent.rollingMessages = []
     appState.agent.activeLocalThreadId = id
+    pendingSoulReanchorThreadIds.add(id)
     return
   }
   const active = appState.agent.activeLocalThreadId
@@ -2145,6 +2169,7 @@ function createNewLocalThread(){
     messages: [],
   }
   appState.agent.activeLocalThreadId = id
+  pendingSoulReanchorThreadIds.add(id)
   return appState.agent.localThreads[id]
 }
 
@@ -2317,6 +2342,7 @@ function ensureTelegramThread(chat){
     messages: [],
   }
   appState.agent.localThreads[id] = thread
+  pendingSoulReanchorThreadIds.add(id)
   return thread
 }
 
@@ -4907,6 +4933,7 @@ async function triggerChatOneSystemPrompt(systemPrompt, eventName, eventText){
       ollamaBaseUrl: runtime.ollamaBaseUrl,
       temperature: appState.config.temperature,
       messages: promptMessages,
+      threadId: chatOne.id,
     })
     pushLocalMessage(chatOne.id, "assistant", reply)
     if (eventName) await addEvent(eventName, eventText || "System prompt reply generated")
@@ -4944,6 +4971,7 @@ async function sendChat(text, { threadId } = {}){
       ollamaBaseUrl: runtime.ollamaBaseUrl,
       temperature: appState.config.temperature,
       messages: promptMessages,
+      threadId: thread.id,
     })
     pushLocalMessage(thread.id, "assistant", reply)
     await addEvent("chat_replied", "Hitomi replied in chat")
@@ -4981,6 +5009,7 @@ async function respondForThread(threadId){
       ollamaBaseUrl: runtime.ollamaBaseUrl,
       temperature: appState.config.temperature,
       messages: promptMessages,
+      threadId: thread.id,
     })
     pushLocalMessage(thread.id, "assistant", reply)
     await persistState()
@@ -5109,6 +5138,7 @@ async function pollTelegram(){
         ollamaBaseUrl: runtime.ollamaBaseUrl,
         temperature: appState.config.temperature,
         messages: promptMessages,
+        threadId: thread.id,
       })
       pushLocalMessage(thread.id, "assistant", reply)
       await sendTelegramMessage(token, msg.chat.id, reply.slice(0, 3900))
@@ -6131,6 +6161,10 @@ async function loadPersistentState(){
   appState.agent.toolsMd = DEFAULT_TOOLS
   appState.agent.heartbeatMd = DEFAULT_HEARTBEAT
   ensureLocalThreadsInitialized()
+  pendingSoulReanchorThreadIds.clear()
+  for (const thread of getLocalThreadEntries()) {
+    if (thread?.id) pendingSoulReanchorThreadIds.add(String(thread.id))
+  }
   appState.events = events
 }
 
