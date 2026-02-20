@@ -3,9 +3,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const DAILY_TOKEN_LIMIT = 12000
 const APPROX_CHARS_PER_TOKEN = 4.2
-// Temporary test boundary: reset daily usage at 02:01 UTC.
+// Temporary test boundary: reset daily usage at 02:10 UTC.
 const RESET_HOUR_UTC = 2
-const RESET_MINUTE_UTC = 1
+const RESET_MINUTE_UTC = 10
 const ALLOWED_ORIGINS = new Set([
   "https://agent1c.ai",
   "https://www.agent1c.ai",
