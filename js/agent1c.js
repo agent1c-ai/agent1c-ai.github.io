@@ -933,7 +933,8 @@ async function refreshCloudCredits(){
   if (!accessToken) return
   const headers = { Authorization: `Bearer ${accessToken}` }
   if (anonKey) headers.apikey = anonKey
-  const response = await fetch(functionUrl, { method: "GET", headers })
+  const freshUrl = `${functionUrl}${functionUrl.includes("?") ? "&" : "?"}ts=${Date.now()}`
+  const response = await fetch(freshUrl, { method: "GET", headers, cache: "no-store" })
   if (!response.ok) return
   const json = await response.json().catch(() => null)
   if (!json) return
