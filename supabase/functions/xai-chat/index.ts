@@ -3,6 +3,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const DAILY_TOKEN_LIMIT = 12000
 const APPROX_CHARS_PER_TOKEN = 4.2
+// Temporary test boundary: reset daily usage at 02:01 UTC.
+const RESET_HOUR_UTC = 2
+const RESET_MINUTE_UTC = 1
 const ALLOWED_ORIGINS = new Set([
   "https://agent1c.ai",
   "https://www.agent1c.ai",
@@ -26,7 +29,9 @@ function corsHeadersFor(origin: string | null){
 }
 
 function utcDay(){
-  return new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  const shiftMs = (RESET_HOUR_UTC * 60 + RESET_MINUTE_UTC) * 60 * 1000
+  return new Date(now.getTime() - shiftMs).toISOString().slice(0, 10)
 }
 
 function estimateTokensFromText(text: string){
@@ -135,7 +140,7 @@ serve(async (req) => {
   const messages = Array.isArray(body?.messages) ? body.messages : []
   const inputEstimate = estimateInputTokens(messages, model)
   const usageBefore = await getTodayUsage(adminClient, user.id, day).catch(() => null)
-  if (usageBefore && (usageBefore.used + inputEstimate > DAILY_TOKEN_LIMIT)) {
+  if (usageBefore && usageBefore.used >= DAILY_TOKEN_LIMIT) {
     const remaining = Math.max(0, DAILY_TOKEN_LIMIT - usageBefore.used)
     return new Response(JSON.stringify({
       error: {
