@@ -75,9 +75,9 @@ serve(async (req) => {
 
   return new Response(JSON.stringify({
     linked: true,
-    messages: (inbox.data || []).map(row => ({
+    items: (inbox.data || []).map(row => ({
       id: row.id,
-      text: row.message_text,
+      message_text: row.message_text,
       created_at: row.created_at,
       telegram_chat_id: row.telegram_chat_id,
       telegram_user_id: row.telegram_user_id,

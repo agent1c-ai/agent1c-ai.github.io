@@ -1115,7 +1115,7 @@ async function pollCloudTelegramInbox(){
   cloudTelegramPolling = true
   try {
     const json = await cloudTelegramRequest("telegram-poll", CLOUD_TELEGRAM_POLL_FALLBACK, "GET")
-    const items = Array.isArray(json?.items) ? json.items : []
+    const items = Array.isArray(json?.items) ? json.items : (Array.isArray(json?.messages) ? json.messages : [])
     if (!items.length) return
     for (const item of items) {
       const inboxId = Number(item?.id || 0)
@@ -1139,7 +1139,8 @@ async function pollCloudTelegramInbox(){
       if (!sendText) continue
       await cloudTelegramRequest("telegram-send", CLOUD_TELEGRAM_SEND_FALLBACK, "POST", {
         inbox_id: inboxId,
-        text: sendText.slice(0, 3900),
+        telegram_chat_id: Number(item?.telegram_chat_id || item?.chat_id || 0),
+        reply_text: sendText.slice(0, 3900),
       })
       await addEvent("telegram_replied", `Replied to Telegram chat ${thread.label || username || tgUserId}`)
     }
