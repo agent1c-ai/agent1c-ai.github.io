@@ -4859,6 +4859,36 @@ async function sendChat(text, { threadId } = {}){
   }
 }
 
+async function respondForThread(threadId){
+  const runtime = await resolveActiveProviderRuntime()
+  if (runtimeMissingProviderAccess(runtime)) {
+    if (runtime.provider === "ollama") throw new Error("No Ollama endpoint stored.")
+    throw new Error(`No ${runtime.name} key stored.`)
+  }
+  const thread = appState.agent.localThreads?.[threadId]
+  if (!thread) throw new Error("No chat thread available.")
+  setThreadThinking(thread.id, true)
+  renderChat()
+  try {
+    const promptMessages = appState.agent.localThreads[thread.id]?.messages || []
+    const reply = await providerChatWithTools({
+      provider: runtime.provider,
+      apiKey: runtime.apiKey,
+      model: runtime.model,
+      ollamaBaseUrl: runtime.ollamaBaseUrl,
+      temperature: appState.config.temperature,
+      messages: promptMessages,
+    })
+    pushLocalMessage(thread.id, "assistant", reply)
+    await persistState()
+    renderChat()
+    return String(reply || "").trim()
+  } finally {
+    setThreadThinking(thread.id, false)
+    renderChat()
+  }
+}
+
 async function heartbeatTick(){
   if (!appState.running) return
   if (!canUseAgentRuntime()) return
