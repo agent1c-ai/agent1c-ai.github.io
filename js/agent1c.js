@@ -953,6 +953,7 @@ async function openCreditsCheckout(){
 
 async function openCreditsCheckoutForPlan(plan = "monthly"){
   if (!isCloudAuthHost()) return
+  const checkoutTab = window.open("about:blank", "_blank")
   const base = getBillingCheckoutBaseUrl()
   let url
   try {
@@ -975,7 +976,12 @@ async function openCreditsCheckoutForPlan(plan = "monthly"){
     if (email) url.searchParams.set("email", email)
     if (userId) url.searchParams.set("agent1c_user_id", userId)
   }
-  window.open(url.toString(), "_blank", "noopener,noreferrer")
+  const finalUrl = url.toString()
+  if (checkoutTab && !checkoutTab.closed) {
+    checkoutTab.location.href = finalUrl
+    return
+  }
+  window.location.href = finalUrl
 }
 
 async function refreshCloudCredits(){
