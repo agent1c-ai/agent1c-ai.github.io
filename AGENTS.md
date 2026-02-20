@@ -19,3 +19,7 @@ Execution behavior:
 - When user requests a full revert, perform a full revert of the failed pass.
 - Preserve documentation updates unless user explicitly asks to revert docs too.
 - Validate chat end-to-end after backend changes before considering the pass complete.
+
+Production implementation rule:
+- If you find a kludge in code, explicitly highlight it before extending that area.
+- If the requested feature depends on that kludge, first propose and execute the kludge cleanup path, then implement the new feature on top of the cleaned path.
