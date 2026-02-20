@@ -82,6 +82,29 @@ UI:
 - Credits window shows plan and remaining usage for the current day.
 - Subscribe button currently exists as disabled "coming soon" CTA.
 
+### Daily Rollover Incident (Documented)
+
+Observed production failure:
+
+- Credits did not reset after expected rollover boundary.
+- Chat returned `429 LIMIT_REACHED` even after boundary change tests.
+- UI reflected backend-stored over-limit state (not a frontend-only cache issue).
+
+Root cause pattern:
+
+- A stale bucket/day row in Supabase could still be treated as current usage, causing persistent over-limit behavior.
+
+Implemented fix:
+
+- In `supabase/functions/xai-chat/index.ts`, usage reads now guard against stale rows:
+  - If `updated_at` is older than the active bucket start for the current day key, usage is treated as `0` for quota checks and credits display.
+- Function returns no-cache headers and frontend calls credits GET with no-store + timestamp query.
+
+Testing strategy used:
+
+- Temporary rollover boundary override (UTC minute-level) was used to validate reset behavior in real time.
+- After validation, keep timezone/bucket logic explicit and testable in function code.
+
 ## 5) Agent Runtime Semantics
 
 ### Editable docs runtime

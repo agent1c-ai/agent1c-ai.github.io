@@ -14,6 +14,11 @@ TOKEN ACCOUNTING RULE (Agent1c.ai cloud):
 - Reason: xAI usage is provider/account-level and cannot enforce Agent1c per-user daily quotas.
 - Per-user daily accounting must be implemented in Supabase (server-side), via creating or editing Edge Functions.
 - For quota math, exact precision is not required; prefer conservative overcounting (never undercount).
+- Rollover bug guard:
+  - If credits fail to reset at boundary and `429 LIMIT_REACHED` persists, treat this as backend bucket-state issue first.
+  - Verify bucket key + bucket start logic in `supabase/functions/xai-chat/index.ts`.
+  - Ensure stale rows are neutralized (rows with `updated_at` older than active bucket start must not count toward current day).
+  - Validate with temporary near-future UTC boundary only for test, then keep/reset logic explicit.
 
 Execution behavior:
 - When user requests a full revert, perform a full revert of the failed pass.

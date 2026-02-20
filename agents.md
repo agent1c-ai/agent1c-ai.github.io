@@ -361,6 +361,21 @@ When integrating a new app into HedgeyOS:
 9. NEVER touch theme fallback semantics unless explicitly requested and validated against manual theme switching.
 10. If a change breaks default boot behavior, revert immediately and re-apply a smaller patch.
 11. Before implementing any feature, restate the product's core intent from the initial user discussion and verify the change does not undermine that intent.
+
+## Token rollover postmortem (Agent1c.ai cloud)
+
+- Symptom:
+  - Credits window stayed over limit after expected rollover.
+  - Runtime returned `429 LIMIT_REACHED` even after boundary tests.
+- Key finding:
+  - This was backend state, not just frontend cache. If `429` persists, backend quota state is still over limit.
+- Corrective implementation:
+  - Keep per-user accounting in Supabase Edge Function (`supabase/functions/xai-chat/index.ts`).
+  - Guard against stale bucket rows: if `updated_at` is older than active bucket start, treat usage as zero for current bucket.
+  - Keep GET credits no-cache and frontend refresh with cache-busting query.
+- Validation method:
+  - Temporarily move UTC rollover boundary to near-future minute for live validation.
+  - Confirm reset behavior, then keep/reset boundary logic explicit and documented.
 12. For agent1c specifically: preserve autonomous tab-runtime behavior. Vault lock/unlock must protect keys without silently disabling the running agent loop.
 
 When hardening security:
