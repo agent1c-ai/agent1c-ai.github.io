@@ -135,6 +135,10 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     document.addEventListener("pointerdown", (event) => {
       if (!folderOverlay) return;
       if (folderOverlay.contains(event.target)) return;
+      const folderIcon = event.target instanceof Element
+        ? event.target.closest('.desk-icon[data-win-id^="folder:"]')
+        : null;
+      if (folderIcon) return;
       closeDesktopFolderOverlay();
     }, true);
     window.addEventListener("resize", closeDesktopFolderOverlay);
