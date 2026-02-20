@@ -34,6 +34,11 @@ function utcDay(){
   return new Date(now.getTime() - shiftMs).toISOString().slice(0, 10)
 }
 
+function bucketStartMs(day: string){
+  const shiftMs = (RESET_HOUR_UTC * 60 + RESET_MINUTE_UTC) * 60 * 1000
+  return Date.parse(`${day}T00:00:00.000Z`) + shiftMs
+}
+
 function estimateTokensFromText(text: string){
   const chars = String(text || "").length
   return Math.max(1, Math.ceil(chars / APPROX_CHARS_PER_TOKEN))
@@ -62,6 +67,12 @@ async function getTodayUsage(adminClient: ReturnType<typeof createClient>, userI
   const input = Math.max(0, Number(data?.input_tokens || 0))
   const output = Math.max(0, Number(data?.output_tokens || 0))
   const updatedAt = String(data?.updated_at || "")
+  if (data && updatedAt) {
+    const updatedAtMs = Date.parse(updatedAt)
+    if (Number.isFinite(updatedAtMs) && updatedAtMs < bucketStartMs(day)) {
+      return { input: 0, output: 0, used: 0, updatedAt }
+    }
+  }
   return { input, output, used: input + output, updatedAt }
 }
 
