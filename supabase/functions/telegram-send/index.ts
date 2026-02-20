@@ -67,8 +67,10 @@ serve(async (req) => {
     inbox_ids?: number[]
     telegram_chat_id?: number
     reply_text?: string
+    mark_delivered_only?: boolean
   } | null
-  if (!body || !body.telegram_chat_id || !body.reply_text) {
+  const markDeliveredOnly = Boolean(body?.mark_delivered_only)
+  if (!body || !body.telegram_chat_id || (!markDeliveredOnly && !body.reply_text)) {
     return new Response(JSON.stringify({ error: "Missing telegram_chat_id/reply_text" }), { status: 400, headers })
   }
 
@@ -87,10 +89,12 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: "Chat mismatch" }), { status: 403, headers })
   }
 
-  try {
-    await sendTelegramMessage(botToken, body.telegram_chat_id, body.reply_text)
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "telegram_send_failed" }), { status: 502, headers })
+  if (!markDeliveredOnly) {
+    try {
+      await sendTelegramMessage(botToken, body.telegram_chat_id, body.reply_text)
+    } catch (error) {
+      return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "telegram_send_failed" }), { status: 502, headers })
+    }
   }
 
   const inboxIds = Array.isArray(body.inbox_ids)

@@ -217,6 +217,7 @@ const appState = {
     heartbeatMd: DEFAULT_HEARTBEAT,
     rollingMessages: [],
     localThreads: {},
+    tokenLimitNotifiedByThreadDay: {},
     activeLocalThreadId: "",
     status: "idle",
     lastTickAt: null,
@@ -334,6 +335,52 @@ function normalizeUserName(value){
   const raw = String(value || "").trim().replace(/\s+/g, " ")
   if (!raw) return ""
   return raw.slice(0, 48).replace(/[\r\n\t]/g, " ").trim()
+}
+
+function utcDayKey(ts = Date.now()){
+  return new Date(ts).toISOString().slice(0, 10)
+}
+
+function isTokenLimitError(err){
+  const text = String(err instanceof Error ? err.message : err || "").toLowerCase()
+  if (!text) return false
+  if (text.includes("limit_reached")) return true
+  if (text.includes("daily token limit reached")) return true
+  if (text.includes("code=limit_reached")) return true
+  if (text.includes("429") && (text.includes("limit") || text.includes("token"))) return true
+  return false
+}
+
+function currentDisplayUserName(){
+  const direct = normalizeUserName(userName)
+  if (direct) return direct
+  const accountText = String(els.creditsAccount?.textContent || "").trim()
+  if (accountText.startsWith("@")) return accountText.slice(1).trim() || "friend"
+  if (accountText.includes("@")) return accountText.split("@")[0].trim() || "friend"
+  return accountText || "friend"
+}
+
+function tokenLimitFallbackText(){
+  const who = currentDisplayUserName()
+  return `I ran out of tokens, ${who}. 😞🐷 Let's talk again tomorrow 🙂🦔`
+}
+
+async function sendTokenLimitNoticeForThread(threadId){
+  const id = String(threadId || "").trim()
+  if (!id) return ""
+  const day = utcDayKey()
+  const map = (appState.agent.tokenLimitNotifiedByThreadDay && typeof appState.agent.tokenLimitNotifiedByThreadDay === "object")
+    ? appState.agent.tokenLimitNotifiedByThreadDay
+    : {}
+  appState.agent.tokenLimitNotifiedByThreadDay = map
+  if (String(map[id] || "") === day) return ""
+  map[id] = day
+  const msg = tokenLimitFallbackText()
+  pushLocalMessage(id, "assistant", msg)
+  await addEvent("token_limit_notice", `Token limit notice sent in ${id}`)
+  await persistState()
+  renderChat()
+  return msg
 }
 
 function defaultSoulWithUserName(name){
@@ -1134,10 +1181,13 @@ async function pollCloudTelegramInbox(){
         username,
         firstName,
         inboxIds: [],
-        texts: [],
+        messages: [],
       }
       entry.inboxIds.push(inboxId)
-      entry.texts.push(text)
+      entry.messages.push({
+        text,
+        createdAt: String(item?.created_at || ""),
+      })
       if (!entry.username && username) entry.username = username
       if (!entry.firstName && firstName) entry.firstName = firstName
       if (!entry.tgUserId && tgUserId) entry.tgUserId = tgUserId
@@ -1157,13 +1207,27 @@ async function pollCloudTelegramInbox(){
       }
       const thread = ensureTelegramThread(chatObj)
       if (!thread) continue
-      const mergedText = entry.texts.length <= 1
-        ? String(entry.texts[0] || "")
-        : `Telegram messages while your tab was offline:\n${entry.texts.map(line => `- ${line}`).join("\n")}`
+      const mergedText = entry.messages.length <= 1
+        ? String(entry.messages[0]?.text || "")
+        : `Telegram messages while your tab was offline:\n${entry.messages.map(message => {
+            const raw = String(message?.createdAt || "")
+            const ts = Number.isNaN(Date.parse(raw))
+              ? ""
+              : new Date(raw).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            return `${ts ? `[${ts}] ` : ""}${String(message?.text || "")}`
+          }).join("\n")}`
       pushLocalMessage(thread.id, "user", mergedText)
       renderChat()
-      const reply = await respondForThread(thread.id)
-      const sendText = String(reply || "").trim()
+      const response = await respondForThread(thread.id)
+      const sendText = String(response?.reply || "").trim()
+      if (response?.limited && !sendText) {
+        await cloudTelegramRequest("telegram-send", CLOUD_TELEGRAM_SEND_FALLBACK, "POST", {
+          inbox_ids: entry.inboxIds,
+          telegram_chat_id: Number(entry.chatId || 0),
+          mark_delivered_only: true,
+        })
+        continue
+      }
       if (!sendText) continue
       await cloudTelegramRequest("telegram-send", CLOUD_TELEGRAM_SEND_FALLBACK, "POST", {
         inbox_ids: entry.inboxIds,
@@ -3351,8 +3415,8 @@ function ensureClippyAssistant(){
       setStatus("Thinking...")
       const chatOne = getChatOneThread()
       if (!chatOne?.id) throw new Error("Chat 1 not available.")
-      await sendChat(text, { threadId: chatOne.id })
-      setStatus("Reply received.")
+      const ok = await sendChat(text, { threadId: chatOne.id })
+      setStatus(ok ? "Reply received." : "Daily token limit reached.")
       renderClippyBubble()
       showClippyBubble({ variant: "full", snapNoOverlap: true, preferAbove: false })
     } catch (err) {
@@ -3449,8 +3513,8 @@ async function handleVoiceCommand(text){
     setStatus("Thinking...")
     const chatOne = getChatOneThread()
     if (!chatOne?.id) throw new Error("Chat 1 not available.")
-    await sendChat(spoken, { threadId: chatOne.id })
-    setStatus("Reply received.")
+    const ok = await sendChat(spoken, { threadId: chatOne.id })
+    setStatus(ok ? "Reply received." : "Daily token limit reached.")
     showClippyBubble({ variant: "full", snapNoOverlap: true, preferAbove: false })
   } catch (err) {
     setStatus(err instanceof Error ? err.message : "Voice message failed")
@@ -4881,10 +4945,18 @@ async function sendChat(text, { threadId } = {}){
     pushLocalMessage(thread.id, "assistant", reply)
     await addEvent("chat_replied", "Hitomi replied in chat")
     await persistState()
+  } catch (err) {
+    if (isTokenLimitError(err)) {
+      const fallback = await sendTokenLimitNoticeForThread(thread.id)
+      if (fallback) setStatus("Daily token limit reached.")
+      return false
+    }
+    throw err
   } finally {
     setThreadThinking(thread.id, false)
     renderChat()
   }
+  return true
 }
 
 async function respondForThread(threadId){
@@ -4910,7 +4982,13 @@ async function respondForThread(threadId){
     pushLocalMessage(thread.id, "assistant", reply)
     await persistState()
     renderChat()
-    return String(reply || "").trim()
+    return { reply: String(reply || "").trim(), limited: false }
+  } catch (err) {
+    if (isTokenLimitError(err)) {
+      const fallback = await sendTokenLimitNoticeForThread(thread.id)
+      return { reply: String(fallback || "").trim(), limited: true }
+    }
+    throw err
   } finally {
     setThreadThinking(thread.id, false)
     renderChat()
@@ -5602,8 +5680,8 @@ function wireMainDom(){
       try {
         saveDraftFromInputs()
         setStatus("Thinking...")
-        await sendChat(text)
-        setStatus("Reply received.")
+        const ok = await sendChat(text)
+        setStatus(ok ? "Reply received." : "Daily token limit reached.")
       } catch (err) {
         setStatus(err instanceof Error ? err.message : "Chat failed")
       }
@@ -6032,6 +6110,14 @@ async function loadPersistentState(){
     appState.agent.telegramLastUpdateId = savedState.telegramLastUpdateId
     if (savedState.localThreads && typeof savedState.localThreads === "object") {
       appState.agent.localThreads = savedState.localThreads
+    }
+    if (savedState.tokenLimitNotifiedByThreadDay && typeof savedState.tokenLimitNotifiedByThreadDay === "object") {
+      appState.agent.tokenLimitNotifiedByThreadDay = savedState.tokenLimitNotifiedByThreadDay
+    } else if (savedState.tokenLimitNotifiedByThread && typeof savedState.tokenLimitNotifiedByThread === "object") {
+      const today = utcDayKey()
+      const migrated = {}
+      for (const key of Object.keys(savedState.tokenLimitNotifiedByThread || {})) migrated[key] = today
+      appState.agent.tokenLimitNotifiedByThreadDay = migrated
     }
     if (typeof savedState.activeLocalThreadId === "string") {
       appState.agent.activeLocalThreadId = savedState.activeLocalThreadId
