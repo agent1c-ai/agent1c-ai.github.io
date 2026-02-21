@@ -29,6 +29,13 @@ Production implementation rule:
 - If you find a kludge in code, explicitly highlight it before extending that area.
 - If the requested feature depends on that kludge, first propose and execute the kludge cleanup path, then implement the new feature on top of the cleaned path.
 
+PROJECT NAMING HARD RULE:
+- Canonical project domains are ONLY:
+  - `agent1c.ai`
+  - `agent1c.me`
+- Never write or introduce `agentic.*` in code, configs, scripts, docs, CORS lists, or defaults.
+- If any `agentic.*` reference is found anywhere in this codebase, surface it to the user immediately and propose cleanup.
+
 TELEGRAM CLOUD RELAY MODEL (Agent1c.ai, tab-online only):
 - Product constraint:
   - Telegram replies are allowed only while the user's linked Agent1c.ai browser tab is online.
