@@ -191,3 +191,32 @@ Important planning files there include:
 - Static hosting: GitHub Pages.
 - Custom domains: `agent1c.ai`, `www.agent1c.ai`, `app.agent1c.ai`.
 - Supabase project ref for cloud runtime: `gkfhxhrleuauhnuewfmw`.
+
+## 12) Near-Future Development
+
+### Browser Companion Extension (Chrome)
+
+Planned next milestone is a Chrome extension to support true "browse with Hitomi" workflows beyond iframe limits.
+
+Why this is needed:
+
+- Many modern sites block iframe embedding and bot-like browsing paths.
+- Web-only overlays cannot be made reliably persistent across arbitrary origins.
+- A browser extension can provide safe, explicit page-context bridging.
+
+Planned v1:
+
+- Read active tab URL/title and selected text (user-triggered).
+- Open Hitomi side panel for contextual chat.
+- Send page/selection context to the `agent1c.ai` runtime.
+- Optional tiny hedgehog companion marker for discoverability.
+
+Design principles:
+
+- Least-privilege permissions.
+- Explicit user actions and clear consent boundaries.
+- No hidden autonomous browsing in background tabs.
+
+See implementation roadmap:
+
+- `CHROME_EXTENSION_ROADMAP.md`
