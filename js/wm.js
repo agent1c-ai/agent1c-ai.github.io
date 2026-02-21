@@ -1291,9 +1291,12 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
             openedViaRelay = true;
             const resolvedUrl = String(page.finalUrl || norm);
             if (isLikelyAntiBotPage(page)) {
+              renderRelayBody(iframe, resolvedUrl, page);
               setStatus("Blocked by anti-bot protections");
               if (onAntiBotBlock) onAntiBotBlock({ url: resolvedUrl, page });
-              return { ok: false, finalUrl: resolvedUrl, title: "", viaRelay: true, blockedByAntiBot: true };
+              const title = extractHtmlTitle(page.body || "");
+              if (onRelayPage) onRelayPage({ page, title, finalUrl: resolvedUrl });
+              return { ok: true, finalUrl: resolvedUrl, title, viaRelay: true, blockedByAntiBot: true };
             }
             renderRelayBody(iframe, resolvedUrl, page);
             setStatus("Opened via local relay fallback");
