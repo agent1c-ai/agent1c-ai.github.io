@@ -1248,7 +1248,31 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     const body = String(page?.body || "");
     const contentType = String(page?.contentType || "").toLowerCase();
     if (contentType.includes("text/html") || body.trim().startsWith("<!doctype") || body.trim().startsWith("<html")) {
-      const html = `<base href="${targetUrl}">\n${body}`;
+      const relayNavBridge = `<script>
+(() => {
+  try {
+    document.addEventListener("click", (event) => {
+      const t = event.target;
+      if (!(t instanceof Element)) return;
+      const anchor = t.closest("a[href]");
+      if (!anchor) return;
+      if (event.defaultPrevented) return;
+      if (event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const hrefRaw = anchor.getAttribute("href") || "";
+      if (!hrefRaw || hrefRaw.startsWith("#")) return;
+      const target = (anchor.getAttribute("target") || "").toLowerCase();
+      if (target === "_blank") return;
+      let resolved = "";
+      try { resolved = new URL(hrefRaw, document.baseURI).href; } catch { return; }
+      if (!/^https?:/i.test(resolved)) return;
+      event.preventDefault();
+      window.parent?.postMessage({ type: "agent1c:relay-nav", href: resolved }, "*");
+    }, true);
+  } catch {}
+})();
+</script>`;
+      const html = `<base href="${targetUrl}">\n${relayNavBridge}\n${body}`;
       iframe.removeAttribute("srcdoc");
       iframe.src = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
       return;
@@ -1417,6 +1441,15 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     });
     field.addEventListener("focus", () => field.select());
     field.addEventListener("click", () => field.select());
+
+    window.addEventListener("message", (event) => {
+      if (event.source !== iframe.contentWindow) return;
+      const data = event.data || {};
+      if (String(data.type || "") !== "agent1c:relay-nav") return;
+      const href = String(data.href || "").trim();
+      if (!href) return;
+      setUrl(href);
+    });
     const stForNav = state.get(String(win.dataset.id || ""));
     if (stForNav) {
       stForNav.browserNavigate = setUrl;
