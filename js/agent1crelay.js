@@ -205,8 +205,8 @@ export function shellRelayWindowHtml(){
         </div>
         <div class="agent-setup-section agent-setup-section-stop">
           <div class="agent-setup-title">Stop / Restart Relay</div>
-          <div class="agent-note">If anything looks broken, stop the relay and start it again.</div>
-          ${codeCard("Stop running relay", "pkill -f \"agent1c-relay.sh\" || true", "stop")}
+          <div class="agent-note">If anything looks broken or port 8765 is stuck, stop all relay listeners and start again.</div>
+          ${codeCard("Stop running relay", "pkill -f \"agent1c-relay.sh\" || true\npkill -f \"socat.*8765\" || true\nfuser -k 8765/tcp 2>/dev/null || true", "stop")}
           ${codeCard("Restart relay", "~/.agent1c-relay/agent1c-relay.sh", "restart")}
         </div>
         <div class="agent-row">
