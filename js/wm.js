@@ -1154,30 +1154,44 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     const body = String(page?.body || "").toLowerCase();
     const title = String(page?.title || "").toLowerCase();
     const merged = `${title}\n${body}`;
-    const hardSignals = [
-      "captcha",
-      "hcaptcha",
-      "recaptcha",
-      "cloudflare",
-      "attention required",
+    const veryStrongSignals = [
+      "/cdn-cgi/challenge-platform/",
+      "cf-chl",
+      "datadome",
+      "perimeterx",
+      "px-captcha",
+      "__cf_bm",
+      "checking your browser before accessing",
+      "security challenge",
+    ];
+    const strongSignals = [
       "verify you are human",
       "verify you're human",
       "are you human",
       "unusual traffic",
-      "bot detection",
       "automated queries",
       "access denied",
       "request blocked",
-      "cf-chl",
-      "/cdn-cgi/challenge-platform/",
-      "perimeterx",
-      "datadome",
-      "px-captcha",
-      "__cf_bm",
+      "captcha",
+      "hcaptcha",
+      "recaptcha",
+      "cloudflare",
+      "bot detection",
     ];
-    const hit = hardSignals.some(sig => merged.includes(sig));
-    if (hit) return true;
-    if ([401, 403, 429, 503].includes(status) && (merged.includes("blocked") || merged.includes("forbidden") || merged.includes("denied"))) return true;
+    const veryStrongHit = veryStrongSignals.some(sig => merged.includes(sig));
+    if (veryStrongHit) return true;
+
+    const strongCount = strongSignals.reduce((count, sig) => count + (merged.includes(sig) ? 1 : 0), 0);
+    const statusBlocked = [401, 403, 429, 503].includes(status);
+    const titleLooksLikeChallenge =
+      title.includes("attention required") ||
+      title.includes("just a moment") ||
+      title.includes("security check") ||
+      title.includes("verify you are human");
+
+    if (statusBlocked && strongCount >= 1) return true;
+    if (statusBlocked && (merged.includes("blocked") || merged.includes("forbidden") || merged.includes("denied"))) return true;
+    if (titleLooksLikeChallenge && strongCount >= 1) return true;
     return false;
   }
 
