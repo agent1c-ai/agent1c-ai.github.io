@@ -260,8 +260,6 @@ let clippyIdleLastActivityAt = 0
 let clippyIdleBubbleRestore = null
 let clippyIdleRaf = 0
 let clippyActivityWired = false
-let miniMode = false
-let miniHitomiUi = null
 let onboardingHedgey = null
 let userName = ""
 let cloudWorkspaceReady = false
@@ -3579,83 +3577,6 @@ function setClippyMode(next){
   }
 }
 
-function latestHitomiMiniText(){
-  const chatOne = getChatOneThread()
-  const msgs = Array.isArray(chatOne?.messages) ? chatOne.messages : []
-  for (let i = msgs.length - 1; i >= 0; i -= 1) {
-    if (msgs[i]?.role === "assistant" && String(msgs[i]?.content || "").trim()) {
-      return String(msgs[i].content).trim()
-    }
-  }
-  return "Hi friend. Tiny Hitomi companion is ready."
-}
-
-function ensureMiniHitomiView(){
-  if (miniHitomiUi?.root?.isConnected) return miniHitomiUi
-  const root = document.createElement("section")
-  root.className = "mini-hitomi-view"
-  root.innerHTML = `
-    <div class="mini-hitomi-window">
-      <div class="mini-hitomi-title">Hitomi Mini</div>
-      <div class="mini-hitomi-body">
-        <img class="mini-hitomi-avatar" src="assets/hedgey1.png" alt="Hitomi mini companion" />
-        <div class="mini-hitomi-text" id="miniHitomiText"></div>
-      </div>
-      <form class="mini-hitomi-actions" id="miniHitomiForm">
-        <input class="field" id="miniHitomiInput" type="text" placeholder="Say hi..." />
-        <button class="btn" type="submit">Send</button>
-        <button class="btn" id="miniHitomiExitBtn" type="button">Exit</button>
-      </form>
-    </div>
-  `
-  document.body.appendChild(root)
-  const text = root.querySelector("#miniHitomiText")
-  const form = root.querySelector("#miniHitomiForm")
-  const input = root.querySelector("#miniHitomiInput")
-  const exitBtn = root.querySelector("#miniHitomiExitBtn")
-  form?.addEventListener("submit", async (e) => {
-    e.preventDefault()
-    const spoken = String(input?.value || "").trim()
-    if (!spoken) return
-    if (input) input.value = ""
-    try {
-      setStatus("Thinking...")
-      const chatOne = getChatOneThread()
-      if (!chatOne?.id) throw new Error("Chat 1 not available.")
-      const ok = await sendChat(spoken, { threadId: chatOne.id })
-      setStatus(ok ? "Reply received." : "Daily token limit reached.")
-      if (text) text.textContent = latestHitomiMiniText()
-    } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Mini chat failed")
-    }
-  })
-  exitBtn?.addEventListener("click", () => setMiniMode(false))
-  miniHitomiUi = { root, text, input }
-  return miniHitomiUi
-}
-
-function updateMiniHitomiView(){
-  if (!miniMode) return
-  const ui = ensureMiniHitomiView()
-  if (!ui) return
-  if (ui.text) ui.text.textContent = latestHitomiMiniText()
-}
-
-function setMiniMode(next){
-  miniMode = !!next
-  document.body.classList.toggle("mini-hitomi-mode", miniMode)
-  if (miniMode) {
-    setClippyMode(false)
-    const ui = ensureMiniHitomiView()
-    if (ui?.text) ui.text.textContent = latestHitomiMiniText()
-    setStatus("Mini mode enabled.")
-  } else {
-    miniHitomiUi?.root?.remove()
-    miniHitomiUi = null
-    setStatus("Mini mode disabled.")
-  }
-}
-
 async function handleVoiceCommand(text){
   const spoken = String(text || "").trim()
   if (!spoken) return
@@ -3715,7 +3636,6 @@ function renderChat(){
     }
     clippyLastAssistantKey = latestKey || clippyLastAssistantKey
   }
-  updateMiniHitomiView()
   scrollChatToBottom()
 }
 
@@ -5816,15 +5736,6 @@ function wireMainDom(){
   })
   els.openShellRelayBtn?.addEventListener("click", () => {
     openShellRelayWindow()
-  })
-  const miniModeBtn = byId("minimodebtn")
-  miniModeBtn?.addEventListener("click", () => {
-    if (miniMode) {
-      setMiniMode(false)
-      return
-    }
-    const yes = window.confirm("Switch to mini mode? Yes/No")
-    if (yes) setMiniMode(true)
   })
   if (els.creditsSubscribeMonthlyBtn) {
     els.creditsSubscribeMonthlyBtn.disabled = !isCloudAuthHost()
