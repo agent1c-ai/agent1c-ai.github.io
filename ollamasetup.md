@@ -27,7 +27,7 @@ Define exact copy for an in-app `Ollama Setup` helper window in Agent1c OS.
 ## Proposed In-App Setup Window Structure
 1. Install Ollama
 2. Start Ollama
-3. Enable browser access for agentic.ai (CORS)
+3. Enable browser access for agent1c.ai (CORS)
 4. Verify local endpoint and model
 
 ## Draft User-Facing Copy (for the future setup window)
@@ -70,7 +70,7 @@ Code block (check local models):
 curl http://127.0.0.1:11434/api/tags
 ```
 
-### Section 3: Allow agentic.ai origin (required for browser calls)
+### Section 3: Allow agent1c.ai origin (required for browser calls)
 Text:
 "Allow your browser origin so Agent1c can call local Ollama directly."
 
@@ -82,7 +82,7 @@ sudo systemctl edit ollama.service
 2) Add:
 ```ini
 [Service]
-Environment="OLLAMA_ORIGINS=https://app.agentic.ai,https://agentic.ai,https://www.agentic.ai,http://localhost:8000,http://127.0.0.1:8000"
+Environment="OLLAMA_ORIGINS=https://app.agent1c.ai,https://agent1c.ai,https://www.agent1c.ai,http://localhost:8000,http://127.0.0.1:8000"
 Environment="OLLAMA_HOST=127.0.0.1:11434"
 ```
 3) Reload + restart:
@@ -93,7 +93,7 @@ sudo systemctl restart ollama
 
 macOS (Ollama app) instructions:
 ```bash
-launchctl setenv OLLAMA_ORIGINS "https://app.agentic.ai,https://agentic.ai,https://www.agentic.ai,http://localhost:8000,http://127.0.0.1:8000"
+launchctl setenv OLLAMA_ORIGINS "https://app.agent1c.ai,https://agent1c.ai,https://www.agent1c.ai,http://localhost:8000,http://127.0.0.1:8000"
 launchctl setenv OLLAMA_HOST "127.0.0.1:11434"
 ```
 Then:

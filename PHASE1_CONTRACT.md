@@ -20,7 +20,7 @@ This must follow the same guided onboarding style as Ollama Setup.
 - Android flow includes Termux (prefer F-Droid) and browser CORS/private-network note.
 
 3. Distribution/onboarding model:
-- User is on `agentic.ai` in browser; repo files are not local by default.
+- User is on `agent1c.ai` in browser; repo files are not local by default.
 - Setup commands must fetch/install relay onto user machine (do not assume local repo path).
 - User must be able to start relay from copied shell commands shown in UI.
 
@@ -35,7 +35,7 @@ This must follow the same guided onboarding style as Ollama Setup.
 
 6. Security baseline:
 - Bind relay to loopback only (`127.0.0.1`).
-- CORS allowlist for `https://agentic.ai` (+ optional localhost dev origins).
+- CORS allowlist for `https://agent1c.ai` (+ optional localhost dev origins).
 - Optional token auth.
 - Timeout and output truncation.
 - Strong warning: run relay as non-sudo/non-root user.

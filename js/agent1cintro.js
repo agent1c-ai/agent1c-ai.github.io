@@ -12,15 +12,12 @@ function isAgenticAiHost(){
   return host === "agent1c.ai"
     || host === "www.agent1c.ai"
     || host === "app.agent1c.ai"
-    || host === "agentic.ai"
-    || host === "www.agentic.ai"
-    || host === "app.agentic.ai"
 }
 
 function shouldShowAiIntroGate(){
   const host = String(window.location?.hostname || "").toLowerCase()
   if (!isAgenticAiHost()) return false
-  if (host === "app.agent1c.ai" || host === "app.agentic.ai") return false
+  if (host === "app.agent1c.ai") return false
   const params = new URLSearchParams(window.location.search || "")
   const isAuthCallback =
     params.has("code")

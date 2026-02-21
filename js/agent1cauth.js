@@ -5,9 +5,6 @@ const CLOUD_HOSTS = new Set([
   "agent1c.ai",
   "www.agent1c.ai",
   "app.agent1c.ai",
-  "agentic.ai",
-  "www.agentic.ai",
-  "app.agentic.ai",
 ])
 
 const AUTH_PANEL_ID = "auth"
