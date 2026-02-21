@@ -8,7 +8,7 @@ PORT="${AGENT1C_RELAY_PORT:-8765}"
 TOKEN="${AGENT1C_RELAY_TOKEN:-}"
 MAX_OUTPUT_CHARS="${AGENT1C_RELAY_MAX_OUTPUT_CHARS:-65536}"
 DEFAULT_TIMEOUT_MS="${AGENT1C_RELAY_DEFAULT_TIMEOUT_MS:-30000}"
-ALLOW_ORIGINS="${AGENT1C_RELAY_ALLOW_ORIGINS:-https://app.agentic.ai,https://agentic.ai,https://www.agentic.ai,http://localhost:8000,http://127.0.0.1:8000}"
+ALLOW_ORIGINS="${AGENT1C_RELAY_ALLOW_ORIGINS:-https://app.agent1c.ai,https://agent1c.ai,https://www.agent1c.ai,http://localhost:8000,http://127.0.0.1:8000}"
 
 if [ "$HOST" != "127.0.0.1" ]; then
   echo "[agent1c-relay] forcing loopback bind (127.0.0.1)"
