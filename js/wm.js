@@ -1149,6 +1149,70 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     return plain.slice(0, 120);
   }
 
+  function isLikelyAntiBotPage(page){
+    const status = Number(page?.status || 0);
+    const body = String(page?.body || "").toLowerCase();
+    const title = String(page?.title || "").toLowerCase();
+    const merged = `${title}\n${body}`;
+    const hardSignals = [
+      "captcha",
+      "hcaptcha",
+      "recaptcha",
+      "cloudflare",
+      "attention required",
+      "verify you are human",
+      "verify you're human",
+      "are you human",
+      "unusual traffic",
+      "bot detection",
+      "automated queries",
+      "access denied",
+      "request blocked",
+      "cf-chl",
+      "/cdn-cgi/challenge-platform/",
+      "perimeterx",
+      "datadome",
+      "px-captcha",
+      "__cf_bm",
+    ];
+    const hit = hardSignals.some(sig => merged.includes(sig));
+    if (hit) return true;
+    if ([401, 403, 429, 503].includes(status) && (merged.includes("blocked") || merged.includes("forbidden") || merged.includes("denied"))) return true;
+    return false;
+  }
+
+  function showBrowserAntiBotWarning(win, targetUrl){
+    const wrap = win?.querySelector?.(".browserwrap");
+    if (!wrap) return;
+    wrap.querySelectorAll(".browser-antibot-warning").forEach(node => node.remove());
+    const host = (() => {
+      try { return new URL(String(targetUrl || "")).hostname; } catch { return String(targetUrl || "this site"); }
+    })();
+    const box = document.createElement("div");
+    box.className = "browser-antibot-warning";
+    box.innerHTML = `
+      <div class="browser-antibot-title">Site Blocked Automated Browsing</div>
+      <div class="browser-antibot-copy">
+        ${host} is enforcing anti-bot protections, so Agent1c cannot render this page in-browser.
+      </div>
+      <div class="browser-antibot-actions">
+        <button class="btn" type="button" data-open-tab>Open in New Tab</button>
+        <button class="btn" type="button" data-cancel>Cancel</button>
+      </div>
+    `;
+    const close = () => {
+      box.remove();
+    };
+    box.querySelector("[data-open-tab]")?.addEventListener("click", () => {
+      try {
+        window.open(String(targetUrl || ""), "_blank", "noopener,noreferrer");
+      } catch {}
+      close();
+    });
+    box.querySelector("[data-cancel]")?.addEventListener("click", close);
+    wrap.appendChild(box);
+  }
+
   async function relayFetch(url, mode, maxBytes){
     const relay = getRelayState();
     if (!relay.enabled) throw new Error("relay disabled");
@@ -1187,6 +1251,7 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
   async function loadUrlIntoIframe(iframe, rawUrl, opts = {}){
     const setStatus = typeof opts.onStatus === "function" ? opts.onStatus : () => {};
     const onRelayPage = typeof opts.onRelayPage === "function" ? opts.onRelayPage : null;
+    const onAntiBotBlock = typeof opts.onAntiBotBlock === "function" ? opts.onAntiBotBlock : null;
     const raw = String(rawUrl || "").trim();
     if (!raw) {
       setStatus("Enter a URL");
@@ -1211,6 +1276,11 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
           if (page.ok) {
             openedViaRelay = true;
             const resolvedUrl = String(page.finalUrl || norm);
+            if (isLikelyAntiBotPage(page)) {
+              setStatus("Blocked by anti-bot protections");
+              if (onAntiBotBlock) onAntiBotBlock({ url: resolvedUrl, page });
+              return { ok: false, finalUrl: resolvedUrl, title: "", viaRelay: true, blockedByAntiBot: true };
+            }
             renderRelayBody(iframe, resolvedUrl, page);
             setStatus("Opened via local relay fallback");
             const title = extractHtmlTitle(page.body || "");
@@ -1284,6 +1354,17 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
           onRelayPage: ({ title }) => {
             lastResolvedTitle = title || "";
           },
+          onAntiBotBlock: ({ url }) => {
+            showBrowserAntiBotWarning(win, url);
+            try {
+              window.dispatchEvent(new CustomEvent("agent1c:browser-antibot-blocked", {
+                detail: {
+                  url: String(url || ""),
+                  source: String(opts?.openSource || "manual"),
+                },
+              }));
+            } catch {}
+          },
         });
         if (seq !== navSeq) return;
         if (result?.ok) {
@@ -1297,6 +1378,7 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
           lastResolvedUrl = norm;
           lastResolvedTitle = "";
         }
+        return result || { ok: false, finalUrl: normalizedBrowserUrl(raw), title: "", viaRelay: false };
       }
       if (!opts?.noHistory) {
         const val = field.value;
@@ -1306,6 +1388,7 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
           historyIndex = historyStack.length - 1;
         }
       }
+      return { ok: true, finalUrl: String(field.value || ""), title: String(lastResolvedTitle || ""), viaRelay: false };
     }
 
     goBtn.addEventListener("click", () => { setUrl(field.value); });
@@ -1317,6 +1400,10 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     });
     field.addEventListener("focus", () => field.select());
     field.addEventListener("click", () => field.select());
+    const stForNav = state.get(String(win.dataset.id || ""));
+    if (stForNav) {
+      stForNav.browserNavigate = setUrl;
+    }
 
     if (backBtn) {
       backBtn.addEventListener("click", () => {
@@ -1882,6 +1969,57 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     return { ok: true, id: browserId, title: st.title || "Browser", url: target };
   }
 
+  async function openUrlInBrowserDetailed(url, opts = {}){
+    const target = String(url || "").trim();
+    if (!target) return { ok: false, error: "missing url" };
+    const existing = findWindowByTitle("Browser");
+    let browserId = existing?.id || null;
+    if (!browserId || opts.newWindow) browserId = createBrowserWindow();
+    if (!browserId) return { ok: false, error: "browser window unavailable" };
+    restore(browserId);
+    focus(browserId);
+    const st = state.get(browserId);
+    if (!st?.win) return { ok: false, error: "browser state unavailable" };
+    const field = st.win.querySelector("[data-urlfield]");
+    const goBtn = st.win.querySelector("[data-go]");
+    if (!field || !goBtn) return { ok: false, error: "browser controls unavailable" };
+    field.value = target;
+    if (typeof st.browserNavigate === "function") {
+      const result = await st.browserNavigate(target, {
+        noHistory: false,
+        openSource: String(opts.source || "manual"),
+      });
+      if (result?.blockedByAntiBot) {
+        return {
+          ok: false,
+          error: "blocked_by_antibot",
+          blockedByAntiBot: true,
+          id: browserId,
+          title: st.title || "Browser",
+          url: String(result.finalUrl || target),
+        };
+      }
+      if (result?.ok) {
+        return {
+          ok: true,
+          id: browserId,
+          title: st.title || "Browser",
+          url: String(result.finalUrl || target),
+          viaRelay: !!result.viaRelay,
+        };
+      }
+      return {
+        ok: false,
+        error: String(result?.error || "navigation failed"),
+        id: browserId,
+        title: st.title || "Browser",
+        url: target,
+      };
+    }
+    goBtn.click();
+    return { ok: true, id: browserId, title: st.title || "Browser", url: target };
+  }
+
   function clearTileSnapshot(){
     tileSnapshot = null;
   }
@@ -2154,6 +2292,7 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     openAppById,
     listAvailableApps,
     openUrlInBrowser,
+    openUrlInBrowserDetailed,
     registerDesktopShortcut,
     unregisterDesktopShortcut,
     registerDesktopFolder,

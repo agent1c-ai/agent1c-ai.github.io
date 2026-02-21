@@ -1949,8 +1949,16 @@ async function runToolCall(call){
     if (action === "open_url") {
       const rawUrl = String(args.url || args.link || "").trim()
       if (!rawUrl) return "TOOL_RESULT wm_action open_url: missing url"
-      const opened = wmRef.openUrlInBrowser?.(rawUrl, { newWindow: false })
-      if (!opened?.ok) return `TOOL_RESULT wm_action open_url: failed (${opened?.error || "unknown"})`
+      const opened = wmRef.openUrlInBrowserDetailed
+        ? await wmRef.openUrlInBrowserDetailed(rawUrl, { newWindow: false, source: "tool" })
+        : wmRef.openUrlInBrowser?.(rawUrl, { newWindow: false })
+      if (!opened?.ok) {
+        if (opened?.blockedByAntiBot || String(opened?.error || "").toLowerCase().includes("antibot")) {
+          await addEvent("browser_antibot_blocked", String(opened?.url || rawUrl))
+          return `TOOL_RESULT wm_action open_url: blocked_by_antibot (${opened?.url || rawUrl}). The browser showed a warning dialog with "Open in New Tab" and "Cancel". Tell the user to press Open in New Tab if they want to continue, or Cancel if not.`
+        }
+        return `TOOL_RESULT wm_action open_url: failed (${opened?.error || "unknown"})`
+      }
       await addEvent("wm_action", `open_url ${rawUrl}`)
       return `TOOL_RESULT wm_action open_url: ok (${opened.url})`
     }

@@ -1366,6 +1366,36 @@
       min-height: 0;
       position: relative;
     }
+    .browser-antibot-warning{
+      position: absolute;
+      left: 50%;
+      top: 56%;
+      transform: translate(-50%, -50%);
+      width: min(420px, calc(100% - 24px));
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--os-face) 94%, #fff 6%);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.22);
+      padding: 10px;
+      box-sizing: border-box;
+      z-index: 9;
+      pointer-events: auto;
+    }
+    .browser-antibot-title{
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .browser-antibot-copy{
+      font-size: 11px;
+      line-height: 1.35;
+      margin-bottom: 8px;
+    }
+    .browser-antibot-actions{
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
     .browserbar{
       display:flex;
       align-items:center;
