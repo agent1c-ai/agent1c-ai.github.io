@@ -102,9 +102,23 @@ run_shell_command(){
   : > "$out_file"
   : > "$err_file"
 
-  (
-    sh -lc "$command"
-  ) >"$out_file" 2>"$err_file" &
+  if command -v bash >/dev/null 2>&1; then
+    (
+      env -i \
+        PATH="${PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}" \
+        HOME="${HOME:-/tmp}" \
+        LANG="${LANG:-C.UTF-8}" \
+        bash --noprofile --norc -c "$command"
+    ) >"$out_file" 2>"$err_file" &
+  else
+    (
+      env -i \
+        PATH="${PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}" \
+        HOME="${HOME:-/tmp}" \
+        LANG="${LANG:-C.UTF-8}" \
+        sh -c "$command"
+    ) >"$out_file" 2>"$err_file" &
+  fi
   cmd_pid="$!"
 
   timeout_s=$(( (timeout_ms + 999) / 1000 ))
