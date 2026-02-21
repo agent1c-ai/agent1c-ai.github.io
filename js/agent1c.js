@@ -955,6 +955,13 @@ function applyCloudIdentityToUi(identity){
   const provider = String(identity?.provider || "").toLowerCase()
   const handle = String(identity?.handle || "").trim()
   const email = String(identity?.email || "").trim()
+  if (els.creditsResolvedEmailRow) {
+    const showResolved = provider === "x" && Boolean(email)
+    els.creditsResolvedEmailRow.style.display = showResolved ? "" : "none"
+  }
+  if (els.creditsResolvedEmail) {
+    els.creditsResolvedEmail.textContent = email || ""
+  }
   if (provider === "x" || provider === "twitter") {
     els.creditsAccount.textContent = handle ? `@${handle.replace(/^@+/, "")}` : "X account"
     return
@@ -984,6 +991,11 @@ function applyCloudUsageToUi(usage){
   if (els.creditsPlan && planName) {
     els.creditsPlan.textContent = planName
   }
+  const paid = planName.toLowerCase() === "paid"
+  if (els.creditsPlanChooser) {
+    els.creditsPlanChooser.style.display = paid ? "none" : ""
+  }
+  applyCreditsWindowMinSize(paid)
 }
 
 async function refreshCloudIdentity(){
@@ -4673,12 +4685,13 @@ function creditsWindowHtml(){
           <span>Provider: <strong>Managed Cloud</strong></span>
         </div>
         <div class="agent-note">Account: <strong id="creditsAccount">Signed out</strong></div>
+        <div id="creditsResolvedEmailRow" class="agent-note" style="display:none;">Resolved Email: <strong id="creditsResolvedEmail"></strong></div>
       </div>
       <div class="agent-pane agent-pane-canvas">
         <div class="agent-note"><strong id="creditsUsed">0/12,000 tokens used today</strong></div>
         <div class="agent-note">Remaining today: <strong id="creditsRemaining">12,000 tokens left</strong></div>
       </div>
-      <div class="agent-pane agent-pane-chrome">
+      <div id="creditsPlanChooser" class="agent-pane agent-pane-chrome">
         <div class="agent-note"><strong>Choose plan</strong></div>
         <div class="agent-row agent-wrap-row credits-subscribe-row">
           <button id="creditsSubscribeMonthlyBtn" class="btn agent-credits-subscribe-btn" type="button">$2 / month · 100,000 tokens/day</button>
@@ -4689,12 +4702,18 @@ function creditsWindowHtml(){
   `
 }
 
-function applyCreditsWindowMinSize(){
+function applyCreditsWindowMinSize(isPaid = false){
   const win = wins?.credits?.win
   if (!win) return
-  // Keep plan buttons visible while still fitting typical phone widths.
   win.style.minWidth = "260px"
-  win.style.minHeight = "245px"
+  if (isPaid) {
+    win.style.minHeight = "190px"
+    if ((Number.parseInt(win.style.height, 10) || 0) > 245) win.style.height = "235px"
+  } else {
+    // Keep plan buttons visible while still fitting typical phone widths.
+    win.style.minHeight = "245px"
+    if ((Number.parseInt(win.style.height, 10) || 0) < 285) win.style.height = "300px"
+  }
 }
 
 function soulWindowHtml(){
@@ -4859,6 +4878,9 @@ function cacheElements(){
     creditsRemaining: byId("creditsRemaining"),
     creditsPlan: byId("creditsPlan"),
     creditsAccount: byId("creditsAccount"),
+    creditsResolvedEmailRow: byId("creditsResolvedEmailRow"),
+    creditsResolvedEmail: byId("creditsResolvedEmail"),
+    creditsPlanChooser: byId("creditsPlanChooser"),
     creditsSubscribeBtn: byId("creditsSubscribeBtn"),
     creditsSubscribeMonthlyBtn: byId("creditsSubscribeMonthlyBtn"),
     creditsSubscribeSixMonthBtn: byId("creditsSubscribeSixMonthBtn"),
