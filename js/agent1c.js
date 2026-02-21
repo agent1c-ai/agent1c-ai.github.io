@@ -339,6 +339,31 @@ function normalizeUserName(value){
   return raw.slice(0, 48).replace(/[\r\n\t]/g, " ").trim()
 }
 
+function isIOSLikeDevice(){
+  try {
+    const ua = String(navigator.userAgent || "")
+    const platform = String(navigator.platform || "")
+    const touchPoints = Number(navigator.maxTouchPoints || 0)
+    return /iPad|iPhone|iPod/i.test(ua)
+      || (/Mac/i.test(platform) && touchPoints > 1)
+  } catch {
+    return false
+  }
+}
+
+function enforceNoZoomOnIOS(){
+  if (!isIOSLikeDevice()) return
+  const block = (e) => {
+    e.preventDefault()
+  }
+  document.addEventListener("gesturestart", block, { passive: false })
+  document.addEventListener("gesturechange", block, { passive: false })
+  document.addEventListener("gestureend", block, { passive: false })
+  document.addEventListener("touchmove", (e) => {
+    if (e.touches && e.touches.length > 1) e.preventDefault()
+  }, { passive: false })
+}
+
 function utcDayKey(ts = Date.now()){
   return new Date(ts).toISOString().slice(0, 10)
 }
@@ -5815,7 +5840,22 @@ function wireMainDom(){
   })
 
   if (isCloudAuthHost()) {
-    els.telegramCloudGenerateBtn?.addEventListener("click", async () => {
+    let lastCloudTelegramPressAt = 0
+    const bindPress = (node, fn) => {
+      if (!node) return
+      const run = (event) => {
+        const now = Date.now()
+        if (now - lastCloudTelegramPressAt < 300) return
+        lastCloudTelegramPressAt = now
+        event?.preventDefault?.()
+        event?.stopPropagation?.()
+        Promise.resolve().then(fn).catch(() => {})
+      }
+      node.addEventListener("click", run)
+      node.addEventListener("touchend", run, { passive: false })
+      node.addEventListener("pointerup", run)
+    }
+    bindPress(els.telegramCloudGenerateBtn, async () => {
       try {
         await generateCloudTelegramLinkCode()
         setStatus("Telegram code generated. Open Telegram and tap Start.")
@@ -5823,12 +5863,12 @@ function wireMainDom(){
         setStatus(err instanceof Error ? err.message : "Could not generate Telegram code")
       }
     })
-    els.telegramCloudOpenBtn?.addEventListener("click", () => {
+    bindPress(els.telegramCloudOpenBtn, () => {
       const deep = String(cloudTelegramLink.deepLink || "").trim()
       if (!deep) return
       window.open(deep, "_blank", "noopener,noreferrer")
     })
-    els.telegramCloudCopyBtn?.addEventListener("click", async () => {
+    bindPress(els.telegramCloudCopyBtn, async () => {
       const text = String(els.telegramCloudCode?.value || "").trim()
       if (!text) return
       try {
@@ -5838,7 +5878,7 @@ function wireMainDom(){
         setStatus("Could not copy command.")
       }
     })
-    els.telegramCloudRefreshBtn?.addEventListener("click", async () => {
+    bindPress(els.telegramCloudRefreshBtn, async () => {
       await refreshCloudTelegramLinkState()
       setStatus(cloudTelegramLink.linked ? "Telegram account linked." : "Telegram not linked yet.")
       refreshTelegramLoop()
@@ -6272,6 +6312,7 @@ async function continueStandardOnboardingFlow(){
 
 export async function initAgent1C({ wm }){
   wmRef = wm
+  enforceNoZoomOnIOS()
   const hasExistingCloudSession = isCloudAuthHost() ? await hasCloudAuthSession() : false
   if (hasExistingCloudSession) cloudAuthSessionReady = true
   applyCloudReadableScale()
