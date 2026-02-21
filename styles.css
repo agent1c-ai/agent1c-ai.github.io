@@ -2259,6 +2259,13 @@
   gap: 7px;
   min-width: 0;
 }
+.agent-setup-section-stop{
+  border-color: #c67b90;
+  background: #f7d5df;
+}
+.agent-setup-section-stop .agent-setup-title{
+  color: #7a1c3a;
+}
 .agent-setup-title{
   font-size: 12px;
   font-weight: 700;
@@ -2789,6 +2796,13 @@ body.dark .agent-setup-intro,
 body.dark .agent-setup-section{
   background: #161b25;
   border-color: #555d6b;
+}
+body.dark .agent-setup-section-stop{
+  background: #3a2130;
+  border-color: #87556b;
+}
+body.dark .agent-setup-section-stop .agent-setup-title{
+  color: #ffc2d3;
 }
 body.dark .agent-setup-toolbar .field{
   background: #121720;

@@ -203,6 +203,12 @@ export function shellRelayWindowHtml(){
             <div class="agent-note">${os.caveat}</div>
           </div>
         </div>
+        <div class="agent-setup-section agent-setup-section-stop">
+          <div class="agent-setup-title">Stop / Restart Relay</div>
+          <div class="agent-note">If anything looks broken, stop the relay and start it again.</div>
+          ${codeCard("Stop running relay", "pkill -f \"agent1c-relay.sh\" || true", "stop")}
+          ${codeCard("Restart relay", "~/.agent1c-relay/agent1c-relay.sh", "restart")}
+        </div>
         <div class="agent-row">
           <button id="relayNextBtn" class="btn" type="button">Next: Connect</button>
         </div>
