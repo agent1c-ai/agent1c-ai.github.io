@@ -31,6 +31,10 @@ function normalizeEmail(v: unknown){
   return String(v || "").trim().toLowerCase()
 }
 
+function normalizeHandle(v: unknown){
+  return String(v || "").trim().replace(/^@+/, "").toLowerCase()
+}
+
 function shouldSetPaid(resourceName: string){
   return ["sale", "subscription_restarted", "subscription_updated"].includes(resourceName)
 }
@@ -78,6 +82,13 @@ serve(async (req) => {
     || "",
   ).trim()
   const customFields = parseCustomFields(String(payload.custom_fields || ""))
+  const userHandle = normalizeHandle(
+    payload.agent1c_handle
+    || payload.x_handle
+    || customFields.agent1c_handle
+    || customFields.x_handle
+    || customFields.twitter_handle,
+  )
   const customUserId = String(
     customFields.agent1c_user_id
     || customFields.agent1c_uid
@@ -101,6 +112,37 @@ serve(async (req) => {
     }
   }
 
+  if (!userId && userHandle) {
+    let page = 1
+    const perPage = 200
+    while (!userId) {
+      const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage })
+      if (error) break
+      const users = Array.isArray(data?.users) ? data.users : []
+      if (!users.length) break
+      const hit = users.find((u) => {
+        const identities = Array.isArray(u?.identities) ? u.identities : []
+        const fromIdentity = identities.some((id) => {
+          const raw = id?.identity_data || {}
+          const candidate = normalizeHandle(raw?.user_name || raw?.preferred_username || raw?.screen_name)
+          return candidate && candidate === userHandle
+        })
+        if (fromIdentity) return true
+        const fromMeta = normalizeHandle(
+          u?.user_metadata?.user_name
+          || u?.user_metadata?.preferred_username
+          || u?.user_metadata?.username
+          || u?.app_metadata?.user_name
+          || u?.app_metadata?.preferred_username,
+        )
+        return fromMeta && fromMeta === userHandle
+      })
+      if (hit?.id) userId = hit.id
+      if (users.length < perPage) break
+      page += 1
+    }
+  }
+
   if (!userId) {
     return new Response(JSON.stringify({
       ok: true,
@@ -108,6 +150,7 @@ serve(async (req) => {
       reason: "user_not_found",
       resource_name: resourceName,
       email: userEmail || null,
+      handle: userHandle || null,
     }), { status: 200, headers })
   }
 
@@ -119,6 +162,7 @@ serve(async (req) => {
       reason: "user_lookup_failed",
       resource_name: resourceName,
       user_id: userId,
+      handle: userHandle || null,
     }), { status: 200, headers })
   }
 
@@ -148,8 +192,8 @@ serve(async (req) => {
     ok: true,
     user_id: userId,
     email: userEmail || null,
+    handle: userHandle || null,
     resource_name: resourceName,
     tier: nextTier,
   }), { status: 200, headers })
 })
-

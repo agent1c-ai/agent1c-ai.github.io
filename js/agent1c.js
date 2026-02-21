@@ -1042,8 +1042,10 @@ async function openCreditsCheckoutForPlan(plan = "monthly"){
   if (identity) {
     const email = String(identity.email || "").trim()
     const userId = String(identity.userId || "").trim()
+    const handle = String(identity.handle || "").trim().replace(/^@+/, "")
     if (email) url.searchParams.set("email", email)
     if (userId) url.searchParams.set("agent1c_user_id", userId)
+    if (handle) url.searchParams.set("agent1c_handle", handle)
   }
   const finalUrl = url.toString()
   if (checkoutTab && !checkoutTab.closed) {
