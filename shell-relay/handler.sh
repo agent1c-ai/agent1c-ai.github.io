@@ -442,8 +442,33 @@ proxy_html_rewriter_script(){
       try { window.parent?.postMessage({ type: "agent1c:relay-nav", href: orig }, "*"); } catch {}
     }, true);
   }
+  function hookForms(){
+    document.addEventListener("submit", (event) => {
+      const t = event.target;
+      if (!(t instanceof HTMLFormElement)) return;
+      if (event.defaultPrevented) return;
+      const method = String(t.getAttribute("method") || "get").toLowerCase();
+      if (method !== "get") return;
+      let action = t.getAttribute("action") || "";
+      if (!action) action = document.baseURI || location.href;
+      let resolved = "";
+      try { resolved = new URL(action, document.baseURI).href; } catch { return; }
+      if (!ABS_RE.test(resolved)) return;
+      event.preventDefault();
+      try {
+        const fd = new FormData(t);
+        const u = new URL(resolved);
+        for (const [k, v] of fd.entries()) {
+          if (typeof v !== "string") continue;
+          u.searchParams.append(String(k), v);
+        }
+        window.parent?.postMessage({ type: "agent1c:relay-nav", href: u.toString() }, "*");
+      } catch {}
+    }, true);
+  }
   rewriteNode(document);
   hookClicks();
+  hookForms();
   try {
     let queued = false;
     const rerun = () => {
