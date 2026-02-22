@@ -1412,15 +1412,6 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     return true;
   }
 
-  async function relayProxyPreflight(targetUrl, relayToUse, maxBytes){
-    const page = await relayFetch(targetUrl, "get", maxBytes || 220000, relayToUse);
-    if (!(page && page.ok)) {
-      throw new Error("proxy preflight failed");
-    }
-    const title = extractHtmlTitle(String(page.body || ""));
-    return { page, title };
-  }
-
   async function loadUrlIntoIframe(iframe, rawUrl, opts = {}){
     const setStatus = typeof opts.onStatus === "function" ? opts.onStatus : () => {};
     const onRelayPage = typeof opts.onRelayPage === "function" ? opts.onRelayPage : null;
@@ -1461,52 +1452,23 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
         if (relayToUse && shouldUseRelayBody) {
           openedViaRelay = true;
           if (experimentalWebProxyEnabled()) {
-            const { page, title } = await relayProxyPreflight(norm, relayToUse, Math.min(220000, opts.maxBytes || 220000));
-            if (isLikelyAntiBotPage(page)) {
-              setStatus("Blocked by anti-bot protections");
-              if (onAntiBotBlock) {
-                try { onAntiBotBlock({ url: norm, page, viaRelay: true, relayKind: relayToUse.kind }); } catch {}
-              }
-              return { ok: false, finalUrl: norm, title, viaRelay: true, antiBotBlocked: true };
-            }
-            if (onRelayPage) {
-              try { onRelayPage({ title, page, url: norm, viaRelay: true, relayKind: relayToUse.kind, proxy: true }); } catch {}
-            }
             const proxyUrl = relayProxyPageUrl(relayToUse, norm);
             iframe.removeAttribute("srcdoc");
             iframe.src = proxyUrl;
             setStatus(forceRelay
               ? "Opened via Tor Relay proxy"
               : `Opened via ${relayToUse.kind === "tor" ? "Tor Relay" : "Shell Relay"} proxy`);
-            return { ok: true, finalUrl: norm, title, viaRelay: true, proxy: true };
           } else {
             const page = await relayFetch(norm, "get", opts.maxBytes || 500000, relayToUse);
             if (!(page && page.ok)) throw new Error("relay body fetch failed");
-            if (isLikelyAntiBotPage(page)) {
-              setStatus("Blocked by anti-bot protections");
-              if (onAntiBotBlock) {
-                try { onAntiBotBlock({ url: norm, page, viaRelay: true, relayKind: relayToUse.kind }); } catch {}
-              }
-              return { ok: false, finalUrl: norm, title: "", viaRelay: true, antiBotBlocked: true };
-            }
-            const title = extractHtmlTitle(String(page.body || ""));
-            if (onRelayPage) {
-              try { onRelayPage({ title, page, url: norm, viaRelay: true, relayKind: relayToUse.kind, proxy: false }); } catch {}
-            }
             renderRelayBody(iframe, norm, page);
             setStatus(forceRelay
               ? "Opened via Tor Relay (legacy relay view)"
               : `Opened via ${relayToUse.kind === "tor" ? "Tor Relay" : "Shell Relay"} (legacy relay view)`);
-            return { ok: true, finalUrl: norm, title, viaRelay: true, proxy: false };
           }
+          return { ok: true, finalUrl: norm, title: "", viaRelay: true };
         }
-      } catch (err) {
-        if (relayChoice.relay) {
-          const modeLabel = experimentalWebProxyEnabled()
-            ? `${relayChoice.relay.kind === "tor" ? "Tor Relay" : "Shell Relay"} proxy failed`
-            : `${relayChoice.relay.kind === "tor" ? "Tor Relay" : "Shell Relay"} fetch failed`;
-          setStatus(modeLabel);
-        }
+      } catch {
         // Direct path fallback below.
       }
     }
