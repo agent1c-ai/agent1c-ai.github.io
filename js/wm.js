@@ -1133,20 +1133,22 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
             label: "Shell Relay",
             enabled: shell.enabled === true,
             baseUrl: String(shell.baseUrl || "http://127.0.0.1:8765").replace(/\/+$/, ""),
+            token: String(shell.token || ""),
           },
           tor: {
             kind: "tor",
             label: "Tor Relay",
             enabled: tor.enabled === true,
             baseUrl: String(tor.baseUrl || "http://127.0.0.1:8766").replace(/\/+$/, ""),
+            token: String(tor.token || ""),
           },
         };
       }
     } catch {}
     const legacy = getRelayState();
     return {
-      shell: { kind: "shell", label: "Shell Relay", enabled: legacy.enabled, baseUrl: legacy.baseUrl },
-      tor: { kind: "tor", label: "Tor Relay", enabled: false, baseUrl: "http://127.0.0.1:8766" },
+      shell: { kind: "shell", label: "Shell Relay", enabled: legacy.enabled, baseUrl: legacy.baseUrl, token: "" },
+      tor: { kind: "tor", label: "Tor Relay", enabled: false, baseUrl: "http://127.0.0.1:8766", token: "" },
     };
   }
 
@@ -1327,9 +1329,11 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
   async function relayFetch(url, mode, maxBytes, relayOverride){
     const relay = relayOverride || getRelayState();
     if (!relay.enabled) throw new Error("relay disabled");
+    const headers = { "Content-Type": "application/json" };
+    if (relay.token) headers["x-agent1c-token"] = String(relay.token);
     const resp = await fetch(`${relay.baseUrl}/v1/http/fetch`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         url,
         mode: mode || "get",
@@ -1383,6 +1387,14 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     iframe.src = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
   }
 
+  function relayProxyPageUrl(relay, targetUrl){
+    const base = String(relay?.baseUrl || "").replace(/\/+$/, "");
+    const u = new URL(`${base}/v1/proxy/page`);
+    u.searchParams.set("url", String(targetUrl || ""));
+    if (relay?.token) u.searchParams.set("token", String(relay.token));
+    return u.toString();
+  }
+
   async function loadUrlIntoIframe(iframe, rawUrl, opts = {}){
     const setStatus = typeof opts.onStatus === "function" ? opts.onStatus : () => {};
     const onRelayPage = typeof opts.onRelayPage === "function" ? opts.onRelayPage : null;
@@ -1421,26 +1433,14 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
           shouldUseRelayBody = !!(probe.ok && isFrameBlockedByHeaders(probe.headers || ""));
         }
         if (relayToUse && shouldUseRelayBody) {
-          const page = await relayFetch(norm, "get", opts.maxBytes || 300000, relayToUse);
-          if (page.ok) {
-            openedViaRelay = true;
-            const resolvedUrl = String(page.finalUrl || norm);
-            if (isLikelyAntiBotPage(page)) {
-              renderRelayBody(iframe, resolvedUrl, page);
-              setStatus("Blocked by anti-bot protections");
-              if (onAntiBotBlock) onAntiBotBlock({ url: resolvedUrl, page });
-              const title = extractHtmlTitle(page.body || "");
-              if (onRelayPage) onRelayPage({ page, title, finalUrl: resolvedUrl });
-              return { ok: true, finalUrl: resolvedUrl, title, viaRelay: true, blockedByAntiBot: true };
-            }
-            renderRelayBody(iframe, resolvedUrl, page);
-            setStatus(forceRelay
-              ? "Opened via Tor Relay"
-              : `Opened via ${relayToUse.kind === "tor" ? "Tor Relay" : "Shell Relay"} fallback`);
-            const title = extractHtmlTitle(page.body || "");
-            if (onRelayPage) onRelayPage({ page, title, finalUrl: resolvedUrl });
-            return { ok: true, finalUrl: resolvedUrl, title, viaRelay: true };
-          }
+          openedViaRelay = true;
+          const proxyUrl = relayProxyPageUrl(relayToUse, norm);
+          iframe.removeAttribute("srcdoc");
+          iframe.src = proxyUrl;
+          setStatus(forceRelay
+            ? "Opened via Tor Relay proxy"
+            : `Opened via ${relayToUse.kind === "tor" ? "Tor Relay" : "Shell Relay"} proxy`);
+          return { ok: true, finalUrl: norm, title: "", viaRelay: true };
         }
       } catch {
         // Direct path fallback below.
