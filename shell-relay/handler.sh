@@ -363,8 +363,27 @@ proxy_html_rewriter_script(){
     if (!ABS_RE.test(full)) return;
     el.setAttribute(attr, proxied(kind, full));
   }
+  function rewriteSrcsetAttr(el, attr){
+    const raw = el.getAttribute(attr);
+    if (!raw) return;
+    const rewritten = raw.split(",").map(part => {
+      const seg = String(part || "");
+      const trimmed = seg.trim();
+      if (!trimmed) return seg;
+      const m = trimmed.match(/^(\S+)([\s\S]*)$/);
+      if (!m) return seg;
+      const urlRaw = m[1];
+      const rest = m[2] || "";
+      if (urlRaw.startsWith("data:") || urlRaw.startsWith("blob:") || urlRaw.startsWith("javascript:") || urlRaw.startsWith("#")) return seg;
+      const full = abs(urlRaw);
+      if (!ABS_RE.test(full)) return seg;
+      return `${proxied("asset", full)}${rest}`;
+    }).join(", ");
+    el.setAttribute(attr, rewritten);
+  }
   function rewriteNode(root){
     root.querySelectorAll("img[src],source[src],audio[src],video[src],script[src],iframe[src],embed[src],track[src]").forEach(el => rewriteAttr(el, "src", "asset"));
+    root.querySelectorAll("img[srcset],source[srcset]").forEach(el => rewriteSrcsetAttr(el, "srcset"));
     root.querySelectorAll("link[href]").forEach(el => {
       const rel = (el.getAttribute("rel") || "").toLowerCase();
       rewriteAttr(el, "href", rel.includes("stylesheet") || rel.includes("icon") || rel.includes("preload") ? "asset" : "page");
@@ -405,6 +424,60 @@ proxy_html_rewriter_script(){
 EOF
 }
 
+rewrite_proxy_css_file(){
+  css_base_url="$1"
+  token_param="$2"
+  in_file="$3"
+  out_file="$4"
+  command -v python3 >/dev/null 2>&1 || return 1
+  python3 - "$css_base_url" "$token_param" "$in_file" "$out_file" <<'PY'
+import re, sys
+from urllib.parse import urljoin, quote
+
+base = sys.argv[1]
+token = sys.argv[2]
+in_file = sys.argv[3]
+out_file = sys.argv[4]
+
+with open(in_file, "r", encoding="utf-8", errors="ignore") as f:
+    css = f.read()
+
+def proxied(url: str) -> str:
+    u = url.strip()
+    if not u or u.startswith("#"):
+        return u
+    lu = u.lower()
+    if lu.startswith(("data:", "blob:", "javascript:")):
+        return u
+    absu = urljoin(base, u)
+    qp = quote(absu, safe="")
+    if token:
+        return f"/v1/proxy/asset?url={qp}&token={quote(token, safe='')}"
+    return f"/v1/proxy/asset?url={qp}"
+
+def repl_url(m):
+    prefix = m.group(1)
+    quotech = m.group(2) or ""
+    url = m.group(3) or ""
+    suffix = m.group(4)
+    return f"{prefix}{quotech}{proxied(url)}{quotech}{suffix}"
+
+css = re.sub(r'(url\(\s*)(["\']?)([^)"\']+)(["\']?\s*\))', repl_url, css, flags=re.I)
+
+def repl_import(m):
+    prefix = m.group(1)
+    quotech = m.group(2) or ""
+    url = m.group(3) or ""
+    suffix = m.group(4)
+    return f"{prefix}{quotech}{proxied(url)}{quotech}{suffix}"
+
+css = re.sub(r'(@import\s+)(["\'])([^"\']+)(["\'])', repl_import, css, flags=re.I)
+
+with open(out_file, "w", encoding="utf-8") as f:
+    f.write(css)
+PY
+}
+
 run_proxy_page_response(){
   target_url="$1"
   token_param="$2"
@@ -443,6 +516,7 @@ run_proxy_page_response(){
 
 run_proxy_asset_response(){
   target_url="$1"
+  token_param="$2"
   headers_file="$TMP_DIR/proxy-asset.headers.txt"
   body_file="$TMP_DIR/proxy-asset.body.bin"
   effective_file="$TMP_DIR/proxy-asset.effective.txt"
@@ -454,6 +528,15 @@ run_proxy_asset_response(){
   [ -n "$status_code" ] || status_code=200
   content_type="$(header_value "$headers_file" "Content-Type")"
   [ -n "$content_type" ] || content_type="application/octet-stream"
+  if printf "%s" "$content_type" | grep -iq "text/css"; then
+    css_rewritten_file="$TMP_DIR/proxy-asset.css.rewritten"
+    final_asset_url="$(cat "$effective_file" 2>/dev/null || true)"
+    [ -n "$final_asset_url" ] || final_asset_url="$target_url"
+    if rewrite_proxy_css_file "$final_asset_url" "$token_param" "$body_file" "$css_rewritten_file"; then
+      send_file_response "$status_code" "$content_type" "$css_rewritten_file"
+      return
+    fi
+  fi
   send_file_response "$status_code" "$content_type" "$body_file"
 }
 
@@ -617,7 +700,7 @@ if [ "$METHOD" = "GET" ] && [ "$PATH_ONLY" = "/v1/proxy/asset" ]; then
     send_error 400 "missing url"
     exit 0
   fi
-  run_proxy_asset_response "$target_url"
+  run_proxy_asset_response "$target_url" "$TOKEN_QUERY"
   exit 0
 fi
 
