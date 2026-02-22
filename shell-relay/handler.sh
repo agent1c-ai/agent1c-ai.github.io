@@ -419,10 +419,11 @@ proxy_html_rewriter_script(){
         if (!el.getAttribute("data-agent1c-orig-href")) {
           el.setAttribute("data-agent1c-orig-href", unwrapped);
         }
+        el.setAttribute("href", unwrapped);
         return;
       }
       el.setAttribute("data-agent1c-orig-href", full);
-      el.setAttribute("href", proxied("page", full));
+      el.setAttribute("href", full);
     });
     root.querySelectorAll("form[action]").forEach(el => rewriteAttr(el, "action", "page"));
   }
