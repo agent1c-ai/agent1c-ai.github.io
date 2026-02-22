@@ -1396,15 +1396,36 @@
       gap: 6px;
       flex-wrap: wrap;
     }
-    .browserbar{
-      display:flex;
-      align-items:center;
-      gap: 6px;
+.browserbar{
+  display:flex;
+  align-items:center;
+  gap: 6px;
       padding: 6px;
       border-bottom: 1px solid var(--os-shadow);
-      background: linear-gradient(var(--chrome-top), var(--chrome-bot));
-      flex-wrap: wrap;
-    }
+  background: linear-gradient(var(--chrome-top), var(--chrome-bot));
+  flex-wrap: wrap;
+}
+.browser-route-btn{
+  min-width: 28px;
+  width: 28px;
+  padding: 1px 0;
+  text-align: center;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+.browser-route-btn.route-hidden{
+  display: none;
+}
+.browser-route-btn.route-tor-force{
+  background: #7d4bc6;
+  color: #fff;
+  border-color: #5e33a8;
+  box-shadow: inset 0 0 0 1px #d9c7ff;
+}
+.browser-route-btn.route-tor-force:active{
+  background: #6940ab;
+  color: #fff;
+}
     .field{
       flex: 1 1 180px;
       min-width: 160px;
@@ -2213,18 +2234,22 @@
   min-height: 0;
 }
 #relayPageSetup,
-#relayPageConnect{
+#relayPageConnect,
+#torRelayPageSetup,
+#torRelayPageConnect{
   overflow: auto;
   overflow-x: hidden;
   padding-right: 2px;
 }
-#relayPageTerminal{
+#relayPageTerminal,
+#torRelayPageTerminal{
   overflow: hidden;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
 }
-.agent-setup-stack.relay-terminal-mode #relayPageTerminal{
+.agent-setup-stack.relay-terminal-mode #relayPageTerminal,
+.agent-setup-stack.relay-terminal-mode #torRelayPageTerminal{
   overflow: hidden;
 }
 .agent-setup-intro{

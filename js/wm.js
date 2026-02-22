@@ -1121,6 +1121,103 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     }
   }
 
+  function getBrowserRelayStates(){
+    try {
+      const states = window.__agent1cBrowserRelayStates || null;
+      if (states && typeof states === "object") {
+        const shell = states.shell || {};
+        const tor = states.tor || {};
+        return {
+          shell: {
+            kind: "shell",
+            label: "Shell Relay",
+            enabled: shell.enabled === true,
+            baseUrl: String(shell.baseUrl || "http://127.0.0.1:8765").replace(/\/+$/, ""),
+          },
+          tor: {
+            kind: "tor",
+            label: "Tor Relay",
+            enabled: tor.enabled === true,
+            baseUrl: String(tor.baseUrl || "http://127.0.0.1:8766").replace(/\/+$/, ""),
+          },
+        };
+      }
+    } catch {}
+    const legacy = getRelayState();
+    return {
+      shell: { kind: "shell", label: "Shell Relay", enabled: legacy.enabled, baseUrl: legacy.baseUrl },
+      tor: { kind: "tor", label: "Tor Relay", enabled: false, baseUrl: "http://127.0.0.1:8766" },
+    };
+  }
+
+  const BROWSER_RELAY_MODE_KEY = "agent1c_browser_relay_mode";
+
+  function getBrowserRelayMode(){
+    try {
+      const raw = Number(sessionStorage.getItem(BROWSER_RELAY_MODE_KEY) || "0");
+      if ([0, 1, 2].includes(raw)) return raw;
+    } catch {}
+    return 0;
+  }
+
+  function setBrowserRelayMode(mode){
+    try { sessionStorage.setItem(BROWSER_RELAY_MODE_KEY, String(mode)); } catch {}
+  }
+
+  function getAvailableBrowserRelayModes(relays){
+    const shellOn = !!relays?.shell?.enabled;
+    const torOn = !!relays?.tor?.enabled;
+    if (!shellOn && !torOn) return [];
+    if (shellOn && !torOn) return [0];
+    if (!shellOn && torOn) return [1, 2];
+    return [0, 1, 2];
+  }
+
+  function normalizeBrowserRelayMode(mode, relays){
+    const allowed = getAvailableBrowserRelayModes(relays);
+    if (!allowed.length) return 0;
+    return allowed.includes(mode) ? mode : allowed[0];
+  }
+
+  function nextBrowserRelayMode(current, relays){
+    const allowed = getAvailableBrowserRelayModes(relays);
+    if (allowed.length <= 1) return allowed[0] ?? 0;
+    const idx = allowed.indexOf(current);
+    if (idx < 0) return allowed[0];
+    return allowed[(idx + 1) % allowed.length];
+  }
+
+  function browserRelayModeMeta(mode, relays){
+    const allowed = getAvailableBrowserRelayModes(relays);
+    if (!allowed.length) return { visible: false, icon: "🖧", title: "No relay", forceTor: false };
+    const shellOn = !!relays?.shell?.enabled;
+    const torOn = !!relays?.tor?.enabled;
+    if (mode === 2 && torOn) {
+      return { visible: true, icon: "🧅", title: "Tor Relay (always via onion relay)", forceTor: true };
+    }
+    if (mode === 1 && torOn) {
+      return { visible: true, icon: "🧅", title: shellOn ? "Direct first, Tor Relay fallback" : "Tor Relay available", forceTor: false };
+    }
+    return { visible: true, icon: "🖧", title: "Direct first, Shell Relay fallback", forceTor: false };
+  }
+
+  function chooseBrowserRelay(relays, mode){
+    const shell = relays?.shell;
+    const tor = relays?.tor;
+    if (mode === 2) {
+      if (tor?.enabled) return { relay: tor, forceRelay: true };
+      return { relay: null, forceRelay: true };
+    }
+    if (mode === 1) {
+      if (tor?.enabled) return { relay: tor, forceRelay: false };
+      if (shell?.enabled) return { relay: shell, forceRelay: false };
+      return { relay: null, forceRelay: false };
+    }
+    if (shell?.enabled) return { relay: shell, forceRelay: false };
+    if (tor?.enabled) return { relay: tor, forceRelay: false };
+    return { relay: null, forceRelay: false };
+  }
+
   function parseHeaderValue(headers, key){
     const source = String(headers || "");
     const line = source.split(/\r?\n/).find(row => row.toLowerCase().startsWith(`${String(key || "").toLowerCase()}:`));
@@ -1227,8 +1324,8 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     wrap.appendChild(box);
   }
 
-  async function relayFetch(url, mode, maxBytes){
-    const relay = getRelayState();
+  async function relayFetch(url, mode, maxBytes, relayOverride){
+    const relay = relayOverride || getRelayState();
     if (!relay.enabled) throw new Error("relay disabled");
     const resp = await fetch(`${relay.baseUrl}/v1/http/fetch`, {
       method: "POST",
@@ -1297,7 +1394,10 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     }
 
     const conv = toEmbedUrl(raw, { twitchParent: location.hostname || "localhost" });
-    if (conv.ok){
+    const relays = getBrowserRelayStates();
+    const relayMode = normalizeBrowserRelayMode(Number(opts.relayMode ?? getBrowserRelayMode()), relays);
+    const relayChoice = chooseBrowserRelay(relays, relayMode);
+    if (conv.ok && !(relayMode === 2 && relayChoice.relay)){
       iframe.removeAttribute("srcdoc");
       iframe.src = conv.embedUrl;
       setStatus("Embedded via " + conv.provider);
@@ -1308,9 +1408,20 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     let openedViaRelay = false;
     if (shouldProbeRelay(norm)) {
       try {
-        const probe = await relayFetch(norm, "head", opts.maxBytes || 300000);
-        if (probe.ok && isFrameBlockedByHeaders(probe.headers || "")) {
-          const page = await relayFetch(norm, "get", opts.maxBytes || 300000);
+        const relayToUse = relayChoice.relay;
+        if (relayMode === 2 && !relayToUse) {
+          setStatus("Tor Relay is not active.");
+          return { ok: false, finalUrl: norm, title: "" };
+        }
+        const forceRelay = relayMode === 2 && relayToUse && relayToUse.kind === "tor";
+        let shouldUseRelayBody = !!forceRelay;
+        let probe = null;
+        if (relayToUse && !forceRelay) {
+          probe = await relayFetch(norm, "head", opts.maxBytes || 300000, relayToUse);
+          shouldUseRelayBody = !!(probe.ok && isFrameBlockedByHeaders(probe.headers || ""));
+        }
+        if (relayToUse && shouldUseRelayBody) {
+          const page = await relayFetch(norm, "get", opts.maxBytes || 300000, relayToUse);
           if (page.ok) {
             openedViaRelay = true;
             const resolvedUrl = String(page.finalUrl || norm);
@@ -1323,7 +1434,9 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
               return { ok: true, finalUrl: resolvedUrl, title, viaRelay: true, blockedByAntiBot: true };
             }
             renderRelayBody(iframe, resolvedUrl, page);
-            setStatus("Opened via local relay fallback");
+            setStatus(forceRelay
+              ? "Opened via Tor Relay"
+              : `Opened via ${relayToUse.kind === "tor" ? "Tor Relay" : "Shell Relay"} fallback`);
             const title = extractHtmlTitle(page.body || "");
             if (onRelayPage) onRelayPage({ page, title, finalUrl: resolvedUrl });
             return { ok: true, finalUrl: resolvedUrl, title, viaRelay: true };
@@ -1357,6 +1470,7 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     const field = win.querySelector("[data-urlfield]");
     const goBtn = win.querySelector("[data-go]");
     const saveBtn = win.querySelector("[data-save]");
+    let routeBtn = win.querySelector("[data-browser-route]");
     const backBtn = win.querySelector("[data-back]");
     const iframe = win.querySelector("[data-iframe]");
     const status = win.querySelector("[data-browser-status]");
@@ -1371,6 +1485,33 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
 
     let lastResolvedUrl = "";
     let lastResolvedTitle = "";
+
+    if (!routeBtn && goBtn?.parentElement) {
+      routeBtn = document.createElement("button");
+      routeBtn.type = "button";
+      routeBtn.className = "btn browser-route-btn";
+      routeBtn.setAttribute("data-browser-route", "");
+      routeBtn.title = "Relay routing";
+      routeBtn.textContent = "🖧";
+      goBtn.parentElement.insertBefore(routeBtn, goBtn);
+    }
+
+    function refreshRouteButton(){
+      if (!routeBtn) return;
+      const relays = getBrowserRelayStates();
+      const mode = normalizeBrowserRelayMode(getBrowserRelayMode(), relays);
+      setBrowserRelayMode(mode);
+      const meta = browserRelayModeMeta(mode, relays);
+      routeBtn.classList.toggle("route-hidden", !meta.visible);
+      routeBtn.classList.toggle("route-tor-force", !!meta.forceTor);
+      routeBtn.textContent = meta.icon;
+      routeBtn.title = meta.title;
+      routeBtn.setAttribute("aria-label", meta.title);
+      const allowed = getAvailableBrowserRelayModes(relays);
+      routeBtn.disabled = allowed.length <= 1;
+      routeBtn.style.opacity = allowed.length <= 1 ? "0.9" : "";
+      routeBtn.style.cursor = allowed.length <= 1 ? "default" : "";
+    }
 
     async function setUrl(u, opts){
       const raw = (u || "").trim();
@@ -1392,6 +1533,7 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
         const result = await loadUrlIntoIframe(iframe, raw, {
           onStatus: setStatus,
           maxBytes: 500000,
+          relayMode: getBrowserRelayMode(),
           onRelayPage: ({ title }) => {
             lastResolvedTitle = title || "";
           },
@@ -1433,6 +1575,20 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     }
 
     goBtn.addEventListener("click", () => { setUrl(field.value); });
+    if (routeBtn) {
+      routeBtn.addEventListener("click", () => {
+        const relays = getBrowserRelayStates();
+        const current = normalizeBrowserRelayMode(getBrowserRelayMode(), relays);
+        const next = nextBrowserRelayMode(current, relays);
+        setBrowserRelayMode(next);
+        refreshRouteButton();
+        const meta = browserRelayModeMeta(next, relays);
+        if (meta.visible) setStatus(meta.title);
+      });
+      window.addEventListener("agent1c:browser-relay-state", refreshRouteButton);
+      window.addEventListener("agent1c:relay-state-updated", refreshRouteButton);
+      refreshRouteButton();
+    }
     field.addEventListener("keydown", (e) => {
       if (e.key === "Enter"){
         e.preventDefault();
