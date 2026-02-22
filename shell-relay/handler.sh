@@ -346,6 +346,25 @@ proxy_html_rewriter_script(){
   const pageBase = new URL(pagePath, location.origin);
   const assetBase = new URL(assetPath, location.origin);
   const ABS_RE = /^https?:/i;
+  function isProxyUrl(u){
+    try {
+      const x = new URL(String(u || ""), location.href);
+      if (x.origin !== location.origin) return false;
+      return x.pathname === pagePath || x.pathname === assetPath;
+    } catch {
+      return false;
+    }
+  }
+  function unwrapProxyTarget(u){
+    try {
+      const x = new URL(String(u || ""), location.href);
+      if (x.origin !== location.origin) return "";
+      if (x.pathname !== pagePath && x.pathname !== assetPath) return "";
+      return x.searchParams.get("url") || "";
+    } catch {
+      return "";
+    }
+  }
   function proxied(kind, absoluteUrl){
     const base = new URL(kind === "page" ? pageBase : assetBase);
     base.searchParams.set("url", absoluteUrl);
@@ -361,6 +380,7 @@ proxy_html_rewriter_script(){
     if (raw.startsWith("data:") || raw.startsWith("blob:") || raw.startsWith("javascript:") || raw.startsWith("#")) return;
     const full = abs(raw);
     if (!ABS_RE.test(full)) return;
+    if (isProxyUrl(full)) return;
     el.setAttribute(attr, proxied(kind, full));
   }
   function rewriteSrcsetAttr(el, attr){
@@ -377,6 +397,7 @@ proxy_html_rewriter_script(){
       if (urlRaw.startsWith("data:") || urlRaw.startsWith("blob:") || urlRaw.startsWith("javascript:") || urlRaw.startsWith("#")) return seg;
       const full = abs(urlRaw);
       if (!ABS_RE.test(full)) return seg;
+      if (isProxyUrl(full)) return seg;
       return `${proxied("asset", full)}${rest}`;
     }).join(", ");
     el.setAttribute(attr, rewritten);
@@ -393,6 +414,13 @@ proxy_html_rewriter_script(){
       if (!raw || raw.startsWith("#") || raw.startsWith("mailto:") || raw.startsWith("tel:")) return;
       const full = abs(raw);
       if (!ABS_RE.test(full)) return;
+      const unwrapped = unwrapProxyTarget(full);
+      if (unwrapped && ABS_RE.test(unwrapped)) {
+        if (!el.getAttribute("data-agent1c-orig-href")) {
+          el.setAttribute("data-agent1c-orig-href", unwrapped);
+        }
+        return;
+      }
       el.setAttribute("data-agent1c-orig-href", full);
       el.setAttribute("href", proxied("page", full));
     });
@@ -416,7 +444,16 @@ proxy_html_rewriter_script(){
   rewriteNode(document);
   hookClicks();
   try {
-    const mo = new MutationObserver(() => rewriteNode(document));
+    let queued = false;
+    const rerun = () => {
+      queued = false;
+      rewriteNode(document);
+    };
+    const mo = new MutationObserver(() => {
+      if (queued) return;
+      queued = true;
+      (window.requestAnimationFrame || window.setTimeout)(rerun, 16);
+    });
     mo.observe(document.documentElement || document.body, { childList: true, subtree: true });
   } catch {}
 })();
@@ -449,7 +486,11 @@ def proxied(url: str) -> str:
     lu = u.lower()
     if lu.startswith(("data:", "blob:", "javascript:")):
         return u
+    if "/v1/proxy/asset?" in u or "/v1/proxy/page?" in u:
+        return u
     absu = urljoin(base, u)
+    if "/v1/proxy/asset?" in absu or "/v1/proxy/page?" in absu:
+        return u
     qp = quote(absu, safe="")
     if token:
         return f"/v1/proxy/asset?url={qp}&token={quote(token, safe='')}"
@@ -481,6 +522,12 @@ PY
 run_proxy_page_response(){
   target_url="$1"
   token_param="$2"
+  case "$target_url" in
+    *"/v1/proxy/page"*|*"/v1/proxy/asset"*)
+      send_error 400 "recursive proxy target"
+      return
+      ;;
+  esac
   resp_json="$(run_http_fetch "$target_url" "get" 2000000)"
   ok="$(printf "%s" "$resp_json" | jq -r '.ok // false' 2>/dev/null || printf "false")"
   if [ "$ok" != "true" ]; then
@@ -517,6 +564,12 @@ run_proxy_page_response(){
 run_proxy_asset_response(){
   target_url="$1"
   token_param="$2"
+  case "$target_url" in
+    *"/v1/proxy/page"*|*"/v1/proxy/asset"*)
+      send_error 400 "recursive proxy target"
+      return
+      ;;
+  esac
   headers_file="$TMP_DIR/proxy-asset.headers.txt"
   body_file="$TMP_DIR/proxy-asset.body.bin"
   effective_file="$TMP_DIR/proxy-asset.effective.txt"
