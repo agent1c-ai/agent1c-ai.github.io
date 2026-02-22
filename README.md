@@ -220,3 +220,54 @@ Design principles:
 See implementation roadmap:
 
 - `CHROME_EXTENSION_ROADMAP.md`
+
+## 13) Future Direction: Privacy + Cross-Device Sync
+
+Agent1c is moving toward a dual-track privacy architecture:
+
+- `agent1c.me`: sovereignty-first defaults.
+- `agent1c.ai`: convenience-first defaults.
+
+### UX target
+
+For `agent1c.me`:
+
+1. User starts instantly (no blocking setup).
+2. User can connect wallet at any time.
+3. Wallet identity enables cross-device continuity.
+4. If two tabs/devices are active, app prompts to link them.
+5. After consent, encrypted sync begins for chat/settings/files.
+
+For `agent1c.ai`:
+
+- Default transport remains managed cloud relay.
+- Users can later opt into local relay / local Tor relay modes.
+
+### Transport model
+
+Shared transport abstraction (for both codebases):
+
+- `cloudflare_worker`
+- `local_relay`
+- `local_tor_relay`
+
+Default intent:
+
+- `.me`: Tor-preferred path with explicit fallback status.
+- `.ai`: Cloud relay default with optional privacy upgrades.
+
+### Data model
+
+- Wallet is identity + authorization anchor for sync.
+- Sync payloads are encrypted client-side before replication.
+- GunDB stores encrypted envelopes only (no plaintext chat/docs/files).
+
+### Design principles
+
+- Never overstate privacy mode; verify and show actual transport state.
+- Keep consent explicit for device linking.
+- Keep `.me` and `.ai` defaults different, while sharing one clean core architecture.
+
+Formal contract:
+
+- `PRIVACY_SYNC_CONTRACT.md`
