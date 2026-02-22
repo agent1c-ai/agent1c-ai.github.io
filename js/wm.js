@@ -1123,22 +1123,32 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
 
   function getBrowserRelayStates(){
     try {
-      const states = window.__agent1cBrowserRelayStates || null;
-      if (states && typeof states === "object") {
-        const shell = states.shell || {};
-        const tor = states.tor || {};
+      const states = (window.__agent1cBrowserRelayStates && typeof window.__agent1cBrowserRelayStates === "object")
+        ? window.__agent1cBrowserRelayStates
+        : {};
+      const shellState = (states.shell && typeof states.shell === "object")
+        ? states.shell
+        : ((window.__agent1cRelayState && typeof window.__agent1cRelayState === "object") ? window.__agent1cRelayState : {});
+      const torState = (states.tor && typeof states.tor === "object")
+        ? states.tor
+        : ((window.__agent1cTorRelayState && typeof window.__agent1cTorRelayState === "object") ? window.__agent1cTorRelayState : {});
+      if (shellState || torState) {
+        const shell = shellState || {};
+        const tor = torState || {};
+        const shellEnabled = shell.enabled === true || shell.enabled === "true" || shell.enabled === "on";
+        const torEnabled = tor.enabled === true || tor.enabled === "true" || tor.enabled === "on";
         return {
           shell: {
             kind: "shell",
             label: "Shell Relay",
-            enabled: shell.enabled === true,
+            enabled: shellEnabled,
             baseUrl: String(shell.baseUrl || "http://127.0.0.1:8765").replace(/\/+$/, ""),
             token: String(shell.token || ""),
           },
           tor: {
             kind: "tor",
             label: "Tor Relay",
-            enabled: tor.enabled === true,
+            enabled: torEnabled,
             baseUrl: String(tor.baseUrl || "http://127.0.0.1:8766").replace(/\/+$/, ""),
             token: String(tor.token || ""),
           },
