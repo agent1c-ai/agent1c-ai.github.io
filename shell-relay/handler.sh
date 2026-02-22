@@ -123,8 +123,12 @@ run_curl(){
 url_decode(){
   raw="$1"
   [ -n "$raw" ] || { printf ""; return; }
-  decoded="$(printf "%s" "$raw" | sed 's/+/ /g; s/%/\\\\x/g')"
-  printf "%b" "$decoded"
+  printf "%s" "$raw" | jq -Rr '
+    gsub("\\+"; " ")
+    | gsub("%(?<h>[0-9A-Fa-f]{2})"; "\\u00\(.h)")
+    | ("\"" + . + "\"")
+    | fromjson
+  '
 }
 
 query_param(){
