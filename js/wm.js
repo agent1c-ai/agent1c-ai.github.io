@@ -1405,6 +1405,13 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     return u.toString();
   }
 
+  function experimentalWebProxyEnabled(){
+    try {
+      return window.__agent1cExperimentalWebProxyEnabled !== false;
+    } catch {}
+    return true;
+  }
+
   async function loadUrlIntoIframe(iframe, rawUrl, opts = {}){
     const setStatus = typeof opts.onStatus === "function" ? opts.onStatus : () => {};
     const onRelayPage = typeof opts.onRelayPage === "function" ? opts.onRelayPage : null;
@@ -1444,12 +1451,21 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
         }
         if (relayToUse && shouldUseRelayBody) {
           openedViaRelay = true;
-          const proxyUrl = relayProxyPageUrl(relayToUse, norm);
-          iframe.removeAttribute("srcdoc");
-          iframe.src = proxyUrl;
-          setStatus(forceRelay
-            ? "Opened via Tor Relay proxy"
-            : `Opened via ${relayToUse.kind === "tor" ? "Tor Relay" : "Shell Relay"} proxy`);
+          if (experimentalWebProxyEnabled()) {
+            const proxyUrl = relayProxyPageUrl(relayToUse, norm);
+            iframe.removeAttribute("srcdoc");
+            iframe.src = proxyUrl;
+            setStatus(forceRelay
+              ? "Opened via Tor Relay proxy"
+              : `Opened via ${relayToUse.kind === "tor" ? "Tor Relay" : "Shell Relay"} proxy`);
+          } else {
+            const page = await relayFetch(norm, "get", opts.maxBytes || 500000, relayToUse);
+            if (!(page && page.ok)) throw new Error("relay body fetch failed");
+            renderRelayBody(iframe, norm, page);
+            setStatus(forceRelay
+              ? "Opened via Tor Relay (legacy relay view)"
+              : `Opened via ${relayToUse.kind === "tor" ? "Tor Relay" : "Shell Relay"} (legacy relay view)`);
+          }
           return { ok: true, finalUrl: norm, title: "", viaRelay: true };
         }
       } catch {

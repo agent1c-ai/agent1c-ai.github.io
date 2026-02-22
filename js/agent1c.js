@@ -219,6 +219,7 @@ const appState = {
     torRelayBaseUrl: "http://127.0.0.1:8766",
     torRelayToken: "",
     torRelayTimeoutMs: RELAY_DEFAULTS.timeoutMs,
+    experimentalWebProxyEnabled: true,
   },
   agent: {
     soulMd: DEFAULT_SOUL,
@@ -3961,7 +3962,9 @@ function publishBrowserRelayState(){
     window.__agent1cRelayState = shellRelay
     window.__agent1cTorRelayState = torRelay
     window.__agent1cBrowserRelayStates = { shell: shellRelay, tor: torRelay }
+    window.__agent1cExperimentalWebProxyEnabled = Boolean(appState.config.experimentalWebProxyEnabled !== false)
     window.dispatchEvent(new CustomEvent("agent1c:relay-state-updated", { detail: window.__agent1cBrowserRelayStates }))
+    window.dispatchEvent(new CustomEvent("agent1c:web-proxy-mode-updated", { detail: { enabled: window.__agent1cExperimentalWebProxyEnabled } }))
   } catch {}
 }
 
@@ -4159,6 +4162,13 @@ function wireShellRelayWindowDom(winObj){
       publishBrowserRelayState()
       refreshUi()
     },
+    getExperimentalWebProxyEnabled: () => appState.config.experimentalWebProxyEnabled !== false,
+    onSetExperimentalWebProxyEnabled: async (enabled) => {
+      appState.config.experimentalWebProxyEnabled = Boolean(enabled)
+      await persistState()
+      publishBrowserRelayState()
+      refreshUi()
+    },
     setStatus,
     addEvent,
   })
@@ -4181,6 +4191,13 @@ function wireTorRelayWindowDom(winObj){
       appState.config.torRelayBaseUrl = nextCfg.baseUrl
       appState.config.torRelayToken = nextCfg.token
       appState.config.torRelayTimeoutMs = nextCfg.timeoutMs
+      await persistState()
+      publishBrowserRelayState()
+      refreshUi()
+    },
+    getExperimentalWebProxyEnabled: () => appState.config.experimentalWebProxyEnabled !== false,
+    onSetExperimentalWebProxyEnabled: async (enabled) => {
+      appState.config.experimentalWebProxyEnabled = Boolean(enabled)
       await persistState()
       publishBrowserRelayState()
       refreshUi()
@@ -6297,6 +6314,7 @@ async function loadPersistentState(){
     appState.config.torRelayBaseUrl = String(cfg.torRelayBaseUrl || "http://127.0.0.1:8766")
     appState.config.torRelayToken = String(cfg.torRelayToken || "")
     appState.config.torRelayTimeoutMs = Math.max(1000, Math.min(120000, Number(cfg.torRelayTimeoutMs) || RELAY_DEFAULTS.timeoutMs))
+    appState.config.experimentalWebProxyEnabled = cfg.experimentalWebProxyEnabled !== false
     appState.telegramEnabled = cfg.telegramEnabled !== false
     appState.telegramPollMs = Math.max(5000, Number(cfg.telegramPollMs) || appState.telegramPollMs)
   }
