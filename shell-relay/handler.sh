@@ -443,28 +443,53 @@ proxy_html_rewriter_script(){
     }, true);
   }
   function hookForms(){
-    document.addEventListener("submit", (event) => {
-      const t = event.target;
-      if (!(t instanceof HTMLFormElement)) return;
-      if (event.defaultPrevented) return;
-      const method = String(t.getAttribute("method") || "get").toLowerCase();
-      if (method !== "get") return;
-      let action = t.getAttribute("action") || "";
+    function submitFormToParent(form){
+      if (!(form instanceof HTMLFormElement)) return false;
+      const method = String(form.getAttribute("method") || "get").toLowerCase();
+      if (method !== "get") return false;
+      let action = form.getAttribute("action") || "";
       if (!action) action = document.baseURI || location.href;
       let resolved = "";
-      try { resolved = new URL(action, document.baseURI).href; } catch { return; }
-      if (!ABS_RE.test(resolved)) return;
-      event.preventDefault();
+      try { resolved = new URL(action, document.baseURI).href; } catch { return false; }
+      if (!ABS_RE.test(resolved)) return false;
       try {
-        const fd = new FormData(t);
+        const fd = new FormData(form);
         const u = new URL(resolved);
+        u.search = "";
         for (const [k, v] of fd.entries()) {
           if (typeof v !== "string") continue;
           u.searchParams.append(String(k), v);
         }
         window.parent?.postMessage({ type: "agent1c:relay-nav", href: u.toString() }, "*");
-      } catch {}
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    document.addEventListener("submit", (event) => {
+      const t = event.target;
+      if (!(t instanceof HTMLFormElement)) return;
+      if (event.defaultPrevented) return;
+      if (submitFormToParent(t)) event.preventDefault();
     }, true);
+    try {
+      const nativeSubmit = HTMLFormElement.prototype.submit;
+      if (!HTMLFormElement.prototype.__agent1cPatchedSubmit) {
+        Object.defineProperty(HTMLFormElement.prototype, "__agent1cPatchedSubmit", { value: true, configurable: true });
+        HTMLFormElement.prototype.submit = function(){
+          if (submitFormToParent(this)) return;
+          return nativeSubmit.call(this);
+        };
+      }
+      const nativeRequestSubmit = HTMLFormElement.prototype.requestSubmit;
+      if (typeof nativeRequestSubmit === "function" && !HTMLFormElement.prototype.__agent1cPatchedRequestSubmit) {
+        Object.defineProperty(HTMLFormElement.prototype, "__agent1cPatchedRequestSubmit", { value: true, configurable: true });
+        HTMLFormElement.prototype.requestSubmit = function(...args){
+          if (submitFormToParent(this)) return;
+          return nativeRequestSubmit.apply(this, args);
+        };
+      }
+    } catch {}
   }
   rewriteNode(document);
   hookClicks();
