@@ -100,3 +100,20 @@ Implementation gaps checklist (must resolve before coding):
   - Unlink from app UI and optional unlink command from Telegram DM.
 - Define observability:
   - Event logging for code generation, link success/failure, route failures, timeout responses.
+
+WEB PROXY STATUS SNAPSHOT (Agent1c.ai)
+- Existing feature:
+  - Hedgey Browser route toggle (`🖧`, `🧅`, purple `🧅`) with Shell/Tor relay selection.
+  - Shared `Use Experimental Web Proxy` toggle in Shell Relay and Tor Relay windows.
+  - Relay proxy endpoints `/v1/proxy/page` and `/v1/proxy/asset`.
+  - Proxy fallback mode in Hedgey Browser (experimental proxy ON).
+  - Canonical proxied link navigation (browser URL stays real target URL).
+  - Universal GET form-submit bridge (including scripted submit paths).
+  - `srcset` + CSS `url(...)` / `@import` rewriting.
+  - Recursive rewrite guards + canonical form-action unwrapping fixes.
+- To be implemented for proxy browsing:
+  - P2.2 anti-bot detection/warning on proxy path (single-fetch only; no browser-side preflight).
+  - Proxy status/title UX polish after proxied navigation.
+  - Saved-app proxy correctness hardening (always store original URL, reliable reopen).
+  - Additional compatibility work (POST forms graceful handling, redirect edge cases).
+  - Cloudflare Worker implementation of the same proxy contract for multi-user managed browsing.

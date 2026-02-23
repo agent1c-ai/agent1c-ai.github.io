@@ -271,3 +271,42 @@ Default intent:
 Formal contract:
 
 - `PRIVACY_SYNC_CONTRACT.md`
+
+## 14) Proxy Browsing Status (Existing vs Next)
+
+### Existing features (implemented)
+
+- Hedgey Browser supports relay-aware routing with a tiny route button:
+  - `🖧` direct first + Shell Relay fallback
+  - `🧅` direct first + Tor Relay fallback
+  - purple `🧅` Tor-first/force mode
+- Shell Relay and Tor Relay can coexist (separate ports) and browser routing can use either.
+- `Use Experimental Web Proxy` toggle exists in both Shell Relay and Tor Relay windows (shared/synced flag).
+- Relay supports proxy endpoints:
+  - `GET /v1/proxy/page`
+  - `GET /v1/proxy/asset`
+- Browser proxy fallback uses proxy page mode (instead of old HTML snapshot fallback) when experimental proxy is enabled.
+- Proxy HTML rewriting includes:
+  - canonical link click handoff back to Hedgey Browser (keeps real URL in the browser field)
+  - GET form submit bridging (including scripted submit paths) to canonical browser URLs
+  - `srcset` rewriting
+- Proxy asset rewriting includes CSS `url(...)` and `@import` rewriting.
+- Relay proxy decoding/URL handling fixes shipped:
+  - percent-decoding for proxy `url=` query
+  - recursive proxy rewrite guards
+  - canonical form action handling (do not submit to `/v1/proxy/page` directly)
+
+### To be implemented for proxy browsing (next phase)
+
+- P2.2 anti-bot detection and HedgeyOS-native warning flow on proxy-rendered pages (single-fetch, no browser preflight).
+- Proxy path UX polish:
+  - clearer status messages for challenge/unsupported pages
+  - stronger canonical title/status updates after proxied navigation.
+- Saved-app proxy correctness hardening:
+  - always save original URL (never relay URL)
+  - reopen using current route mode reliably.
+- Broader proxy compatibility work:
+  - more form behaviors (graceful POST handling)
+  - redirect/path edge cases
+  - additional CSS/asset rewrite edge cases.
+- Cloudflare Worker backend implementing the same proxy contract for `.ai` multi-user managed browsing.
