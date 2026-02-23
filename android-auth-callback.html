@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Returning to Hitomi...</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #f0efef;
+      color: #222;
+      font-family: monospace;
+    }
+    .card {
+      max-width: 520px;
+      margin: 24px;
+      background: #f6f1cf;
+      border: 1px solid #9a9a9a;
+      box-shadow: 2px 2px 0 rgba(0,0,0,0.12);
+      padding: 16px;
+    }
+    a { color: #d04b9a; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1 style="margin:0 0 8px 0;font-size:20px;">Returning to Hitomi...</h1>
+    <p id="status" style="margin:0 0 8px 0;">Opening the Agent1c Android app.</p>
+    <p style="margin:0;font-size:12px;">
+      If nothing happens, tap:
+      <a id="openLink" href="#">Open Hitomi</a>
+    </p>
+  </div>
+  <script>
+    (function () {
+      var target = "agent1cai://auth/callback";
+      var hash = window.location.hash || "";
+      var search = window.location.search || "";
+      var suffix = hash || search;
+      var deepLink = target + suffix;
+      var a = document.getElementById("openLink");
+      var status = document.getElementById("status");
+      if (a) a.href = deepLink;
+      if (status) status.textContent = "Opening Hitomi with your sign-in result...";
+      // Try immediate handoff to app.
+      window.location.replace(deepLink);
+      // If browser blocks replace to custom scheme, keep manual link visible.
+      setTimeout(function () {
+        if (status) status.textContent = "If Hitomi did not open, tap the link below.";
+      }, 1200);
+    })();
+  </script>
+</body>
+</html>
