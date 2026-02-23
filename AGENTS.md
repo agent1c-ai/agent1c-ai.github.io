@@ -117,3 +117,126 @@ WEB PROXY STATUS SNAPSHOT (Agent1c.ai)
   - Saved-app proxy correctness hardening (always store original URL, reliable reopen).
   - Additional compatibility work (POST forms graceful handling, redirect edge cases).
   - Cloudflare Worker implementation of the same proxy contract for multi-user managed browsing.
+
+# Refactor Plan (agent1c.js modularization)
+
+## Current state snapshot (`agent1c.ai`)
+
+- Main runtime file is large (`js/agent1c.js`, ~6.5k lines).
+- The file currently mixes:
+  - core local runtime state + persistence
+  - cloud-managed auth/billing/credits integrations
+  - provider runtime logic
+  - tool/runtime orchestration
+  - onboarding + Hitomi/clippy UI
+  - relay/Tor relay windows
+  - panel/window HTML factories + DOM wiring
+
+## Observed module clusters in current `.ai` file
+
+### 1. Core utilities + local persistence (candidate: `agent1c-core.js`)
+- DOM helpers, formatting, safe parsing, IndexedDB wrappers, events store.
+- Vault/meta/config/state persistence helpers exist even in `.ai` because local state/docs still matter.
+- Includes crypto helpers used for local encrypted storage paths.
+
+### 2. Cloud identity / credits / billing / hosted Telegram (candidate: `agent1c-cloud.js`) [AI-ONLY]
+- Supabase config helpers (`getSupabaseConfig`, cloud function URL helpers).
+- Cloud identity and usage refresh (`refreshCloudIdentity`, `refreshCloudCredits`).
+- Credits checkout/Gumroad flow (`openCreditsCheckout*`).
+- Cloud Telegram link state / code generation / inbox polling (`cloudTelegramRequest`, `refreshCloudTelegramLinkState`, `generateCloudTelegramLinkCode`, `pollCloudTelegramInbox`).
+- Cloud-specific UI rendering hooks (`applyCloudIdentityToUi`, `applyCloudUsageToUi`, `updateCloudTelegramUi`).
+
+### 3. Provider runtime + LLM calls (candidate: `agent1c-providers.js`)
+- OpenAI / Anthropic / xAI / z.ai / Ollama adapters.
+- Provider normalization, active runtime resolution, provider validation.
+- Model listing and provider-specific key tests.
+- This is partially shared between `.ai` and `.me`, but runtime key source differs.
+
+### 4. Prompting / tools / tool-call loop (candidate: `agent1c-tools-runtime.js`)
+- System prompt composition and cadence (`buildSystemPromptWithCadence`, SOUL reanchoring cadence).
+- Tool parsing / tool arg parsing.
+- Tool implementations (filesystem, wiki, GitHub, window actions, relay-shell, etc.).
+- `providerChatWithTools(...)` orchestration loop.
+- This should be highly shared, but cloud/local gating hooks may differ slightly.
+
+### 5. Chat state + threads + Telegram thread bridge (candidate: `agent1c-chatstate.js`)
+- Local thread lifecycle (`ensureLocalThreadsInitialized`, `createNewLocalThread`, etc.)
+- Chat 1 / local thread semantics.
+- Telegram thread mirroring (`ensureTelegramThread`, labels, routing support).
+- Message pushing/thinking flags.
+
+### 6. Filesystem watch + docs autosave + config autosave (candidate: `agent1c-docs-files.js`)
+- Filesystem upload scan + notices
+- SOUL/TOOLS/heartbeat autosave schedulers
+- line-number + wrap-aware gutter helpers
+- config/loop autosave timers
+
+### 7. Hitomi / Clippy / onboarding hedgehog UI (candidate: `agent1c-hitomi-ui.js`)
+- Clippy positioning, hopping, bubble layout, overlap snapping
+- voice badge / push-to-talk hooks
+- setup hedgehog rendering + chips + onboarding handoff
+- Hitomi desktop icon and Persona folder helper calls
+- This cluster exists in both repos but onboarding behavior differs significantly.
+
+### 8. Main UI rendering + event toasts + panel badge refresh (candidate: `agent1c-ui.js`)
+- `renderChat`, `renderEvents`, toast UI (`ensureEventToastUi`, `renderEventToasts`)
+- `refreshUi`, `refreshBadges`, scaling, panel visibility
+- browser relay state publication (`publishBrowserRelayState`)
+
+### 9. Agent panels/windows wiring (candidate: `agent1c-panels.js`)
+- `wire*WindowDom` and `open*Window` functions:
+  - Ollama Setup
+  - Shell Relay
+  - Tor Relay
+  - (plus panel open/restore helpers)
+- panel HTML factory functions (`chatWindowHtml`, `configWindowHtml`, `toolsWindowHtml`, etc.)
+- workspace construction (`createWorkspace`, `createSetupWindow`, `loadPersistentState`)
+
+## `.ai`-specific divergence to preserve during refactor (do not force-share)
+
+- Supabase login/auth callback handling
+- Cloud credits/quota UI and billing buttons
+- Hosted xAI managed provider path (no exposed BYOK vault UI)
+- Cloud Telegram linking (backend relay + online tab model)
+- Intro/login flow and managed-cloud onboarding windows
+- No setup hedgehog provider/vault onboarding mode (different from `.me`)
+
+## Shared-vs-divergent refactor strategy (recommended)
+
+### Shared modules (same contract, separate copies first)
+- `providers`
+- `tools-runtime`
+- `chatstate`
+- `docs-files`
+- portions of `hitomi-ui`
+- relay panel wiring patterns
+
+### Divergent modules (repo-specific)
+- `.ai`: `cloud`, `auth`, `credits`, cloud Telegram link window + hosted provider runtime path
+- `.me`: `vault/byok`, setup hedgehog onboarding completion logic, local Telegram polling flow
+
+Important rule:
+- First extract modules **within each repo** (mechanical split, no behavior changes).
+- Only after both are stable, compare and optionally unify shared modules.
+- Do not prematurely create a cross-repo shared library while both products are still diverging fast.
+
+## Refactor sequencing (safe path)
+
+1. Extract **pure utility + persistence** layer (lowest UI risk).
+2. Extract **provider adapters** and validation functions.
+3. Extract **tool-call parser + tool execution loop**.
+4. Extract **chat/thread state**.
+5. Extract **Hitomi/Clippy UI**.
+6. Extract **panel HTML factories + panel wiring**.
+7. Leave `agent1c.js` as orchestrator/bootstrap only.
+
+## Success criteria
+
+- `agent1c.js` becomes a thin bootstrap/composition layer.
+- No behavior regressions in:
+  - chat
+  - relays
+  - onboarding/login
+  - credits
+  - Telegram integration
+- Existing global hooks used by `wm.js` / relay browser routing still work (or are replaced by stable exported bridges).
