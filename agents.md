@@ -916,3 +916,22 @@ Before porting or restoring behavior between `.ai` and `.me`, read:
 2. `../agent1c-me.github.io/LOCAL_VS_CLOUD_DIFF.md` (sovereign counterpart)
 
 Treat those two docs as the explicit intent-vs-drift map.
+
+---
+
+## 22) Web Proxy Parity (`.ai` ↔ `.me`)
+
+Rule:
+- Browser proxy behavior must stay in lockstep across `agent1c.ai` and `agent1c.me` unless the change is explicitly cloud-only.
+
+Current parity target includes:
+- relay endpoints: `/v1/proxy/page`, `/v1/proxy/asset`
+- browser fallback using proxy mode (behind shared experimental toggle)
+- canonical link navigation from proxied pages (URL bar stays on target URL)
+- GET form-submit bridge (including scripted submits)
+- CSS `url(...)` and `srcset` rewriting
+
+Regression lesson:
+- Do **not** add browser-side proxy preflight that causes a second fetch before iframe load.
+- This caused regressions (Yahoo flow) and was reverted.
+- Anti-bot handling should remain single-fetch.
