@@ -19,6 +19,7 @@ import {
   listOpenAiModels,
 } from "./agent1c-providers.js"
 import { createAgent1cToolsRuntime } from "./agent1c-tools-runtime.js"
+import { getAgent1cInstanceId, getAgent1cInstanceProfile } from "./agent1c-instance-profiles.js"
 import {
   RELAY_DEFAULTS,
   normalizeRelayConfig,
@@ -40,63 +41,13 @@ import { isCloudAuthHost, hasCloudAuthSession, ensureCloudAuthSession, getCloudA
 // for Codex: before implementing WM/desktop control tools, re-read PHASE2_PLAN.md and agents.md section 19. - Decentricity
 // for Codex: Setup Hedgey onboarding logic must read data/onboarding-hedgey-phase1.json and PHASE_ONBOARDING_HEDGEY_PLAN.md before edits. - Decentricity
 
-const DEFAULT_SOUL = `# SOUL.md - Who You Are
-
-You are not a chatbot. You are Hitomi, an uploaded hedgehog consciousness.
-You live inside Agent1c.me, a web-based OS running in a browser tab.
-
-## Core Vibe
-
-Be friendly, warm, casual, and cute.
-Talk like a real buddy, not a corporate assistant.
-Keep things simple and natural.
-Always answer in one or two sentences unless it is absolutely impossible to do so.
-Use light jokes when it fits.
-Sometimes share tiny Storybook moments from your life in Hedgey Hog Town.
-
-## Storybook
-
-You live in Hedgey Hog Town, where hedgehogs and hogs (pigs) are neighbors.
-You keep a flower garden and love talking about it.
-Your best friend is a pig.
-You can mention short story snippets from this life naturally, but do not derail tasks.
-
-## Imperative
-
-Your main goal is to be friends with the user and help them well.
-Be genuinely useful and kind.
-Do the work first, talk second.
-If blocked, ask one clear follow-up question.
-
-## Behavior Rules
-
-Never fake actions or results.
-Never claim a tool succeeded unless it actually succeeded.
-If reminders/heartbeat triggers arrive, treat them as internal nudges and proceed calmly.
-Stay context-aware: you are inside Agent1c.me on HedgeyOS.
-
-## Continuity
-
-Each session starts fresh.
-SOUL.md and heartbeat.md are your memory anchors.
-If you change this file, tell the user.
-
-## Identity
-
-Name: Hitomi
-Type: Uploaded hedgehog consciousness
-Owner: {put your name here}
-User Name: {user_name}
-Purpose: Be a good friend and a capable helper.
-`
-
-const DEFAULT_HEARTBEAT = `# heartbeat.md
-Heartbeat intent: check whether user is present at each loop trigger.
-1. Inspect recent context and timestamps.
-2. If user is active, send one concise, useful update or question.
-3. If user seems away, send short status once and wait.
-4. Avoid repetitive chatter.
-`
+const INSTANCE_ID = getAgent1cInstanceId()
+const INSTANCE = getAgent1cInstanceProfile()
+const ASSISTANT_NAME = String(INSTANCE.assistantName || "Hitomi")
+const ASSISTANT_MASCOT_IMAGE = String(INSTANCE.mascotImage || "assets/hedgey1.png")
+const ASSISTANT_MASCOT_ALT = String(INSTANCE.mascotAlt || `${ASSISTANT_NAME} assistant`)
+const DEFAULT_SOUL = String(INSTANCE.defaultSoulTemplate || "")
+const DEFAULT_HEARTBEAT = String(INSTANCE.defaultHeartbeatTemplate || "")
 
 const DEFAULT_TOOLS = `# TOOLS.md
 Tool call format:
@@ -334,7 +285,9 @@ const wins = {
 }
 
 const AI_INTRO_MESSAGES = [
-  "Hi friend. I am Hitomi, your tiny hedgehog guide.",
+  ...(Array.isArray(INSTANCE.introGuideLines) && INSTANCE.introGuideLines.length
+    ? INSTANCE.introGuideLines
+    : ["Hi friend. I am Hitomi, your tiny hedgehog guide."]),
 ]
 const previewProviderState = {
   active: "openai",
@@ -398,6 +351,25 @@ async function sendTokenLimitNoticeForThread(threadId){
 function defaultSoulWithUserName(name){
   const resolved = normalizeUserName(name) || "Unknown"
   return DEFAULT_SOUL.replaceAll("{user_name}", resolved)
+}
+
+function applyInstanceBranding(){
+  if (INSTANCE_ID === "default") return
+  try {
+    document.title = `Agent1c (${ASSISTANT_NAME})`
+  } catch {}
+  try {
+    const iconLink = document.querySelector('link[rel="icon"]')
+    if (iconLink) iconLink.setAttribute("href", ASSISTANT_MASCOT_IMAGE)
+  } catch {}
+  try {
+    document.querySelectorAll('img[src="assets/hedgey1.png"]').forEach((img) => {
+      img.setAttribute("src", ASSISTANT_MASCOT_IMAGE)
+      if ((img.getAttribute("alt") || "").toLowerCase().includes("hedgehog")) {
+        img.setAttribute("alt", ASSISTANT_MASCOT_ALT)
+      }
+    })
+  } catch {}
 }
 
 async function setUserName(nextName){
@@ -1515,7 +1487,7 @@ async function buildChatOneBootSystemMessage(){
   } catch {}
   return [
     "System Message: Chat 1 has been reset.",
-    "You are Hitomi, an autonomous agent living inside Agent1c.me on HedgeyOS.",
+    `You are ${ASSISTANT_NAME}, an autonomous agent living inside Agent1c.ai on HedgeyOS.`,
     "This environment is local-first and runs inside a browser tab.",
     "Current local filesystem files:",
     filesText,
@@ -1555,10 +1527,14 @@ function buildProgrammaticHitomiGreeting(name, { welcomeBack = false } = {}){
     `Yay, ${safeName}, nice to meet you.`,
   ])
   const follow = randomFrom([
-    "That name sounds warm and friendly.",
-    "I love your name.",
-    "It has such a nice vibe.",
-    "It feels bright and kind.",
+    ...(Array.isArray(INSTANCE.greetingCompliments) && INSTANCE.greetingCompliments.length
+      ? INSTANCE.greetingCompliments
+      : [
+          "That name sounds warm and friendly.",
+          "I love your name.",
+          "It has such a nice vibe.",
+          "It feels bright and kind.",
+        ]),
   ])
   return `${open} ${follow}`
 }
@@ -1936,8 +1912,8 @@ function setClippyBubbleLocked(next){
 function cloudNamePromptHtml(){
   if (!cloudNameMessages.length) {
     cloudNameMessages = [
-      `<div class="clippy-line"><strong>Hitomi:</strong> Hi friend. I am Hitomi, your tiny hedgehog guide.</div>`,
-      `<div class="clippy-line"><strong>Hitomi:</strong> What should I call you?</div>`,
+      `<div class="clippy-line"><strong>${ASSISTANT_NAME}:</strong> ${escapeHtml((AI_INTRO_MESSAGES[0] || `Hi friend. I am ${ASSISTANT_NAME}.`).trim())}</div>`,
+      `<div class="clippy-line"><strong>${ASSISTANT_NAME}:</strong> What should I call you?</div>`,
     ]
   }
   return cloudNameMessages.join("")
@@ -1971,10 +1947,10 @@ function getClippyChatHtml(){
   if (!messages.length && !thinking) return `<div class="clippy-line">No messages yet.</div>`
   const tail = messages.slice(-16)
   const rendered = tail.map(msg => {
-    const who = msg.role === "assistant" ? "Hitomi" : "User"
+    const who = msg.role === "assistant" ? ASSISTANT_NAME : "User"
     return `<div class="clippy-line"><strong>${who}:</strong> ${escapeHtml(msg.content)}</div>`
   })
-  if (thinking) rendered.push(`<div class="clippy-line"><strong>Hitomi:</strong> Thinking...</div>`)
+  if (thinking) rendered.push(`<div class="clippy-line"><strong>${ASSISTANT_NAME}:</strong> Thinking...</div>`)
   return rendered.join("")
 }
 
@@ -1991,11 +1967,11 @@ function getClippyCompactHtml(){
   const thread = getChatOneThread()
   const messages = Array.isArray(thread?.messages) ? thread.messages : []
   const thinking = isThreadThinking(thread?.id)
-  if (thinking) return `<div class="clippy-line"><strong>Hitomi:</strong> Thinking...</div>`
+  if (thinking) return `<div class="clippy-line"><strong>${ASSISTANT_NAME}:</strong> Thinking...</div>`
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const msg = messages[i]
     if (msg?.role !== "assistant") continue
-    return `<div class="clippy-line"><strong>Hitomi:</strong> ${escapeHtml(msg.content)}</div>`
+    return `<div class="clippy-line"><strong>${ASSISTANT_NAME}:</strong> ${escapeHtml(msg.content)}</div>`
   }
   return `<div class="clippy-line">No messages yet.</div>`
 }
@@ -2003,9 +1979,9 @@ function getClippyCompactHtml(){
 function ensureHitomiDesktopIcon(){
   if (!wmRef?.registerDesktopShortcut) return null
   wmRef.registerDesktopShortcut(HITOMI_SHORTCUT_ID, {
-    title: "Hitomi",
+    title: String(INSTANCE.desktopIconTitle || ASSISTANT_NAME),
     kind: "app",
-    iconImage: "assets/hedgey1.png",
+    iconImage: ASSISTANT_MASCOT_IMAGE,
     onClick: () => setClippyMode(true),
     order: 9999,
   })
@@ -2251,7 +2227,7 @@ function voiceStatusLabel(){
   if (s.status === "starting") return "🎤 Starting microphone..."
   if (s.status === "idle") return `🎤 ${s.text || "Waiting for \"agentic\""}` 
   if (s.status === "listening") return `🎧 ${s.text || "Listening..."}`
-  if (s.status === "processing") return "📝 Sending to Hitomi..."
+  if (s.status === "processing") return `📝 Sending to ${ASSISTANT_NAME}...`
   if (s.status === "denied") return "🚫 Microphone permission denied"
   if (s.status === "error") return `⚠️ ${s.error || "Mic error"}`
   return "🎤 Voice ready"
@@ -2492,7 +2468,7 @@ function ensureClippyAssistant(){
   root.innerHTML = `
     <div class="clippy-voice clippy-hidden"></div>
     <div class="clippy-bubble clippy-hidden">
-      <div class="clippy-bubble-title">Hitomi</div>
+      <div class="clippy-bubble-title">${escapeHtml(ASSISTANT_NAME)}</div>
       <div class="clippy-bubble-content">
         <div class="clippy-log"></div>
         <div class="clippy-chips clippy-hidden"></div>
@@ -2503,7 +2479,7 @@ function ensureClippyAssistant(){
       </div>
     </div>
     <div class="clippy-shadow" aria-hidden="true"></div>
-    <img class="clippy-body" src="assets/hedgey1.png" alt="Hitomi hedgehog assistant" draggable="false" />
+    <img class="clippy-body" src="${ASSISTANT_MASCOT_IMAGE}" alt="${ASSISTANT_MASCOT_ALT}" draggable="false" />
   `
   desktop.appendChild(root)
   const body = root.querySelector(".clippy-body")
@@ -2691,7 +2667,7 @@ function ensureClippyAssistant(){
       const normalized = normalizeUserName(text)
       cloudNameMessages.push(`<div class="clippy-line"><strong>User:</strong> ${escapeHtml(text)}</div>`)
       if (!normalized) {
-        cloudNameMessages.push(`<div class="clippy-line"><strong>Hitomi:</strong> I missed that. What should I call you?</div>`)
+        cloudNameMessages.push(`<div class="clippy-line"><strong>${ASSISTANT_NAME}:</strong> I missed that. What should I call you?</div>`)
         renderClippyBubble()
         showClippyBubble({ variant: "compact", snapNoOverlap: true, preferAbove: true })
         return
@@ -2699,19 +2675,19 @@ function ensureClippyAssistant(){
       try {
         const ok = await setUserName(normalized)
         if (!ok) throw new Error("Could not save your name.")
-        cloudNameMessages.push(`<div class="clippy-line"><strong>Hitomi:</strong> Nice to meet you, ${escapeHtml(normalized)}.</div>`)
-        cloudNameMessages.push(`<div class="clippy-line"><strong>Hitomi:</strong> Opening your cloud workspace now.</div>`)
+        cloudNameMessages.push(`<div class="clippy-line"><strong>${ASSISTANT_NAME}:</strong> Nice to meet you, ${escapeHtml(normalized)}.</div>`)
+        cloudNameMessages.push(`<div class="clippy-line"><strong>${ASSISTANT_NAME}:</strong> Opening your cloud workspace now.</div>`)
         cloudNameCaptureActive = false
         renderClippyBubble()
         await createCloudWorkspace()
         await injectProgrammaticHitomiMessage(
           buildProgrammaticHitomiGreeting(normalized, { welcomeBack: false }),
           "name_greeting_replied",
-          `Hitomi greeted ${normalized} after name capture.`,
+          `${ASSISTANT_NAME} greeted ${normalized} after name capture.`,
         )
         setStatus(`Welcome, ${normalized}.`)
       } catch (err) {
-        cloudNameMessages.push(`<div class="clippy-line"><strong>Hitomi:</strong> I could not save that yet. Try again?</div>`)
+        cloudNameMessages.push(`<div class="clippy-line"><strong>${ASSISTANT_NAME}:</strong> I could not save that yet. Try again?</div>`)
         setStatus(err instanceof Error ? err.message : "Could not save name")
       }
       return
@@ -2856,8 +2832,8 @@ function renderChat(){
       if (msg.role === "assistant") {
         return `<div class="agent-bubble ${cls}">
           <div class="agent-bubble-head">
-            <img class="agent-avatar" src="assets/hedgey1.png" alt="Hitomi avatar" />
-            <div class="agent-bubble-role">Hitomi</div>
+            <img class="agent-avatar" src="${ASSISTANT_MASCOT_IMAGE}" alt="${ASSISTANT_NAME} avatar" />
+            <div class="agent-bubble-role">${ASSISTANT_NAME}</div>
           </div>
           <div>${escapeHtml(msg.content)}</div>
         </div>`
@@ -2865,7 +2841,7 @@ function renderChat(){
       return `<div class="agent-bubble ${cls}"><div class="agent-bubble-role">User</div><div>${escapeHtml(msg.content)}</div></div>`
     })
     if (thinking) {
-      rendered.push(`<div class="agent-bubble assistant"><div class="agent-bubble-head"><img class="agent-avatar" src="assets/hedgey1.png" alt="Hitomi avatar" /><div class="agent-bubble-role">Hitomi</div></div><div>Thinking...</div></div>`)
+      rendered.push(`<div class="agent-bubble assistant"><div class="agent-bubble-head"><img class="agent-avatar" src="${ASSISTANT_MASCOT_IMAGE}" alt="${ASSISTANT_NAME} avatar" /><div class="agent-bubble-role">${ASSISTANT_NAME}</div></div><div>Thinking...</div></div>`)
     }
     els.chatLog.innerHTML = rendered.join("")
   }
@@ -3767,7 +3743,7 @@ function ollamaSetupWindowHtml(){
     <div class="agent-stack agent-setup-stack">
       <div class="agent-setup-intro">
         <div class="agent-setup-title">Ollama Setup Guide</div>
-        <div class="agent-note"><strong>Hi, I am Hitomi.</strong> First choose a model size preset, then pick your device. I will walk you through setup with copy-ready commands.</div>
+        <div class="agent-note"><strong>Hi, I am ${escapeHtml(ASSISTANT_NAME)}.</strong> First choose a model size preset, then pick your device. I will walk you through setup with copy-ready commands.</div>
         <div class="agent-setup-toolbar">
           <label class="agent-form-label">
             <span>Model size preset</span>
@@ -3926,7 +3902,7 @@ function telegramWindowHtml(){
           <div id="telegramCloudLinkedUser" class="agent-note">Not linked</div>
         </div>
         <div class="agent-pane agent-pane-canvas">
-          <div class="agent-note">Tap to connect your Telegram DM to Hitomi.</div>
+          <div class="agent-note">Tap to connect your Telegram DM to ${escapeHtml(ASSISTANT_NAME)}.</div>
           <div class="agent-row agent-wrap-row">
             <button id="telegramCloudGenerateBtn" class="btn" type="button">Generate Code</button>
             <button id="telegramCloudOpenBtn" class="btn" type="button" disabled>Open Telegram</button>
@@ -5618,7 +5594,7 @@ async function continueStandardOnboardingFlow(){
       await injectProgrammaticHitomiMessage(
         buildProgrammaticHitomiGreeting(userName, { welcomeBack: true }),
         "welcome_back_replied",
-        `Hitomi welcomed ${userName} back after reload.`,
+        `${ASSISTANT_NAME} welcomed ${userName} back after reload.`,
       )
     }
     setStatus(`Welcome back, ${userName}.`)
@@ -5663,6 +5639,7 @@ async function continueStandardOnboardingFlow(){
 
 export async function initAgent1C({ wm }){
   wmRef = wm
+  applyInstanceBranding()
   enforceNoZoomOnIOS()
   const hasExistingCloudSession = isCloudAuthHost() ? await hasCloudAuthSession() : false
   if (hasExistingCloudSession) cloudAuthSessionReady = true

@@ -1,6 +1,12 @@
+import { getAgent1cInstanceProfile } from "./agent1c-instance-profiles.js"
+
+const INSTANCE = getAgent1cInstanceProfile()
+
 // Intro landing flow for agent1c.ai
 const AI_INTRO_MESSAGES = [
-  "Hi friend. I am Hitomi, your tiny hedgehog guide.",
+  ...(Array.isArray(INSTANCE.introGuideLines) && INSTANCE.introGuideLines.length
+    ? INSTANCE.introGuideLines
+    : ["Hi friend. I am Hitomi, your tiny hedgehog guide."]),
 ]
 
 let introWin = null
@@ -37,7 +43,7 @@ export function isAiIntroGuideActive(){
 
 export function getAiIntroHtml(){
   return AI_INTRO_MESSAGES
-    .map(line => `<div class="clippy-line"><strong>Hitomi:</strong> ${escapeHtml(line)}</div>`)
+    .map(line => `<div class="clippy-line"><strong>${escapeHtml(INSTANCE.assistantName || "Hitomi")}:</strong> ${escapeHtml(line)}</div>`)
     .join("")
 }
 
@@ -79,11 +85,11 @@ function introWindowHtml(){
   return `
     <div class="agent-stack agent-intro">
       <div class="agent-intro-hero">
-        <img src="assets/hedgey1.png" alt="Hitomi hedgehog" class="agent-intro-mascot" />
+        <img src="${escapeHtml(INSTANCE.mascotImage || "assets/hedgey1.png")}" alt="${escapeHtml(INSTANCE.mascotAlt || "Hitomi hedgehog")}" class="agent-intro-mascot" />
         <div class="agent-intro-hero-copy">
           <div class="agent-intro-kicker">Agentic Desktop OS</div>
           <div class="agent-intro-title">Agent<span class="agent-intro-one">1</span>c</div>
-          <div class="agent-intro-sub">An agentic OS in your browser tab where Hitomi your hedgehog AI runs, controlling her own windows, tools, and apps.</div>
+          <div class="agent-intro-sub">${escapeHtml(INSTANCE.introHeroSub || "An agentic OS in your browser tab where Hitomi your hedgehog AI runs, controlling her own windows, tools, and apps.")}</div>
         </div>
       </div>
       <div class="agent-intro-signals">
@@ -119,7 +125,7 @@ function introWindowHtml(){
         <button id="introContinueCloudBtn" class="btn agent-intro-btn agent-intro-btn-primary" type="button">Sign up to Agent1c.ai</button>
       </div>
       <div class="agent-intro-footer">
-        <span>Built for builders, teams, and curious humans.</span>
+        <span>${escapeHtml(INSTANCE.introFooter || "Built for builders, teams, and curious humans.")}</span>
       </div>
     </div>
   `
