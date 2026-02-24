@@ -143,13 +143,6 @@ function authWindowHtml(){
           <span>Continue with X</span>
         </button>
       </div>
-      <div class="agent-auth-panel">
-        <div class="agent-auth-divider">Or use a magic link</div>
-        <form id="authMagicForm" class="agent-auth-magic" autocomplete="on">
-          <input id="authMagicEmail" class="field" type="email" inputmode="email" placeholder="you@example.com" required />
-          <button id="authMagicBtn" class="btn agent-auth-btn-alt" type="submit">Send Link</button>
-        </form>
-      </div>
       <div class="agent-row agent-auth-footer-row">
         <button id="authRefreshBtn" class="btn agent-auth-btn-alt" type="button">I already signed in</button>
         <span id="authStatus" class="agent-auth-status">Signed out.</span>
@@ -430,8 +423,6 @@ function stopSessionWatch(){
 function wireAuthDom(){
   const googleBtn = document.getElementById("authGoogleBtn")
   const xBtn = document.getElementById("authXBtn")
-  const magicForm = document.getElementById("authMagicForm")
-  const magicBtn = document.getElementById("authMagicBtn")
   const refreshBtn = document.getElementById("authRefreshBtn")
   let lastPressAt = 0
   const bindPress = (node, fn) => {
@@ -452,11 +443,6 @@ function wireAuthDom(){
   }
   bindPress(googleBtn, () => openOAuth("google"))
   bindPress(xBtn, () => openOAuth("x"))
-  magicForm?.addEventListener("submit", (event) => {
-    event.preventDefault()
-    sendMagicLink().catch(() => {})
-  })
-  bindPress(magicBtn, () => sendMagicLink())
   bindPress(refreshBtn, () => checkSessionAndContinue())
 }
 
