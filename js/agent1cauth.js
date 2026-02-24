@@ -21,6 +21,7 @@ let setStatus = null
 let onAuthenticated = null
 let authContinuing = false
 let androidAuthHandoffInFlight = false
+const ANDROID_AUTH_HANDOFF_ONESHOT_KEY = "agent1c_android_auth_handoff_done"
 
 function hostName(){
   return String(window.location?.hostname || "").toLowerCase()
@@ -346,12 +347,18 @@ async function createAndroidAuthHandoff(){
 
 async function runAndroidAuthHandoffAndDeepLink(){
   if (!isAndroidAuthMode()) return false
+  try {
+    if (window.sessionStorage?.getItem(ANDROID_AUTH_HANDOFF_ONESHOT_KEY) === "1") {
+      return true
+    }
+  } catch {}
   if (androidAuthHandoffInFlight) return true
   androidAuthHandoffInFlight = true
   try {
     updateAuthStatus("Signed in. Returning to Hitomi app...")
     setStatus?.("Returning sign-in to Android app...")
     const handoff = await createAndroidAuthHandoff()
+    try { window.sessionStorage?.setItem(ANDROID_AUTH_HANDOFF_ONESHOT_KEY, "1") } catch {}
     const deep = new URL(APP_REDIRECT_URI)
     deep.searchParams.set("handoff_code", handoff?.code || "")
     if (handoff?.expiresAt) deep.searchParams.set("expires_at", handoff.expiresAt)
@@ -451,13 +458,6 @@ function wireAuthDom(){
   })
   bindPress(magicBtn, () => sendMagicLink())
   bindPress(refreshBtn, () => checkSessionAndContinue())
-  const providerHint = getAndroidAuthProviderHint()
-  if (isAndroidAuthMode() && providerHint) {
-    window.setTimeout(() => {
-      if (providerHint === "google") openOAuth("google").catch(() => {})
-      if (providerHint === "x") openOAuth("x").catch(() => {})
-    }, 80)
-  }
 }
 
 export async function ensureCloudAuthSession({
@@ -498,6 +498,9 @@ export async function ensureCloudAuthSession({
     stopSessionWatch()
     closeAuthWindow()
     return true
+  }
+  if (isAndroidAuthMode()) {
+    try { window.sessionStorage?.removeItem(ANDROID_AUTH_HANDOFF_ONESHOT_KEY) } catch {}
   }
   updateAuthStatus("Signed out.")
   setStatus?.("Sign in to continue on Agent1c.ai.")
