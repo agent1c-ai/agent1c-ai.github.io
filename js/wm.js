@@ -1851,6 +1851,9 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     const items = Array.from(list.querySelectorAll("[data-theme]"));
     const title = win.querySelector("[data-theme-title]");
     const desc = win.querySelector("[data-theme-desc]");
+    const wallpaperCurrent = win.querySelector("[data-theme-wallpaper-current]");
+    const wallpaperChange = win.querySelector("[data-theme-wallpaper-change]");
+    const wallpaperClear = win.querySelector("[data-theme-wallpaper-clear]");
 
     const meta = {
       hedgey: {
@@ -1893,6 +1896,49 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
       item.addEventListener("click", () => applySelection(item.dataset.theme));
     });
 
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/*";
+    fileInput.style.display = "none";
+    win.appendChild(fileInput);
+
+    function renderWallpaperLabel(){
+      if (!wallpaperCurrent) return;
+      const name = String(theme.getWallpaperName?.() || "").trim();
+      wallpaperCurrent.textContent = name || "(None)";
+      wallpaperCurrent.title = name || "(None)";
+    }
+
+    async function pickWallpaper(){
+      fileInput.value = "";
+      fileInput.click();
+    }
+
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      if (!String(file.type || "").startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = String(reader.result || "");
+        if (!dataUrl.startsWith("data:image/")) return;
+        theme.applyWallpaper?.({ name: file.name || "Wallpaper", dataUrl });
+        renderWallpaperLabel();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    wallpaperCurrent?.addEventListener("click", pickWallpaper);
+    wallpaperChange?.addEventListener("click", pickWallpaper);
+    wallpaperClear?.addEventListener("click", () => {
+      theme.clearWallpaper?.();
+      renderWallpaperLabel();
+    });
+    window.addEventListener("hedgey:wallpaper-changed", renderWallpaperLabel);
+
+    win.__openWallpaperPicker = pickWallpaper;
+
+    renderWallpaperLabel();
     applySelection(theme.getTheme());
   }
 
@@ -2081,11 +2127,34 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
   }
 
   function createThemesWindow(runtimeOpts = {}){
-    return spawn(themesTpl, "Themes", {
+    const id = spawn(themesTpl, "Themes", {
       kind: "app",
       restoreType: "themes",
       disableOpenFx: !!runtimeOpts.disableOpenFx,
     });
+    if (runtimeOpts.openWallpaperPicker) {
+      queueMicrotask(() => {
+        const st = state.get(id);
+        st?.win?.__openWallpaperPicker?.();
+      });
+    }
+    return id;
+  }
+
+  function openThemesForWallpaper(){
+    const existing = findWindowByTitle("Themes");
+    let id = existing?.id || null;
+    if (!id) id = createThemesWindow({ openWallpaperPicker: true });
+    if (!id) return null;
+    restore(id);
+    focus(id);
+    if (existing?.id) {
+      setTimeout(() => {
+        const st = state.get(id);
+        st?.win?.__openWallpaperPicker?.();
+      }, 0);
+    }
+    return id;
   }
 
   function listWindows(){
@@ -2492,6 +2561,33 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     refreshIcons();
     return key;
   }
+
+  function showDesktopContextMenu(x, y){
+    document.querySelectorAll(".context-menu").forEach(m => m.remove());
+    const menu = document.createElement("div");
+    menu.className = "menu-dropdown bevel-out hairline context-menu";
+    menu.style.display = "block";
+    menu.style.position = "fixed";
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+    const item = document.createElement("div");
+    item.className = "menu-item";
+    item.textContent = "Change Wallpaper";
+    item.addEventListener("click", () => {
+      openThemesForWallpaper();
+      menu.remove();
+    });
+    menu.appendChild(item);
+    document.body.appendChild(menu);
+    const cleanup = () => { menu.remove(); document.removeEventListener("click", cleanup); };
+    setTimeout(() => document.addEventListener("click", cleanup), 0);
+  }
+
+  desktop.addEventListener("contextmenu", (e) => {
+    if (e.target.closest("[data-win], .desk-icon, .folder-overlay, .clippy-host")) return;
+    e.preventDefault();
+    showDesktopContextMenu(e.clientX, e.clientY);
+  });
   function unregisterDesktopFolder(id){
     const key = String(id || "").trim();
     if (!key) return false;
@@ -2529,6 +2625,7 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     unregisterDesktopShortcut,
     registerDesktopFolder,
     unregisterDesktopFolder,
+    openThemesForWallpaper,
     restoreLayoutSession: restoreNonAgentWindowsFromSnapshot,
   };
 }
