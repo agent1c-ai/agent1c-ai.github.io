@@ -123,7 +123,7 @@ function authWindowHtml(){
       <div class="agent-auth-head">
         <div class="agent-auth-badge">Agent1c Cloud Access</div>
         <div class="agent-auth-title">Welcome to Agent1c.ai</div>
-        <div class="agent-auth-sub">Sign in to continue your hosted Agentic OS setup.</div>
+        <div class="agent-auth-sub">Sign in to continue your hosted Agent1c OS setup.</div>
       </div>
       <div class="agent-auth-actions">
         <button id="authGoogleBtn" class="btn agent-auth-btn agent-auth-btn-google" type="button">
@@ -144,7 +144,6 @@ function authWindowHtml(){
         </button>
       </div>
       <div class="agent-row agent-auth-footer-row">
-        <button id="authRefreshBtn" class="btn agent-auth-btn-alt" type="button">I already signed in</button>
         <span id="authStatus" class="agent-auth-status">Signed out.</span>
       </div>
       <div class="agent-auth-note">
@@ -199,12 +198,12 @@ function getAuthWindowOpts(){
       left: 8,
       top: 12,
       width: Math.max(300, w - 16),
-      height: Math.max(300, Math.min(420, h - 28)),
+      height: Math.max(228, Math.min(268, h - 28)),
       closeAsMinimize: false,
     }
   }
   const width = 430
-  const height = 300
+  const height = 214
   return {
     panelId: AUTH_PANEL_ID,
     left: Math.max(16, Math.round((w - width) / 2)),
@@ -423,7 +422,6 @@ function stopSessionWatch(){
 function wireAuthDom(){
   const googleBtn = document.getElementById("authGoogleBtn")
   const xBtn = document.getElementById("authXBtn")
-  const refreshBtn = document.getElementById("authRefreshBtn")
   let lastPressAt = 0
   const bindPress = (node, fn) => {
     if (!node) return
@@ -443,7 +441,6 @@ function wireAuthDom(){
   }
   bindPress(googleBtn, () => openOAuth("google"))
   bindPress(xBtn, () => openOAuth("x"))
-  bindPress(refreshBtn, () => checkSessionAndContinue())
 }
 
 export async function ensureCloudAuthSession({

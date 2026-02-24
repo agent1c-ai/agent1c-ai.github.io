@@ -2052,7 +2052,9 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 31px;
+  min-height: 36px;
+  padding-top: 7px;
+  padding-bottom: 7px;
   font-weight: 700;
 }
 .agent-auth-logo{
@@ -2126,11 +2128,13 @@
   align-items: center;
   justify-content: flex-start;
   flex-wrap: nowrap;
+  min-height: 14px;
 }
 .agent-auth-status{
   font-size: 10px;
   opacity: 0.84;
   line-height: 1.3;
+  padding-left: 2px;
 }
 .agent-auth-status.error{
   color: #9f1b1b;
