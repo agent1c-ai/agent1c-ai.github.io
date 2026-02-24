@@ -20,6 +20,7 @@ let getViewport = null
 let setStatus = null
 let onAuthenticated = null
 let authContinuing = false
+let androidAuthHandoffInFlight = false
 
 function hostName(){
   return String(window.location?.hostname || "").toLowerCase()
@@ -35,11 +36,46 @@ function isAuthCallbackUrl(){
     || params.has("refresh_token")
 }
 
+function getAuthParams(){
+  try {
+    return new URLSearchParams(window.location.search || "")
+  } catch {
+    return new URLSearchParams()
+  }
+}
+
+function isAndroidAuthMode(){
+  const params = getAuthParams()
+  return params.get("android_auth") === "1"
+}
+
+function getAndroidAuthProviderHint(){
+  const raw = String(getAuthParams().get("android_provider") || "").trim().toLowerCase()
+  return (raw === "google" || raw === "x") ? raw : ""
+}
+
+function getAuthRedirectTo(){
+  try {
+    const url = new URL(window.location.href)
+    url.hash = ""
+    if (isAndroidAuthMode()) {
+      url.searchParams.set("android_auth", "1")
+      const hint = getAndroidAuthProviderHint()
+      if (hint) url.searchParams.set("android_provider", hint)
+    } else {
+      url.search = ""
+    }
+    return `${url.origin}${url.pathname}${url.search}`
+  } catch {
+    return `${window.location.origin}${window.location.pathname}`
+  }
+}
+
 function cleanupAuthCallbackUrl(){
   if (!window.history?.replaceState) return
   try {
     const url = new URL(window.location.href)
-    const keys = ["code", "state", "error", "error_description", "access_token", "refresh_token", "token_type", "expires_in"]
+    const keys = ["code", "state", "error", "error_code", "error_description", "access_token", "refresh_token", "token_type", "expires_in"]
     let changed = false
     for (const key of keys) {
       if (url.searchParams.has(key)) {
@@ -225,7 +261,7 @@ async function openOAuth(provider){
     setStatus?.(clientInfo.error)
     return
   }
-  const redirectTo = `${window.location.origin}${window.location.pathname}`
+  const redirectTo = getAuthRedirectTo()
   const { data, error } = await clientInfo.client.auth.signInWithOAuth({
     provider,
     options: {
@@ -257,7 +293,7 @@ async function sendMagicLink(){
     updateAuthStatus("Enter a valid email first.", true)
     return
   }
-  const redirectTo = `${window.location.origin}${window.location.pathname}`
+  const redirectTo = getAuthRedirectTo()
   const { error } = await clientInfo.client.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: redirectTo },
@@ -271,6 +307,63 @@ async function sendMagicLink(){
   updateAuthStatus(`Magic link sent to ${safe(email)}.`)
   setStatus?.("Magic link sent. Open your email and come back.")
 }
+
+async function createAndroidAuthHandoff(){
+  if (!isAndroidAuthMode()) return null
+  const clientInfo = getClient()
+  if (!clientInfo.ok) throw new Error(clientInfo.error || "Supabase auth unavailable")
+  const { data, error } = await clientInfo.client.auth.getSession()
+  if (error || !data?.session) throw new Error(error?.message || "No cloud session available")
+  const cfg = getSupabaseConfig()
+  const session = data.session
+  const headers = {
+    "Content-Type": "application/json",
+    apikey: cfg.anonKey,
+    Authorization: `Bearer ${session.access_token}`,
+  }
+  const body = {
+    action: "create",
+    session: {
+      access_token: String(session.access_token || ""),
+      refresh_token: String(session.refresh_token || ""),
+      expires_in: Number(session.expires_in || 3600),
+      token_type: String(session.token_type || "bearer"),
+    },
+  }
+  const res = await fetch(`${cfg.url}/functions/v1/android-auth-handoff`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(String(json?.error || `Android handoff create failed (${res.status})`))
+  }
+  const code = String(json?.handoff_code || "").trim()
+  if (!code) throw new Error("Android handoff code missing")
+  return { code, expiresAt: String(json?.expires_at || "") }
+}
+
+async function runAndroidAuthHandoffAndDeepLink(){
+  if (!isAndroidAuthMode()) return false
+  if (androidAuthHandoffInFlight) return true
+  androidAuthHandoffInFlight = true
+  try {
+    updateAuthStatus("Signed in. Returning to Hitomi app...")
+    setStatus?.("Returning sign-in to Android app...")
+    const handoff = await createAndroidAuthHandoff()
+    const deep = new URL(APP_REDIRECT_URI)
+    deep.searchParams.set("handoff_code", handoff?.code || "")
+    if (handoff?.expiresAt) deep.searchParams.set("expires_at", handoff.expiresAt)
+    // Navigate instead of assign/open so browser can hand off into Android app.
+    window.location.href = deep.toString()
+    return true
+  } finally {
+    window.setTimeout(() => { androidAuthHandoffInFlight = false }, 1500)
+  }
+}
+
+const APP_REDIRECT_URI = "agent1cai://auth/callback"
 
 async function checkSessionAndContinue(){
   const clientInfo = getClient()
@@ -288,6 +381,12 @@ async function checkSessionAndContinue(){
   authContinuing = true
   updateAuthStatus("Signed in. Continuing setup...")
   setStatus?.("Signed in. Continuing setup.")
+  if (isAndroidAuthMode()) {
+    cleanupAuthCallbackUrl()
+    stopSessionWatch()
+    await runAndroidAuthHandoffAndDeepLink()
+    return true
+  }
   cleanupAuthCallbackUrl()
   stopSessionWatch()
   closeAuthWindow()
@@ -352,6 +451,13 @@ function wireAuthDom(){
   })
   bindPress(magicBtn, () => sendMagicLink())
   bindPress(refreshBtn, () => checkSessionAndContinue())
+  const providerHint = getAndroidAuthProviderHint()
+  if (isAndroidAuthMode() && providerHint) {
+    window.setTimeout(() => {
+      if (providerHint === "google") openOAuth("google").catch(() => {})
+      if (providerHint === "x") openOAuth("x").catch(() => {})
+    }, 80)
+  }
 }
 
 export async function ensureCloudAuthSession({
@@ -385,6 +491,10 @@ export async function ensureCloudAuthSession({
     return false
   }
   if (data?.session) {
+    if (isAndroidAuthMode()) {
+      await runAndroidAuthHandoffAndDeepLink()
+      return false
+    }
     stopSessionWatch()
     closeAuthWindow()
     return true

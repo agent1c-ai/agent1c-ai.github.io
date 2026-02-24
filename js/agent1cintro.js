@@ -19,6 +19,7 @@ function shouldShowAiIntroGate(){
   if (!isAgenticAiHost()) return false
   if (host === "app.agent1c.ai") return false
   const params = new URLSearchParams(window.location.search || "")
+  if (params.get("android_auth") === "1") return false
   const isAuthCallback =
     params.has("code")
     || params.has("state")
