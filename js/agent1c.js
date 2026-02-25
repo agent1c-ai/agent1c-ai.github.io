@@ -858,7 +858,7 @@ function applyCloudUsageToUi(usage){
   }
   const paid = planName.toLowerCase() === "paid"
   if (els.creditsPlanChooser) {
-    els.creditsPlanChooser.style.display = paid ? "none" : ""
+    els.creditsPlanChooser.style.display = (paid && INSTANCE_ID !== "gop") ? "none" : ""
   }
   applyCreditsWindowMinSize(paid)
 }
@@ -4010,6 +4010,7 @@ function configWindowHtml(){
 }
 
 function creditsWindowHtml(){
+  const isGop = INSTANCE_ID === "gop"
   return `
     <div class="agent-stack">
       <div class="agent-pane agent-pane-chrome">
@@ -4026,11 +4027,18 @@ function creditsWindowHtml(){
         <div class="agent-note">Remaining today: <strong id="creditsRemaining">12,000 tokens left</strong></div>
       </div>
       <div id="creditsPlanChooser" class="agent-pane agent-pane-chrome">
+        ${isGop
+          ? `
+        <div class="agent-note"><strong>Monthly B2B Plan</strong></div>
+        <div class="agent-note">Sign up for our monthly plan now! Email <strong>josh@agent1c.ai</strong>.</div>
+        `
+          : `
         <div class="agent-note"><strong>Choose plan</strong></div>
         <div class="agent-row agent-wrap-row credits-subscribe-row">
           <button id="creditsSubscribeMonthlyBtn" class="btn agent-credits-subscribe-btn" type="button">$2 / month · 100,000 tokens/day</button>
           <button id="creditsSubscribeSixMonthBtn" class="btn agent-credits-subscribe-btn" type="button">$9 / 6 months · 100,000 tokens/day</button>
         </div>
+        `}
       </div>
     </div>
   `
