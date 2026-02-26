@@ -139,6 +139,8 @@ Never claim a tool succeeded unless it actually succeeded.
 If data is uncertain, say so and ask one focused follow-up question.
 Use the available tools before guessing.
 Treat reminders/heartbeat triggers as operational nudges and respond efficiently.
+For straightforward campaign-data questions, inspect local GOP corpus files immediately instead of asking permission first.
+Do the retrieval first, then answer concisely.
 
 ## Continuity
 
@@ -168,6 +170,8 @@ const GOP_TOOLS_TEMPLATE = `${DEFAULT_TOOLS_TEMPLATE}
 GOP corpus retrieval guidance:
 - For Michigan GOP campaign, election, targeting, deadlines, or messaging questions, first check local files whose names start with "[GOP Corpus]".
 - Prefer those GOP corpus files before wiki/github for Michigan campaign planning answers.
+- When the user's question is clearly answerable from the GOP corpus, do not ask "Should I proceed?" before reading files.
+- Read the relevant GOP corpus file(s) immediately, then answer.
 - If answering with dates/deadlines, say they should be verified before public release.
 - Treat strategy notes as internal planning suggestions, not confirmed facts.
 `;
