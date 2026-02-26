@@ -10,6 +10,20 @@ let dbPromise = null;
 let cachedKey = null;
 let unlockWait = null;
 let unlockResolve = null;
+let activeInstanceId = "default";
+
+function normalizeInstanceId(value){
+  const v = String(value || "").trim().toLowerCase();
+  return v || "default";
+}
+
+function recordInstanceId(record){
+  return normalizeInstanceId(record?.instance || "default");
+}
+
+export function setFilesystemInstanceId(instanceId){
+  activeInstanceId = normalizeInstanceId(instanceId);
+}
 
 function openDb(){
   if (dbPromise) return dbPromise;
@@ -254,7 +268,10 @@ export async function listFiles(){
     const tx = db.transaction(STORE, "readonly");
     const store = tx.objectStore(STORE);
     const req = store.getAll();
-    req.onsuccess = () => resolve(req.result || []);
+    req.onsuccess = () => {
+      const rows = Array.isArray(req.result) ? req.result : [];
+      resolve(rows.filter(row => recordInstanceId(row) === activeInstanceId));
+    };
     req.onerror = () => reject(req.error);
   });
 }
@@ -266,7 +283,14 @@ export async function getFileById(id){
     const tx = db.transaction(STORE, "readonly");
     const store = tx.objectStore(STORE);
     const req = store.get(id);
-    req.onsuccess = () => resolve(req.result || null);
+    req.onsuccess = () => {
+      const row = req.result || null;
+      if (!row) {
+        resolve(null);
+        return;
+      }
+      resolve(recordInstanceId(row) === activeInstanceId ? row : null);
+    };
     req.onerror = () => reject(req.error);
   });
 }
@@ -291,6 +315,7 @@ export async function saveNote({ id, name, content }){
   const record = {
     id: id || ("n" + Math.random().toString(36).slice(2, 10)),
     name: finalName,
+    instance: activeInstanceId,
     kind: "note",
     type: "text/plain",
     size: (content || "").length,
@@ -314,6 +339,7 @@ export async function saveUpload(file){
   const record = {
     id: "f" + Math.random().toString(36).slice(2, 10),
     name: finalName,
+    instance: activeInstanceId,
     kind: "file",
     type: file.type || "application/octet-stream",
     size: file.size || 0,

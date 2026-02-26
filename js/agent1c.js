@@ -1,4 +1,4 @@
-import { listFiles, readFileBlob, readNoteText } from "./filesystem.js"
+import { listFiles, readFileBlob, readNoteText, saveNote, setFilesystemInstanceId } from "./filesystem.js"
 import { animateHitomiWispsShow } from "./hitomi-wisps-fx.js"
 import {
   normalizeUserName,
@@ -207,6 +207,123 @@ const appState = {
   events: [],
 }
 const SOUL_REANCHOR_EVERY_USER_TURNS = 5
+const GOP_CORPUS_BOOTSTRAP_FILES = [
+  {
+    name: "[GOP Corpus] 01_migop_priorities_and_message_frame.md",
+    content: `# Michigan Republican Party (mi.gop) - Core Priorities and Messaging Frame
+
+Official site: https://mi.gop/
+Current Chairman (as of 2026): Jim Runestad
+
+Working focus:
+- Build on Trump's 2024 Michigan win
+- Emphasize economic pragmatism, security, and state-level wins
+
+National GOP 2024 platform influences (adapted locally):
+1. Secure borders and stop illegal immigration
+2. Affordability / inflation relief
+3. Dominant energy production
+4. Boost manufacturing / reduce outsourcing
+5. Tax cuts for workers / no tax on tips
+6. Protect Social Security and Medicare
+7. Defend Constitution / Bill of Rights
+8. Government reform / anti-corruption framing
+
+Michigan-specific messaging adaptations:
+- Economy and jobs (pro-business, investment, high-cost pressure)
+- Public safety / support law enforcement
+- Education (school choice, parental rights, alternatives to 4-year college)
+- Health care affordability / transparency
+- Fiscal responsibility and anti-corruption
+- Affordable energy / balanced approach; oppose mandates
+- Affordability as the main message frame
+`,
+  },
+  {
+    name: "[GOP Corpus] 02_michigan_2026_election_calendar.md",
+    content: `# 2026 Michigan Election Calendar (Working Internal Reference)
+
+Source basis: Michigan SOS and public sources. Verify before public release.
+
+Statewide key dates:
+- Tuesday, August 4, 2026: Statewide PRIMARY
+- Tuesday, November 3, 2026: Statewide GENERAL
+
+Important cycle deadlines (verify exact filing docs):
+- March-April 2026: Judicial and many candidate filings
+- April 21, 2026 (4:00 PM): Nominating petitions and affidavits
+- April 24, 2026: Withdrawals
+- May 5, 2026: Precinct delegate affidavits
+- July 6, 2026 onward: Early voting options begin (optional)
+
+Notes:
+- Special elections may occur earlier in some areas
+- Local race timing (e.g., Westland / Wayne County) should be confirmed with city clerk / county election offices
+`,
+  },
+  {
+    name: "[GOP Corpus] 03_michigan_2024_results_and_targeting.md",
+    content: `# 2024 Michigan Results Highlights and 2026 Targeting Notes
+
+Presidential 2024:
+- Trump flipped Michigan (approx. 1.4% win; verify exact certified margin before publication)
+
+Observed Republican trend themes (working targeting notes):
+- Gains in Macomb, Oakland suburbs, and working-class areas
+- Affordability and security repetition remains effective
+- Low-propensity GOP voters (~20% of electorate) remain a major mobilization target
+
+Operational targeting concepts:
+- Increase turnout 5-10% in conservative-leaning precincts via:
+  - door-knocking
+  - phone banks
+  - early / absentee vote pushes
+- Prioritize swing House/Senate seats with 2024-like voter profile shifts
+- In Wayne County / Westland, focus messaging on fiscal responsibility and local governance
+`,
+  },
+  {
+    name: "[GOP Corpus] 04_campaign_strategies_mi_gop.md",
+    content: `# Campaign Strategies for Michigan GOP (Working Internal Strategy Notes)
+
+General approach:
+- Build decentralized infrastructure for ground game, recruiting, and coalitions
+- Maintain clarity and repetition on economy/security
+- Keep affordability as the "main thing"
+- Stay agile while keeping message discipline
+
+Turnout / GOTV:
+- Identify low-propensity conservatives statewide
+- Mobilize via door-knocking and phone banks
+- Bank votes early / absentee where advantageous
+- Build precinct delegate and grassroots influence
+
+Outreach:
+- Recruit at MIGOP events / endorsement convention
+- Voter registration drives in working-class / Rust Belt areas
+- Digital messaging on X/social focused on affordability and security
+
+Election integrity operations:
+- Train poll watchers / challengers
+- Educate voters on procedures with consistent messaging
+`,
+  },
+  {
+    name: "[GOP Corpus] 05_key_issues_2026_michigan_gop_focus.md",
+    content: `# Key Issues for 2026 Michigan Elections (GOP Focus)
+
+1. Economy and jobs
+2. Public safety
+3. Education (school choice, parental rights, literacy)
+4. Health care affordability and transparency
+5. Government reform (fiscal responsibility, anti-corruption)
+6. Energy and environment (affordable energy, data centers)
+7. Housing affordability
+8. Population / aging workforce solutions
+9. Government transparency / campaign finance
+`,
+  },
+]
 
 function instanceStorageKey(key){
   return `${INSTANCE_STORAGE_PREFIX}${key}`
@@ -249,6 +366,17 @@ function getStateStoreKey(){
 
 function getCurrentInstanceIdOrDefault(row){
   return String(row?.instance || "default")
+}
+
+async function ensureGopCorpusFiles(){
+  if (INSTANCE_ID !== "gop") return
+  const existing = await listFiles().catch(() => [])
+  const existingNames = new Set((existing || []).map(file => String(file?.name || "")))
+  for (const spec of GOP_CORPUS_BOOTSTRAP_FILES) {
+    if (existingNames.has(spec.name)) continue
+    await saveNote({ id: null, name: spec.name, content: spec.content })
+    existingNames.add(spec.name)
+  }
 }
 
 const els = {}
@@ -5696,6 +5824,7 @@ async function continueStandardOnboardingFlow(){
 
 export async function initAgent1C({ wm }){
   wmRef = wm
+  setFilesystemInstanceId(INSTANCE_ID)
   applyInstanceBranding()
   enforceNoZoomOnIOS()
   const hasExistingCloudSession = isCloudAuthHost() ? await hasCloudAuthSession() : false
@@ -5710,6 +5839,7 @@ export async function initAgent1C({ wm }){
   onboardingComplete = localStorageGetNamespaced(ONBOARDING_KEY) === "1"
   onboardingOpenAiTested = localStorageGetNamespaced(ONBOARDING_OPENAI_TEST_KEY) === "1"
   await loadPersistentState()
+  await ensureGopCorpusFiles().catch(() => {})
   // for Codex: onboarding runtime must stay data-driven from onboarding-hedgey-phase1.json.
   // If context was compacted, re-read PHASE_ONBOARDING_HEDGEY_PLAN.md + agents.md section 20 before changing this wiring.
   onboardingHedgey = await createOnboardingHedgey({
