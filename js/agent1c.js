@@ -48,6 +48,7 @@ const ASSISTANT_MASCOT_IMAGE = String(INSTANCE.mascotImage || "assets/hedgey1.pn
 const ASSISTANT_MASCOT_ALT = String(INSTANCE.mascotAlt || `${ASSISTANT_NAME} assistant`)
 const DEFAULT_SOUL = String(INSTANCE.defaultSoulTemplate || "")
 const DEFAULT_HEARTBEAT = String(INSTANCE.defaultHeartbeatTemplate || "")
+const INSTANCE_STORAGE_PREFIX = `agent1c:${INSTANCE_ID}:`
 
 const DEFAULT_TOOLS = `# TOOLS.md
 Tool call format:
@@ -206,6 +207,49 @@ const appState = {
   events: [],
 }
 const SOUL_REANCHOR_EVERY_USER_TURNS = 5
+
+function instanceStorageKey(key){
+  return `${INSTANCE_STORAGE_PREFIX}${key}`
+}
+
+function localStorageGetNamespaced(key){
+  const nsKey = instanceStorageKey(key)
+  try {
+    const v = localStorage.getItem(nsKey)
+    if (v != null) return v
+  } catch {}
+  if (INSTANCE_ID === "default") {
+    try {
+      return localStorage.getItem(key)
+    } catch {}
+  }
+  return null
+}
+
+function localStorageSetNamespaced(key, value){
+  try {
+    localStorage.setItem(instanceStorageKey(key), value)
+  } catch {}
+}
+
+function localStorageRemoveNamespaced(key){
+  try {
+    localStorage.removeItem(instanceStorageKey(key))
+  } catch {}
+  if (INSTANCE_ID === "default") {
+    try {
+      localStorage.removeItem(key)
+    } catch {}
+  }
+}
+
+function getStateStoreKey(){
+  return `state:${INSTANCE_ID}`
+}
+
+function getCurrentInstanceIdOrDefault(row){
+  return String(row?.instance || "default")
+}
 
 const els = {}
 let wmRef = null
@@ -376,9 +420,7 @@ async function setUserName(nextName){
   const normalized = normalizeUserName(nextName)
   if (!normalized) return false
   userName = normalized
-  try {
-    localStorage.setItem(USER_NAME_KEY, userName)
-  } catch {}
+  localStorageSetNamespaced(USER_NAME_KEY, userName)
   appState.agent.soulMd = defaultSoulWithUserName(userName)
   if (els.soulInput) els.soulInput.value = appState.agent.soulMd
   if (els.soulLineNums && els.soulInput) updateNotepadLineGutter(els.soulInput, els.soulLineNums)
@@ -388,7 +430,7 @@ async function setUserName(nextName){
 
 function loadPreviewProviderState(){
   try {
-    const raw = localStorage.getItem(PREVIEW_PROVIDER_KEY)
+    const raw = localStorageGetNamespaced(PREVIEW_PROVIDER_KEY)
     if (!raw) return
     const parsed = JSON.parse(raw)
     if (!parsed || typeof parsed !== "object") return
@@ -422,14 +464,12 @@ function loadPreviewProviderState(){
 }
 
 function persistPreviewProviderState(){
-  try {
-    localStorage.setItem(PREVIEW_PROVIDER_KEY, JSON.stringify({
-      ...previewProviderState,
-      anthropicKey: "",
-      xaiKey: "",
-      zaiKey: "",
-    }))
-  } catch {}
+  localStorageSetNamespaced(PREVIEW_PROVIDER_KEY, JSON.stringify({
+    ...previewProviderState,
+    anthropicKey: "",
+    xaiKey: "",
+    zaiKey: "",
+  }))
 }
 
 function extractErrorCode(err){
@@ -622,13 +662,19 @@ async function setConfig(cfg){
 async function getState(){
   const db = await openDb()
   const tx = db.transaction(STORES.state, "readonly")
-  return (await reqValue(tx.objectStore(STORES.state).get("default"))) || null
+  const store = tx.objectStore(STORES.state)
+  const current = (await reqValue(store.get(getStateStoreKey()))) || null
+  if (current) return current
+  if (INSTANCE_ID !== "default") return null
+  const legacy = (await reqValue(store.get("default"))) || null
+  if (!legacy) return null
+  return legacy
 }
 
 async function setState(state){
   const db = await openDb()
   const tx = db.transaction(STORES.state, "readwrite")
-  tx.objectStore(STORES.state).put(state, "default")
+  tx.objectStore(STORES.state).put(state, getStateStoreKey())
   await txDone(tx)
 }
 
@@ -636,17 +682,20 @@ async function getRecentEvents(){
   const db = await openDb()
   const tx = db.transaction(STORES.events, "readonly")
   const rows = (await reqValue(tx.objectStore(STORES.events).getAll())) || []
-  return rows.sort((a, b) => b.createdAt - a.createdAt).slice(0, 150)
+  return rows
+    .filter(row => getCurrentInstanceIdOrDefault(row) === INSTANCE_ID)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 150)
 }
 
 async function addEvent(type, message){
   const db = await openDb()
   const tx = db.transaction(STORES.events, "readwrite")
   const createdAt = Date.now()
-  const req = tx.objectStore(STORES.events).add({ type, message, createdAt })
+  const req = tx.objectStore(STORES.events).add({ type, message, createdAt, instance: INSTANCE_ID })
   const id = await reqValue(req)
   await txDone(tx)
-  appState.events = [{ id, type, message, createdAt }, ...appState.events].slice(0, 150)
+  appState.events = [{ id, type, message, createdAt, instance: INSTANCE_ID }, ...appState.events].slice(0, 150)
   renderEvents()
 }
 
@@ -3512,7 +3561,7 @@ async function maybeCompleteOnboarding(){
   if (!hasAiSecret || !onboardingOpenAiTested) return false
   onboardingComplete = true
   onboardingHedgey?.setActive?.(false)
-  localStorage.setItem(ONBOARDING_KEY, "1")
+  localStorageSetNamespaced(ONBOARDING_KEY, "1")
   minimizeWindow(wins.openai)
   revealPostOpenAiWindows()
   await addEvent("onboarding_step", "AI key saved and validated. Chat is ready.")
@@ -4268,7 +4317,7 @@ async function validateProviderKey(provider, key){
     throw err
   }
   onboardingOpenAiTested = true
-  localStorage.setItem(ONBOARDING_OPENAI_TEST_KEY, "1")
+  localStorageSetNamespaced(ONBOARDING_OPENAI_TEST_KEY, "1")
   return candidate
 }
 
@@ -5131,8 +5180,8 @@ function wireMainDom(){
       onboardingComplete = false
       onboardingOpenAiTested = false
       openAiEditing = false
-      localStorage.removeItem(ONBOARDING_KEY)
-      localStorage.removeItem(ONBOARDING_OPENAI_TEST_KEY)
+      localStorageRemoveNamespaced(ONBOARDING_KEY)
+      localStorageRemoveNamespaced(ONBOARDING_OPENAI_TEST_KEY)
       await addEvent("provider_key_saved", providerSavedEventText("openai"))
       await validateProviderKey("openai", key)
       onboardingHedgey?.handleTrigger?.("provider_key_saved", { provider: "openai" })
@@ -5436,8 +5485,8 @@ async function createCloudWorkspace(){
   cloudWorkspaceReady = true
   workspaceReady = true
   onboardingComplete = true
-  localStorage.setItem(ONBOARDING_KEY, "1")
-  localStorage.setItem(ONBOARDING_OPENAI_TEST_KEY, "1")
+  localStorageSetNamespaced(ONBOARDING_KEY, "1")
+  localStorageSetNamespaced(ONBOARDING_OPENAI_TEST_KEY, "1")
   onboardingHedgey?.setActive?.(false)
 
   if (!wins.chat?.win?.isConnected) wins.chat = wmRef.createAgentPanelWindow("Chat", { panelId: "chat", left: 20, top: 28, width: 480, height: 320, closeAsMinimize: true })
@@ -5506,7 +5555,7 @@ async function loadPersistentState(){
   const [meta, cfg, savedState, events] = await Promise.all([getVaultMeta(), getConfig(), getState(), getRecentEvents()])
   appState.vaultReady = Boolean(meta)
   try {
-    userName = normalizeUserName(localStorage.getItem(USER_NAME_KEY) || "")
+    userName = normalizeUserName(localStorageGetNamespaced(USER_NAME_KEY) || "")
   } catch {
     userName = ""
   }
@@ -5658,8 +5707,8 @@ export async function initAgent1C({ wm }){
     setClippyBubbleLocked(true)
   }
   loadPreviewProviderState()
-  onboardingComplete = localStorage.getItem(ONBOARDING_KEY) === "1"
-  onboardingOpenAiTested = localStorage.getItem(ONBOARDING_OPENAI_TEST_KEY) === "1"
+  onboardingComplete = localStorageGetNamespaced(ONBOARDING_KEY) === "1"
+  onboardingOpenAiTested = localStorageGetNamespaced(ONBOARDING_OPENAI_TEST_KEY) === "1"
   await loadPersistentState()
   // for Codex: onboarding runtime must stay data-driven from onboarding-hedgey-phase1.json.
   // If context was compacted, re-read PHASE_ONBOARDING_HEDGEY_PLAN.md + agents.md section 20 before changing this wiring.
