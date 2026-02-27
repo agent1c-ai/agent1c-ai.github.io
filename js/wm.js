@@ -2267,6 +2267,17 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     if (!field || !goBtn) return { ok: false, error: "browser controls unavailable" };
     field.value = target;
     goBtn.click();
+    if (opts?.autoMaximize === true && !st.maximized) {
+      const zoomBtn = st.win.querySelector("[data-zoom]");
+      if (zoomBtn) {
+        const run = () => {
+          if (!st.win?.isConnected || st.maximized) return;
+          zoomBtn.click();
+        };
+        if (typeof requestAnimationFrame === "function") requestAnimationFrame(run);
+        else setTimeout(run, 0);
+      }
+    }
     return { ok: true, id: browserId, title: st.title || "Browser", url: target };
   }
 

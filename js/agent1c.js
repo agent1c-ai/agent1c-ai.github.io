@@ -1704,7 +1704,7 @@ function maybeOpenLaunchBrowserFromQuery(){
   if (!isCloudAuthHost()) return false
   const target = consumeLaunchBrowserUrlFromQuery()
   if (!target) return false
-  const opened = wmRef?.openUrlInBrowser?.(target, { newWindow: true })
+  const opened = wmRef?.openUrlInBrowser?.(target, { newWindow: true, autoMaximize: true })
   if (!opened?.ok) {
     setStatus(`Could not open launch URL: ${target}`)
     return false
