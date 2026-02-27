@@ -5951,6 +5951,9 @@ export async function initAgent1C({ wm }){
       continueStandardOnboardingFlow,
       cacheElements,
     })) {
+      // First-load intro path: honor promo ?url launch immediately on intro show.
+      // Existing post-workspace launch path remains in place; consume guard prevents double open.
+      maybeOpenLaunchBrowserFromQuery()
       return
     }
   }
