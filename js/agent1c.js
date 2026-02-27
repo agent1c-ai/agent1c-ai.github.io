@@ -374,6 +374,7 @@ let voiceUiState = { enabled: false, supported: true, status: "off", text: "", e
 let cloudAuthGateActive = false
 let cloudAuthSessionReady = false
 let cloudWelcomeBackPromptSent = false
+let launchUrlConsumed = false
 let cloudTelegramLink = { linked: false, username: "", firstName: "", lastName: "", userId: null, chatId: null, botUsername: "HitomiTalbot", startCode: "", deepLink: "", expiresAt: null }
 let cloudTelegramPolling = false
 const pendingSoulReanchorThreadIds = new Set()
@@ -1660,6 +1661,57 @@ function shouldOfferAndroidAppPrompt(){
   return localStorageGetNamespaced(ANDROID_APP_PROMPT_KEY) !== "1"
 }
 
+function normalizeLaunchBrowserUrl(rawValue){
+  const raw = String(rawValue || "").trim()
+  if (!raw) return ""
+  let candidate = raw
+  if (!/^https?:\/\//i.test(candidate)) {
+    if (candidate.startsWith("//")) candidate = `https:${candidate}`
+    else candidate = `https://${candidate}`
+  }
+  try {
+    const parsed = new URL(candidate)
+    const proto = String(parsed.protocol || "").toLowerCase()
+    if (proto !== "http:" && proto !== "https:") return ""
+    if (!String(parsed.hostname || "").trim()) return ""
+    return parsed.href
+  } catch {
+    return ""
+  }
+}
+
+function consumeLaunchBrowserUrlFromQuery(){
+  if (launchUrlConsumed) return ""
+  launchUrlConsumed = true
+  try {
+    const current = new URL(window.location.href)
+    const params = current.searchParams
+    if (params.get("android_auth") === "1") return ""
+    const raw = params.get("url")
+    if (!raw) return ""
+    const normalized = normalizeLaunchBrowserUrl(raw)
+    params.delete("url")
+    const nextSearch = params.toString()
+    const nextUrl = `${current.pathname}${nextSearch ? `?${nextSearch}` : ""}${current.hash || ""}`
+    try { window.history.replaceState({}, "", nextUrl) } catch {}
+    return normalized
+  } catch {
+    return ""
+  }
+}
+
+function maybeOpenLaunchBrowserFromQuery(){
+  if (!isCloudAuthHost()) return false
+  const target = consumeLaunchBrowserUrlFromQuery()
+  if (!target) return false
+  const opened = wmRef?.openUrlInBrowser?.(target, { newWindow: true })
+  if (!opened?.ok) {
+    setStatus(`Could not open launch URL: ${target}`)
+    return false
+  }
+  return true
+}
+
 function buildProgrammaticHitomiGreeting(name, { welcomeBack = false } = {}){
   const safeName = String(name || "").trim() || "friend"
   if (welcomeBack) {
@@ -2105,7 +2157,7 @@ function getClippyChatHtml(){
   const tail = messages.slice(-16)
   const rendered = tail.map(msg => {
     const who = msg.role === "assistant" ? ASSISTANT_NAME : "User"
-    return `<div class="clippy-line"><strong>${who}:</strong> ${escapeHtml(msg.content)}</div>`
+    return `<div class="clippy-line"><strong>${who}:</strong> ${renderClippyMessageHtml(msg.content)}</div>`
   })
   if (thinking) rendered.push(`<div class="clippy-line"><strong>${ASSISTANT_NAME}:</strong> Thinking...</div>`)
   return rendered.join("")
@@ -2128,9 +2180,28 @@ function getClippyCompactHtml(){
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const msg = messages[i]
     if (msg?.role !== "assistant") continue
-    return `<div class="clippy-line"><strong>${ASSISTANT_NAME}:</strong> ${escapeHtml(msg.content)}</div>`
+    return `<div class="clippy-line"><strong>${ASSISTANT_NAME}:</strong> ${renderClippyMessageHtml(msg.content)}</div>`
   }
   return `<div class="clippy-line">No messages yet.</div>`
+}
+
+function renderClippyMessageHtml(value){
+  const text = String(value || "")
+  if (!text) return ""
+  const re = /(https?:\/\/[^\s<>"')\]]+)/gi
+  let out = ""
+  let last = 0
+  let match
+  while ((match = re.exec(text)) !== null) {
+    const idx = Number(match.index || 0)
+    const rawUrl = String(match[0] || "")
+    if (idx > last) out += escapeHtml(text.slice(last, idx))
+    const safeUrl = escapeHtml(rawUrl)
+    out += `<a href="${safeUrl}" data-open-url="${safeUrl}">${safeUrl}</a>`
+    last = idx + rawUrl.length
+  }
+  if (last < text.length) out += escapeHtml(text.slice(last))
+  return out
 }
 
 function ensureHitomiDesktopIcon(){
@@ -2894,7 +2965,19 @@ function ensureClippyAssistant(){
     if (!target) return
     e.preventDefault()
     markClippyActivity()
-    onboardingHedgey?.onLinkClick?.(target)
+    if (isOnboardingGuideActive()) {
+      onboardingHedgey?.onLinkClick?.(target)
+      return
+    }
+    if (typeof wmRef?.openUrlInBrowser === "function") {
+      wmRef.openUrlInBrowser(target, { newWindow: false })
+      return
+    }
+    try {
+      window.open(target, "_blank", "noopener,noreferrer")
+    } catch (_err) {
+      setStatus(`Open this link: ${target}`)
+    }
   })
   clippyUi = { root, body, bubble, log, chips, form, input, voice }
   positionClippyAtBottom()
@@ -5754,6 +5837,7 @@ async function continueStandardOnboardingFlow(){
     }
     setClippyBubbleLocked(false)
     await createCloudWorkspace()
+    maybeOpenLaunchBrowserFromQuery()
     if (!cloudWelcomeBackPromptSent) {
       cloudWelcomeBackPromptSent = true
       await injectProgrammaticHitomiMessage(
