@@ -105,6 +105,7 @@ const ONBOARDING_KEY = "agent1c_onboarding_complete_v1"
 const ONBOARDING_OPENAI_TEST_KEY = "agent1c_onboarding_openai_tested_v1"
 const USER_NAME_KEY = "agent1c_user_name_v1"
 const PREVIEW_PROVIDER_KEY = "agent1c_preview_providers_v1"
+const ANDROID_APP_PROMPT_KEY = "agent1c_android_app_prompt_v1"
 const WINDOW_LAYOUT_KEY = "hedgey_window_layout_v1"
 const UNENCRYPTED_MODE_KEY = "agent1c_unencrypted_mode_v1"
 const STORES = {
@@ -1630,6 +1631,33 @@ function randomFrom(list){
   if (!Array.isArray(list) || !list.length) return ""
   const idx = Math.floor(Math.random() * list.length)
   return String(list[idx] || "")
+}
+
+function isAndroidPhoneOrTabletDevice(){
+  try {
+    const ua = String(navigator.userAgent || "").toLowerCase()
+    return ua.includes("android")
+  } catch {
+    return false
+  }
+}
+
+function isAndroidAuthHandoffPage(){
+  try {
+    const params = new URLSearchParams(String(location.search || ""))
+    return params.has("android_auth")
+  } catch {
+    return false
+  }
+}
+
+function shouldOfferAndroidAppPrompt(){
+  if (!isCloudAuthHost()) return false
+  if (!isAndroidPhoneOrTabletDevice()) return false
+  if (isAndroidAuthHandoffPage()) return false
+  if (!userName) return false
+  if (!canUseAgentRuntime()) return false
+  return localStorageGetNamespaced(ANDROID_APP_PROMPT_KEY) !== "1"
 }
 
 function buildProgrammaticHitomiGreeting(name, { welcomeBack = false } = {}){
@@ -5732,6 +5760,14 @@ async function continueStandardOnboardingFlow(){
         buildProgrammaticHitomiGreeting(userName, { welcomeBack: true }),
         "welcome_back_replied",
         `${ASSISTANT_NAME} welcomed ${userName} back after reload.`,
+      )
+    }
+    if (shouldOfferAndroidAppPrompt()) {
+      localStorageSetNamespaced(ANDROID_APP_PROMPT_KEY, "1")
+      await injectProgrammaticHitomiMessage(
+        "Did you know you can download my Android app at https://agent1c.ai/android ?",
+        "android_app_prompt",
+        "One-time Android app install prompt shown.",
       )
     }
     setStatus(`Welcome back, ${userName}.`)
