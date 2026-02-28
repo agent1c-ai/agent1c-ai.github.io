@@ -255,12 +255,17 @@ async function openOAuth(provider){
     return
   }
   const redirectTo = getAuthRedirectTo()
+  const options = {
+    redirectTo,
+    skipBrowserRedirect: true,
+  }
+  if (provider === "x") {
+    // X profile fetch can fail if users.read scope is not explicitly requested.
+    options.scopes = "tweet.read users.read offline.access"
+  }
   const { data, error } = await clientInfo.client.auth.signInWithOAuth({
     provider,
-    options: {
-      redirectTo,
-      skipBrowserRedirect: true,
-    },
+    options,
   })
   if (error || !data?.url) {
     const msg = error?.message || "Could not start OAuth sign-in."
