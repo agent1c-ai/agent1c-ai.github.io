@@ -2105,6 +2105,27 @@
 .agent-auth-btn-x:hover{
   background: linear-gradient(180deg, #191d24, #0e1117);
 }
+.agent-auth-wallets{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+.agent-auth-btn-eth{
+  background: linear-gradient(180deg, #dff4ff, #bbe8ff);
+  border-color: #79bddf;
+  color: #10384f;
+}
+.agent-auth-btn-eth:hover{
+  background: linear-gradient(180deg, #ecf9ff, #ccefff);
+}
+.agent-auth-btn-sol{
+  background: linear-gradient(180deg, #4b2b86, #2d1656);
+  border-color: #7353ac;
+  color: #ffffff;
+}
+.agent-auth-btn-sol:hover{
+  background: linear-gradient(180deg, #5a3699, #381d68);
+}
 .credits-subscribe-row{
   margin-top: 4px;
 }

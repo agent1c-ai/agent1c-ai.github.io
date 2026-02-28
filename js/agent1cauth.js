@@ -140,8 +140,39 @@ function authWindowHtml(){
   const walletButtons = (web3.showEth || web3.showSol)
     ? `
         <div class="agent-auth-wallets">
-          ${web3.showEth ? `<button id="authEthereumBtn" class="btn agent-auth-btn" type="button">Continue with Ethereum</button>` : ""}
-          ${web3.showSol ? `<button id="authSolanaBtn" class="btn agent-auth-btn" type="button">Continue with Solana</button>` : ""}
+          ${web3.showEth ? `
+            <button id="authEthereumBtn" class="btn agent-auth-btn agent-auth-btn-eth" type="button">
+              <span class="agent-auth-logo" aria-hidden="true">
+                <svg viewBox="0 0 256 417" width="14" height="14" role="img" focusable="false">
+                  <path fill="currentColor" d="M127.9 0L125 9.8V279.1L127.9 282l127.9-75.6z"/>
+                  <path fill="currentColor" opacity="0.72" d="M127.9 0L0 206.4L127.9 282V150.3z"/>
+                  <path fill="currentColor" opacity="0.9" d="M127.9 306.4L126.3 308.4V416.2L127.9 421l128-180.2z"/>
+                  <path fill="currentColor" opacity="0.5" d="M127.9 421V306.4L0 240.8z"/>
+                  <path fill="currentColor" opacity="0.8" d="M127.9 282L255.8 206.4L127.9 150.3z"/>
+                  <path fill="currentColor" opacity="0.6" d="M0 206.4L127.9 282V150.3z"/>
+                </svg>
+              </span>
+              <span>Continue with Ethereum</span>
+            </button>
+          ` : ""}
+          ${web3.showSol ? `
+            <button id="authSolanaBtn" class="btn agent-auth-btn agent-auth-btn-sol" type="button">
+              <span class="agent-auth-logo" aria-hidden="true">
+                <svg viewBox="0 0 397 311" width="14" height="14" role="img" focusable="false">
+                  <defs>
+                    <linearGradient id="solg" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#8f5bff"/>
+                      <stop offset="100%" stop-color="#2ee6ff"/>
+                    </linearGradient>
+                  </defs>
+                  <path fill="url(#solg)" d="M64 0h307c14 0 21 17 11 27L333 76c-4 4-9 6-15 6H11C-3 82-10 65 0 55L49 6c4-4 9-6 15-6z"/>
+                  <path fill="url(#solg)" d="M64 114h307c14 0 21 17 11 27l-49 49c-4 4-9 6-15 6H11c-14 0-21-17-11-27l49-49c4-4 9-6 15-6z"/>
+                  <path fill="url(#solg)" d="M333 228H26c-14 0-21 17-11 27l49 49c4 4 9 6 15 6h307c14 0 21-17 11-27l-49-49c-4-4-9-6-15-6z"/>
+                </svg>
+              </span>
+              <span>Continue with Solana</span>
+            </button>
+          ` : ""}
         </div>
       `
     : ""
@@ -228,12 +259,12 @@ function getAuthWindowOpts(){
       left: 8,
       top: 12,
       width: Math.max(300, w - 16),
-      height: Math.max(228, Math.min(hasWeb3 ? 318 : 268, h - 28)),
+      height: Math.max(244, Math.min(hasWeb3 ? 364 : 268, h - 20)),
       closeAsMinimize: false,
     }
   }
   const width = 430
-  const height = hasWeb3 ? 266 : 214
+  const height = hasWeb3 ? 320 : 214
   return {
     panelId: AUTH_PANEL_ID,
     left: Math.max(16, Math.round((w - width) / 2)),
