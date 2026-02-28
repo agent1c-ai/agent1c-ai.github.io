@@ -55,6 +55,24 @@ function getAndroidAuthProviderHint(){
   return (raw === "google" || raw === "x") ? raw : ""
 }
 
+function getWeb3AuthMode(){
+  const params = getAuthParams()
+  const raw = String(
+    params.get("wallet")
+    || params.get("web3")
+    || (params.has("eth") ? "eth" : "")
+    || (params.has("ethereum") ? "eth" : "")
+    || (params.has("sol") ? "sol" : "")
+    || (params.has("solana") ? "sol" : "")
+    || "",
+  ).trim().toLowerCase()
+  if (!raw) return { showEth: false, showSol: false }
+  if (["both", "all", "web3"].includes(raw)) return { showEth: true, showSol: true }
+  if (["eth", "ethereum", "eip4361"].includes(raw)) return { showEth: true, showSol: false }
+  if (["sol", "solana", "svm"].includes(raw)) return { showEth: false, showSol: true }
+  return { showEth: false, showSol: false }
+}
+
 function getAuthRedirectTo(){
   try {
     const url = new URL(window.location.href)
@@ -118,6 +136,15 @@ function safe(value){
 }
 
 function authWindowHtml(){
+  const web3 = getWeb3AuthMode()
+  const walletButtons = (web3.showEth || web3.showSol)
+    ? `
+        <div class="agent-auth-wallets">
+          ${web3.showEth ? `<button id="authEthereumBtn" class="btn agent-auth-btn" type="button">Continue with Ethereum</button>` : ""}
+          ${web3.showSol ? `<button id="authSolanaBtn" class="btn agent-auth-btn" type="button">Continue with Solana</button>` : ""}
+        </div>
+      `
+    : ""
   return `
     <div class="agent-stack agent-auth">
       <div class="agent-auth-head">
@@ -142,12 +169,13 @@ function authWindowHtml(){
           </span>
           <span>Continue with X</span>
         </button>
+        ${walletButtons}
       </div>
       <div class="agent-row agent-auth-footer-row">
         <span id="authStatus" class="agent-auth-status">Signed out.</span>
       </div>
       <div class="agent-auth-note">
-        Google and X open in a new tab. Return here after login.
+        Sign-in opens secure provider flow. Return here after login.
       </div>
     </div>
   `
@@ -190,6 +218,8 @@ function getClient(){
 }
 
 function getAuthWindowOpts(){
+  const web3 = getWeb3AuthMode()
+  const hasWeb3 = web3.showEth || web3.showSol
   const { w = window.innerWidth || 1024, h = window.innerHeight || 768 } = getViewport ? getViewport() : {}
   const compact = w <= 620
   if (compact) {
@@ -198,12 +228,12 @@ function getAuthWindowOpts(){
       left: 8,
       top: 12,
       width: Math.max(300, w - 16),
-      height: Math.max(228, Math.min(268, h - 28)),
+      height: Math.max(228, Math.min(hasWeb3 ? 318 : 268, h - 28)),
       closeAsMinimize: false,
     }
   }
   const width = 430
-  const height = 214
+  const height = hasWeb3 ? 266 : 214
   return {
     panelId: AUTH_PANEL_ID,
     left: Math.max(16, Math.round((w - width) / 2)),
@@ -271,6 +301,24 @@ async function openOAuth(provider){
   updateAuthStatus("Redirecting to sign-in...")
   setStatus?.("Redirecting to sign-in...")
   window.location.assign(data.url)
+}
+
+async function openWeb3(chain){
+  const clientInfo = getClient()
+  if (!clientInfo.ok) {
+    updateAuthStatus(clientInfo.error, true)
+    setStatus?.(clientInfo.error)
+    return
+  }
+  const cfg = getSupabaseConfig()
+  const redirectTo = getAuthRedirectTo()
+  const provider = chain === "solana" ? "solana" : "ethereum"
+  const direct = new URL(`${cfg.url}/auth/v1/authorize`)
+  direct.searchParams.set("provider", provider)
+  direct.searchParams.set("redirect_to", redirectTo)
+  updateAuthStatus(`Redirecting to ${provider} sign-in...`)
+  setStatus?.(`Redirecting to ${provider} sign-in...`)
+  window.location.assign(direct.toString())
 }
 
 async function sendMagicLink(){
@@ -422,6 +470,8 @@ function stopSessionWatch(){
 function wireAuthDom(){
   const googleBtn = document.getElementById("authGoogleBtn")
   const xBtn = document.getElementById("authXBtn")
+  const ethBtn = document.getElementById("authEthereumBtn")
+  const solBtn = document.getElementById("authSolanaBtn")
   let lastPressAt = 0
   const bindPress = (node, fn) => {
     if (!node) return
@@ -441,6 +491,8 @@ function wireAuthDom(){
   }
   bindPress(googleBtn, () => openOAuth("google"))
   bindPress(xBtn, () => openOAuth("x"))
+  bindPress(ethBtn, () => openWeb3("ethereum"))
+  bindPress(solBtn, () => openWeb3("solana"))
 }
 
 export async function ensureCloudAuthSession({
