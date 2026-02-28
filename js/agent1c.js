@@ -951,6 +951,10 @@ function applyCloudIdentityToUi(identity){
   const provider = String(identity?.provider || "").toLowerCase()
   const handle = String(identity?.handle || "").trim()
   const email = String(identity?.email || "").trim()
+  const walletAddress = String(identity?.walletAddress || "").trim()
+  const shortWallet = walletAddress.length > 14
+    ? `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}`
+    : walletAddress
   if (els.creditsResolvedEmailRow) {
     const showResolved = provider === "x" && Boolean(email)
     els.creditsResolvedEmailRow.style.display = showResolved ? "" : "none"
@@ -966,8 +970,20 @@ function applyCloudIdentityToUi(identity){
     els.creditsAccount.textContent = email || "Google account"
     return
   }
+  if (provider === "ethereum" || provider === "solana" || provider === "web3") {
+    els.creditsAccount.textContent = shortWallet || handle || "Wallet account"
+    return
+  }
   if (email) {
     els.creditsAccount.textContent = email
+    return
+  }
+  if (shortWallet) {
+    els.creditsAccount.textContent = shortWallet
+    return
+  }
+  if (handle) {
+    els.creditsAccount.textContent = handle
     return
   }
   els.creditsAccount.textContent = "Signed in"
@@ -5737,6 +5753,8 @@ async function createCloudWorkspace(){
   minimizeWindow(wins.tools)
   minimizeWindow(wins.heartbeat)
   minimizeWindow(wins.events)
+  restoreWindow(wins.credits)
+  focusWindow(wins.credits)
 
   await refreshCloudCredits().catch(() => {})
   await addEvent("cloud_mode", "Cloud mode active. Managed xAI plan: Free (12,000 tokens/day).")

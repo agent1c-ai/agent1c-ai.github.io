@@ -718,14 +718,23 @@ export async function getCloudAuthIdentity(){
       || user?.user_metadata?.username
       || ""
     ).trim()
+    const walletAddress = String(
+      idData?.wallet_address
+      || idData?.address
+      || idData?.public_key
+      || user?.user_metadata?.wallet_address
+      || user?.user_metadata?.address
+      || user?.user_metadata?.public_key
+      || ""
+    ).trim()
     const email = String(
       user?.email
       || idData?.email
       || user?.user_metadata?.email
       || ""
     ).trim()
-    return { provider, handle, email, userId: String(user?.id || "").trim() }
+    return { provider, handle, email, walletAddress, userId: String(user?.id || "").trim() }
   } catch {
-    return { provider: "", handle: "", email: "", userId: "" }
+    return { provider: "", handle: "", email: "", walletAddress: "", userId: "" }
   }
 }
