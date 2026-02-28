@@ -1,12 +1,12 @@
-import { createSaveDialog } from "./save-dialog.js";
-import { createAppsMenu } from "./apps-menu.js";
-import { createWindowManager } from "./wm.js";
-import { initMenuDropdowns, initMenuActions } from "./menubar.js";
-import { saveUpload, hasWrappedKey, setPassphrase, unlockWithPassphrase } from "./filesystem.js";
-import { initThemeToggle, initThemeState, applyTheme, getTheme, applyWallpaper, getWallpaperName, clearWallpaper } from "./theme.js";
-import { createHud } from "./hud.js";
-import { initAgent1C } from "./agent1c.js";
-import { createVoiceSttController } from "./voice-stt.js";
+import { createSaveDialog } from "./save-dialog.js?v=20260228web3a";
+import { createAppsMenu } from "./apps-menu.js?v=20260228web3a";
+import { createWindowManager } from "./wm.js?v=20260228web3a";
+import { initMenuDropdowns, initMenuActions } from "./menubar.js?v=20260228web3a";
+import { saveUpload, hasWrappedKey, setPassphrase, unlockWithPassphrase } from "./filesystem.js?v=20260228web3a";
+import { initThemeToggle, initThemeState, applyTheme, getTheme, applyWallpaper, getWallpaperName, clearWallpaper } from "./theme.js?v=20260228web3a";
+import { createHud } from "./hud.js?v=20260228web3a";
+import { initAgent1C } from "./agent1c.js?v=20260228web3a";
+import { createVoiceSttController } from "./voice-stt.js?v=20260228web3a";
 
 const menubar = document.getElementById("menubar");
 const desktop = document.getElementById("desktop");

@@ -13,8 +13,25 @@
   </script>
   <script src="coi-serviceworker.js"></script>
   <link rel="icon" type="image/png" href="assets/hedgey1.png" />
-  <link rel="stylesheet" href="styles.css?v=20260219o" />
-  <script type="module" src="js/agent1cpreload.js?v=20260219n"></script>
+  <script>
+    (function applyAssetVersioning(){
+      const BUILD = "20260228web3a";
+      const params = new URLSearchParams(window.location.search || "");
+      const raw = String(params.get("cb") || BUILD || "").trim();
+      const clean = raw.replace(/[^a-zA-Z0-9._-]/g, "") || BUILD;
+      window.__AGENT1C_ASSET_VERSION = clean;
+
+      const css = document.createElement("link");
+      css.rel = "stylesheet";
+      css.href = `styles.css?v=${encodeURIComponent(clean)}`;
+      document.head.appendChild(css);
+
+      const preload = document.createElement("script");
+      preload.type = "module";
+      preload.src = `js/agent1cpreload.js?v=${encodeURIComponent(clean)}`;
+      document.head.appendChild(preload);
+    })();
+  </script>
 </head>
 
 <body>
@@ -410,6 +427,9 @@
       },
     };
   </script>
-  <script type="module" src="js/main.js?v=20260219t"></script>
+  <script type="module">
+    const v = encodeURIComponent(String(window.__AGENT1C_ASSET_VERSION || "20260228web3a"));
+    import(`./js/main.js?v=${v}`);
+  </script>
 </body>
 </html>
