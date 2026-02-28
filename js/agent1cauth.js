@@ -334,6 +334,63 @@ async function openOAuth(provider){
   window.location.assign(data.url)
 }
 
+async function detectEthereumWallet(){
+  const seen = []
+  const add = (provider) => {
+    if (!provider || typeof provider.request !== "function") return
+    if (seen.includes(provider)) return
+    seen.push(provider)
+  }
+  const direct = window.ethereum
+  if (direct) {
+    if (Array.isArray(direct.providers) && direct.providers.length) {
+      for (const p of direct.providers) add(p)
+    } else {
+      add(direct)
+    }
+  }
+  if (seen.length) return seen[0]
+  if (!window.addEventListener || !window.dispatchEvent) return null
+  return await new Promise((resolve) => {
+    let done = false
+    const finish = (provider) => {
+      if (done) return
+      done = true
+      window.removeEventListener("eip6963:announceProvider", onAnnounce)
+      resolve(provider || null)
+    }
+    const onAnnounce = (event) => {
+      const provider = event?.detail?.provider
+      add(provider)
+    }
+    window.addEventListener("eip6963:announceProvider", onAnnounce)
+    try {
+      window.dispatchEvent(new Event("eip6963:requestProvider"))
+    } catch {}
+    window.setTimeout(() => finish(seen[0] || null), 250)
+  })
+}
+
+function detectSolanaWallet(){
+  const candidates = [
+    window.phantom?.solana,
+    window.solana,
+    window.backpack?.solana,
+    window.braveSolana,
+  ]
+  for (const wallet of candidates) {
+    if (!wallet) continue
+    if (typeof wallet.connect === "function") return wallet
+  }
+  return null
+}
+
+function web3Statement(chain){
+  const host = window.location.hostname || "agent1c.ai"
+  const chainName = chain === "solana" ? "Solana" : "Ethereum"
+  return `Sign in to Agent1c.ai on ${host} using ${chainName}.`
+}
+
 async function openWeb3(chain){
   const clientInfo = getClient()
   if (!clientInfo.ok) {
@@ -341,15 +398,36 @@ async function openWeb3(chain){
     setStatus?.(clientInfo.error)
     return
   }
-  const cfg = getSupabaseConfig()
-  const redirectTo = getAuthRedirectTo()
-  const provider = chain === "solana" ? "solana" : "ethereum"
-  const direct = new URL(`${cfg.url}/auth/v1/authorize`)
-  direct.searchParams.set("provider", provider)
-  direct.searchParams.set("redirect_to", redirectTo)
-  updateAuthStatus(`Redirecting to ${provider} sign-in...`)
-  setStatus?.(`Redirecting to ${provider} sign-in...`)
-  window.location.assign(direct.toString())
+  const normalized = chain === "solana" ? "solana" : "ethereum"
+  const wallet = normalized === "solana"
+    ? detectSolanaWallet()
+    : await detectEthereumWallet()
+  if (!wallet) {
+    const msg = normalized === "solana"
+      ? "No Solana wallet detected. Install/enable Phantom, Solflare, or another Solana wallet."
+      : "No Ethereum wallet detected. Install/enable MetaMask, Rabby, or another EVM wallet."
+    updateAuthStatus(msg, true)
+    setStatus?.(msg)
+    return
+  }
+  updateAuthStatus(`Waiting for ${normalized} wallet signature...`)
+  setStatus?.(`Waiting for ${normalized} wallet signature...`)
+  const { error } = await clientInfo.client.auth.signInWithWeb3({
+    chain: normalized,
+    statement: web3Statement(normalized),
+    wallet,
+  })
+  if (error) {
+    const msg = error?.message || `Could not sign in with ${normalized}.`
+    updateAuthStatus(msg, true)
+    setStatus?.(msg)
+    return
+  }
+  const continued = await checkSessionAndContinue()
+  if (!continued) {
+    updateAuthStatus("Signature accepted. Finalizing sign-in...")
+    setStatus?.("Signature accepted. Finalizing sign-in...")
+  }
 }
 
 async function sendMagicLink(){
