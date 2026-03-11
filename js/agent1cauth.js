@@ -250,7 +250,7 @@ function getAuthWindowOpts(){
     }
   }
   const width = 430
-  const height = hasWeb3 ? 320 : 214
+  const height = hasWeb3 ? 360 : 214
   return {
     panelId: AUTH_PANEL_ID,
     left: Math.max(16, Math.round((w - width) / 2)),
@@ -261,11 +261,30 @@ function getAuthWindowOpts(){
   }
 }
 
+function sizeAuthWindowToContent(){
+  if (!authWin?.win || !authWin?.panelRoot) return
+  const winEl = authWin.win
+  const panel = authWin.panelRoot
+  const titlebar = winEl.querySelector(".titlebar")
+  const { h = window.innerHeight || 768 } = getViewport ? getViewport() : {}
+  const base = titlebar?.offsetHeight || 22
+  const contentEl = panel.querySelector(".agent-auth") || panel
+  const contentBox = contentEl.getBoundingClientRect()
+  const content = Math.max(contentEl.scrollHeight || 0, contentEl.offsetHeight || 0, contentBox.height || 0)
+  const padding = 12
+  const minHeight = 214
+  const target = Math.max(minHeight, Math.min(h - 12, base + content + padding))
+  winEl.style.height = `${target}px`
+  const top = parseFloat(winEl.style.top) || 0
+  winEl.style.top = `${Math.max(0, Math.min(top, Math.max(0, h - target)))}px`
+}
+
 function updateAuthStatus(text, isError = false){
   const el = document.getElementById("authStatus")
   if (!el) return
   el.textContent = String(text || "")
   el.classList.toggle("error", Boolean(isError))
+  requestAnimationFrame(() => sizeAuthWindowToContent())
 }
 
 function focusAuthWindow(){
@@ -291,6 +310,9 @@ function ensureAuthWindow(){
   if (!authWin?.panelRoot) return
   authWin.panelRoot.innerHTML = authWindowHtml()
   wireAuthDom()
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => sizeAuthWindowToContent())
+  })
   focusAuthWindow()
 }
 
