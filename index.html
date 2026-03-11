@@ -15,7 +15,7 @@
   <link rel="icon" type="image/png" href="assets/hedgey1.png" />
   <script>
     (function applyAssetVersioning(){
-      const BUILD = "20260311sol6";
+      const BUILD = "20260311sol7";
       const params = new URLSearchParams(window.location.search || "");
       const raw = String(params.get("cb") || BUILD || "").trim();
       const clean = raw.replace(/[^a-zA-Z0-9._-]/g, "") || BUILD;
@@ -428,7 +428,7 @@
     };
   </script>
   <script type="module">
-    const v = encodeURIComponent(String(window.__AGENT1C_ASSET_VERSION || "20260311sol6"));
+    const v = encodeURIComponent(String(window.__AGENT1C_ASSET_VERSION || "20260311sol7"));
     import(`./js/main.js?v=${v}`);
   </script>
 </body>

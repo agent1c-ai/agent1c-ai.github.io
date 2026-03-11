@@ -19,6 +19,10 @@ export function createAgent1cToolsRuntime(deps){
   function buildSystemPromptWithCadence({ includeSoul } = {}){
     const soul = String(appState?.agent?.soulMd || "").trim()
     const tools = String(appState?.agent?.toolsMd || "").trim()
+    const walletAddress = String(appState?.wallet?.address || "").trim()
+    const walletContext = walletAddress
+      ? `Runtime note: the user is connected with Solana wallet "${walletAddress}". You may use TOOLS if you need to inspect this wallet further, including checking balances and recent transactions.`
+      : ""
     const hardPolicy = [
       "Tool policy:",
       "- Follow TOOLS.md exactly.",
@@ -34,6 +38,7 @@ export function createAgent1cToolsRuntime(deps){
     const parts = []
     if (includeSoul && soul) parts.push(soul)
     if (tools) parts.push(tools)
+    if (walletContext) parts.push(walletContext)
     parts.push(hardPolicy)
     return parts.join("\n\n")
   }
