@@ -56,21 +56,7 @@ function getAndroidAuthProviderHint(){
 }
 
 function getWeb3AuthMode(){
-  const params = getAuthParams()
-  const raw = String(
-    params.get("wallet")
-    || params.get("web3")
-    || (params.has("eth") ? "eth" : "")
-    || (params.has("ethereum") ? "eth" : "")
-    || (params.has("sol") ? "sol" : "")
-    || (params.has("solana") ? "sol" : "")
-    || "",
-  ).trim().toLowerCase()
-  if (!raw) return { showEth: false, showSol: false }
-  if (["both", "all", "web3"].includes(raw)) return { showEth: true, showSol: true }
-  if (["eth", "ethereum", "eip4361"].includes(raw)) return { showEth: true, showSol: false }
-  if (["sol", "solana", "svm"].includes(raw)) return { showEth: false, showSol: true }
-  return { showEth: false, showSol: false }
+  return { showEth: false, showSol: true }
 }
 
 function getAuthRedirectTo(){

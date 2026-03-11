@@ -35,6 +35,11 @@ PROJECT NAMING HARD RULE:
   - `agent1c.me`
 - Never write or introduce `agentic.*` in code, configs, scripts, docs, CORS lists, or defaults.
 - If any `agentic.*` reference is found anywhere in this codebase, surface it to the user immediately and propose cleanup.
+- Current exception note:
+  - Some existing `agentic` wording is intentionally acceptable for now when it is descriptive rather than domain/brand naming.
+  - Example: `Agentic Root` may remain as a product term for the root visible to the agent.
+  - Do not treat existing descriptive `agentic` text as an immediate cleanup task unless the user asks for a terminology pass.
+  - Still do not introduce new `agentic.*` domains, hostnames, config keys, or branded defaults.
 
 TELEGRAM CLOUD RELAY MODEL (Agent1c.ai, tab-online only):
 - Product constraint:
