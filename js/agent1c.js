@@ -1,5 +1,5 @@
-import { listFiles, readFileBlob, readNoteText, saveNote, setFilesystemInstanceId } from "./filesystem.js?v=20260311sol3"
-import { animateHitomiWispsShow } from "./hitomi-wisps-fx.js?v=20260311sol3"
+import { listFiles, readFileBlob, readNoteText, saveNote, setFilesystemInstanceId } from "./filesystem.js?v=20260311sol4"
+import { animateHitomiWispsShow } from "./hitomi-wisps-fx.js?v=20260311sol4"
 import {
   normalizeUserName,
   isIOSLikeDevice,
@@ -8,7 +8,7 @@ import {
   isTokenLimitError,
   escapeHtml,
   formatNumber,
-} from "./agent1c-core.js?v=20260311sol3"
+} from "./agent1c-core.js?v=20260311sol4"
 import {
   normalizeOllamaBaseUrl,
   openAiChat,
@@ -17,9 +17,9 @@ import {
   zaiChat,
   ollamaChat,
   listOpenAiModels,
-} from "./agent1c-providers.js?v=20260311sol3"
-import { createAgent1cToolsRuntime } from "./agent1c-tools-runtime.js?v=20260311sol3"
-import { getAgent1cInstanceId, getAgent1cInstanceProfile } from "./agent1c-instance-profiles.js?v=20260311sol3"
+} from "./agent1c-providers.js?v=20260311sol4"
+import { createAgent1cToolsRuntime } from "./agent1c-tools-runtime.js?v=20260311sol4"
+import { getAgent1cInstanceId, getAgent1cInstanceProfile } from "./agent1c-instance-profiles.js?v=20260311sol4"
 import {
   RELAY_DEFAULTS,
   normalizeRelayConfig,
@@ -27,15 +27,16 @@ import {
   cacheShellRelayElements,
   wireShellRelayDom,
   runShellExecTool,
-} from "./agent1crelay.js?v=20260311sol3"
+} from "./agent1crelay.js?v=20260311sol4"
 import {
   torRelayWindowHtml,
   cacheTorRelayElements,
   wireTorRelayDom,
-} from "./agent1ctorrelay.js?v=20260311sol3"
-import { createOnboardingHedgey } from "./onboarding-hedgey.js?v=20260311sol3"
-import { isAiIntroGuideActive, getAiIntroHtml, initAiIntro } from "./agent1cintro.js?v=20260311sol3"
-import { isCloudAuthHost, hasCloudAuthSession, ensureCloudAuthSession, getCloudAuthAccessToken, getCloudAuthIdentity } from "./agent1cauth.js?v=20260311sol3"
+} from "./agent1ctorrelay.js?v=20260311sol4"
+import { createOnboardingHedgey } from "./onboarding-hedgey.js?v=20260311sol4"
+import { isAiIntroGuideActive, getAiIntroHtml, initAiIntro } from "./agent1cintro.js?v=20260311sol4"
+import { isCloudAuthHost, hasCloudAuthSession, ensureCloudAuthSession, getCloudAuthAccessToken, getCloudAuthIdentity } from "./agent1cauth.js?v=20260311sol4"
+import { fetchSolanaWalletSnapshot } from "./solana-wallet.js?v=20260311sol4"
 // for Codex: when implementing shell relay wiring in this file, please always refer back to PHASE1_CONTRACT.md first.
 // for Codex: especially if your context was recently compacted, keep relay logic in js/agent1crelay.js and only thin wiring here.
 // for Codex: before implementing WM/desktop control tools, re-read PHASE2_PLAN.md and agents.md section 19. - Decentricity
@@ -186,6 +187,38 @@ function applyCloudIdentityToWalletState(identity){
     appState.wallet.rpcSource = ""
     appState.wallet.refreshInFlight = false
     appState.wallet.lastError = ""
+  }
+}
+
+async function refreshConnectedWalletState(options = {}){
+  const address = String(appState?.wallet?.address || "").trim()
+  const chain = String(appState?.wallet?.chain || "").trim().toLowerCase()
+  if (!address || chain !== "solana") {
+    appState.wallet.balanceSol = null
+    appState.wallet.lamports = null
+    appState.wallet.recentTransactions = []
+    appState.wallet.lastFetchedAt = ""
+    appState.wallet.rpcSource = ""
+    appState.wallet.refreshInFlight = false
+    appState.wallet.lastError = ""
+    return null
+  }
+  if (appState.wallet.refreshInFlight && !options.force) return null
+  appState.wallet.refreshInFlight = true
+  appState.wallet.lastError = ""
+  try {
+    const snapshot = await fetchSolanaWalletSnapshot(address, { txLimit: 5 })
+    appState.wallet.balanceSol = snapshot.balanceSol
+    appState.wallet.lamports = snapshot.lamports
+    appState.wallet.recentTransactions = Array.isArray(snapshot.recentTransactions) ? snapshot.recentTransactions : []
+    appState.wallet.lastFetchedAt = String(snapshot.fetchedAt || "")
+    appState.wallet.rpcSource = String(snapshot.rpcSource || "")
+    return snapshot
+  } catch (err) {
+    appState.wallet.lastError = String(err instanceof Error ? err.message : err || "Wallet refresh failed")
+    return null
+  } finally {
+    appState.wallet.refreshInFlight = false
   }
 }
 const SOUL_REANCHOR_EVERY_USER_TURNS = 5
@@ -1045,6 +1078,7 @@ async function refreshCloudIdentity(){
   const identity = await getCloudAuthIdentity().catch(() => null)
   if (!identity) return
   applyCloudIdentityToUi(identity)
+  await refreshConnectedWalletState().catch(() => {})
 }
 
 function getBillingCheckoutBaseUrl(){
@@ -1427,6 +1461,7 @@ const { providerChatWithTools } = createAgent1cToolsRuntime({
   normalizeOllamaBaseUrl,
   normalizeRelayConfig,
   runShellExecTool,
+  refreshConnectedWalletState,
 })
 
 async function testOpenAIKey(apiKey, model){

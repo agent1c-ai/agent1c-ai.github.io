@@ -13,6 +13,7 @@ export function createAgent1cToolsRuntime(deps){
     normalizeOllamaBaseUrl,
     normalizeRelayConfig,
     runShellExecTool,
+    refreshConnectedWalletState,
   } = deps || {}
 
   function buildSystemPromptWithCadence({ includeSoul } = {}){
@@ -234,6 +235,40 @@ export function createAgent1cToolsRuntime(deps){
     return `${head}\n[...]\n${tail}`
   }
 
+  function formatSolanaToolResult(name, walletState, { refreshed = false } = {}){
+    const state = walletState && typeof walletState === "object" ? walletState : {}
+    const address = String(state.address || "").trim()
+    if (!address) return `TOOL_RESULT ${name}: no connected Solana wallet`
+    const balanceSol = Number.isFinite(Number(state.balanceSol)) ? Number(state.balanceSol) : null
+    const lamports = Number.isFinite(Number(state.lamports)) ? Number(state.lamports) : null
+    const fetchedAt = String(state.fetchedAt || state.lastFetchedAt || "").trim()
+    const rpcSource = String(state.rpcSource || "").trim()
+    const lastError = String(state.lastError || "").trim()
+    const txs = Array.isArray(state.recentTransactions) ? state.recentTransactions : []
+    const lines = [
+      `TOOL_RESULT ${name}:`,
+      `address=${address}`,
+      `balance_sol=${balanceSol === null ? "" : balanceSol}`,
+      `lamports=${lamports === null ? "" : lamports}`,
+      `fetched_at=${fetchedAt}`,
+      `rpc_source=${rpcSource}`,
+    ]
+    if (refreshed) lines.push("refresh=true")
+    if (lastError) lines.push(`error=${lastError}`)
+    if (!txs.length) {
+      lines.push("recent_transactions: none")
+      return lines.join("\n")
+    }
+    lines.push("recent_transactions:")
+    for (const tx of txs.slice(0, 5)) {
+      lines.push(`- signature=${String(tx?.signature || "").trim()}`)
+      lines.push(`  status=${String(tx?.confirmationStatus || "").trim() || (tx?.ok ? "confirmed" : "failed")}`)
+      lines.push(`  block_time=${String(tx?.blockTime || "").trim()}`)
+      lines.push(`  net_sol_change=${Number.isFinite(Number(tx?.netSol)) ? Number(tx.netSol) : 0}`)
+    }
+    return lines.join("\n")
+  }
+
   async function wikiSearchTool(query){
     const q = String(query || "").trim()
     if (!q) return "TOOL_RESULT wiki_search: missing query"
@@ -409,6 +444,20 @@ export function createAgent1cToolsRuntime(deps){
     if (call.name === "wiki_search") return wikiSearchTool(call.args?.query || "")
     if (call.name === "wiki_summary") return wikiSummaryTool(call.args?.title || "")
     if (call.name === "github_repo_read") return githubRepoReadTool(call.args || {})
+    if (call.name === "solana_wallet_overview") {
+      const walletState = appState?.wallet || {}
+      if (!String(walletState.address || "").trim()) return "TOOL_RESULT solana_wallet_overview: no connected Solana wallet"
+      if (!String(walletState.lastFetchedAt || "").trim()) {
+        await refreshConnectedWalletState?.()
+      }
+      return formatSolanaToolResult("solana_wallet_overview", appState?.wallet || {})
+    }
+    if (call.name === "solana_wallet_refresh") {
+      const walletState = appState?.wallet || {}
+      if (!String(walletState.address || "").trim()) return "TOOL_RESULT solana_wallet_refresh: no connected Solana wallet"
+      await refreshConnectedWalletState?.({ force: true })
+      return formatSolanaToolResult("solana_wallet_refresh", appState?.wallet || {}, { refreshed: true })
+    }
     if (call.name === "shell_exec") {
       return runShellExecTool({
         args: call.args || {},
