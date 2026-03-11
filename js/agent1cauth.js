@@ -125,6 +125,11 @@ function safe(value){
     .replaceAll("'", "&#39;")
 }
 
+function isLikelySolanaAddress(value){
+  const raw = String(value || "").trim()
+  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(raw)
+}
+
 function authWindowHtml(){
   const web3 = getWeb3AuthMode()
   const walletButtons = (web3.showEth || web3.showSol)
@@ -711,16 +716,34 @@ export async function getCloudAuthIdentity(){
     if (error || !data?.session?.user) return { provider: "", handle: "", email: "" }
     const user = data.session.user
     const identities = Array.isArray(user.identities) ? user.identities : []
-    const providerRaw = String(
+    const providerRawBase = String(
       user?.app_metadata?.provider
       || user?.user_metadata?.provider
       || identities[0]?.provider
       || ""
     ).toLowerCase()
+    const identityHint =
+      identities.find((it) => String(it?.provider || "").toLowerCase() === providerRawBase)
+      || identities[0]
+      || null
+    const hintData = (identityHint && typeof identityHint.identity_data === "object" && identityHint.identity_data)
+      ? identityHint.identity_data
+      : {}
+    const chainHint = String(
+      hintData?.chain
+      || hintData?.network
+      || user?.user_metadata?.chain
+      || user?.user_metadata?.network
+      || ""
+    ).trim().toLowerCase()
+    const providerRaw = (providerRawBase === "wallet" || providerRawBase === "web3") && chainHint === "solana"
+      ? "solana"
+      : providerRawBase
     const provider = providerRaw === "twitter" ? "x" : providerRaw
     const identity =
       identities.find((it) => String(it?.provider || "").toLowerCase() === providerRaw)
       || identities.find((it) => String(it?.provider || "").toLowerCase() === provider)
+      || identities.find((it) => String(it?.provider || "").toLowerCase() === providerRawBase)
       || identities[0]
       || null
     const idData = (identity && typeof identity.identity_data === "object" && identity.identity_data)
@@ -739,9 +762,22 @@ export async function getCloudAuthIdentity(){
       idData?.wallet_address
       || idData?.address
       || idData?.public_key
+      || idData?.publicKey
+      || idData?.account
+      || idData?.account_address
+      || (isLikelySolanaAddress(idData?.sub) ? idData?.sub : "")
       || user?.user_metadata?.wallet_address
       || user?.user_metadata?.address
       || user?.user_metadata?.public_key
+      || user?.user_metadata?.publicKey
+      || (isLikelySolanaAddress(user?.user_metadata?.sub) ? user?.user_metadata?.sub : "")
+      || user?.app_metadata?.wallet_address
+      || user?.app_metadata?.address
+      || user?.app_metadata?.public_key
+      || user?.app_metadata?.publicKey
+      || (isLikelySolanaAddress(user?.app_metadata?.sub) ? user?.app_metadata?.sub : "")
+      || (isLikelySolanaAddress(identity?.provider_id) ? identity?.provider_id : "")
+      || (isLikelySolanaAddress(identity?.id) ? identity?.id : "")
       || ""
     ).trim()
     const email = String(
