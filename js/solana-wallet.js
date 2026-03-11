@@ -1,4 +1,9 @@
 const SOLANA_RPC_URL_DEFAULT = "https://api.mainnet-beta.solana.com"
+const SOLANA_RPC_URL_FALLBACKS = [
+  "https://api.mainnet-beta.solana.com",
+  "https://solana-rpc.publicnode.com",
+  "https://rpc.ankr.com/solana",
+]
 
 function cleanAddress(value){
   return String(value || "").trim()
@@ -29,6 +34,12 @@ async function rpcRequest(method, params, rpcUrl = SOLANA_RPC_URL_DEFAULT){
     throw new Error(message || "Unknown Solana RPC error")
   }
   return json?.result
+}
+
+function rpcCandidates(preferred){
+  const first = cleanAddress(preferred)
+  const urls = [first, ...SOLANA_RPC_URL_FALLBACKS].filter(Boolean)
+  return Array.from(new Set(urls))
 }
 
 function solFromLamports(lamports){
@@ -79,47 +90,56 @@ export async function fetchSolanaWalletSnapshot(address, options = {}){
   if (!walletAddress) throw new Error("Missing Solana wallet address")
   const rpcUrl = cleanAddress(options.rpcUrl) || SOLANA_RPC_URL_DEFAULT
   const txLimit = Math.max(1, Math.min(10, asNumber(options.txLimit, 5)))
+  let lastError = null
 
-  const [balanceResult, signatureResults] = await Promise.all([
-    rpcRequest("getBalance", [walletAddress, { commitment: "confirmed" }], rpcUrl),
-    rpcRequest("getSignaturesForAddress", [walletAddress, { limit: txLimit }], rpcUrl),
-  ])
+  for (const candidate of rpcCandidates(rpcUrl)) {
+    try {
+      const [balanceResult, signatureResults] = await Promise.all([
+        rpcRequest("getBalance", [walletAddress, { commitment: "confirmed" }], candidate),
+        rpcRequest("getSignaturesForAddress", [walletAddress, { limit: txLimit }], candidate),
+      ])
 
-  const lamports = asNumber(balanceResult?.value, 0)
-  const signatures = Array.isArray(signatureResults) ? signatureResults : []
-  const detailed = await Promise.all(
-    signatures.map(async (item) => {
-      const signature = cleanAddress(item?.signature)
-      if (!signature) return null
-      try {
-        const tx = await rpcRequest("getTransaction", [signature, {
-          commitment: "confirmed",
-          encoding: "jsonParsed",
-          maxSupportedTransactionVersion: 0,
-        }], rpcUrl)
-        if (tx) return normalizeTransactionSummary(walletAddress, tx)
-      } catch {}
+      const lamports = asNumber(balanceResult?.value, 0)
+      const signatures = Array.isArray(signatureResults) ? signatureResults : []
+      const detailed = await Promise.all(
+        signatures.map(async (item) => {
+          const signature = cleanAddress(item?.signature)
+          if (!signature) return null
+          try {
+            const tx = await rpcRequest("getTransaction", [signature, {
+              commitment: "confirmed",
+              encoding: "jsonParsed",
+              maxSupportedTransactionVersion: 0,
+            }], candidate)
+            if (tx) return normalizeTransactionSummary(walletAddress, tx)
+          } catch {}
+          return {
+            signature,
+            slot: asNumber(item?.slot, 0),
+            blockTime: asNumber(item?.blockTime, 0) ? new Date(asNumber(item.blockTime, 0) * 1000).toISOString() : "",
+            confirmationStatus: String(item?.confirmationStatus || "").trim() || "confirmed",
+            ok: !item?.err,
+            err: item?.err || null,
+            memo: String(item?.memo || "").trim(),
+            netLamports: 0,
+            netSol: 0,
+          }
+        }),
+      )
+
       return {
-        signature,
-        slot: asNumber(item?.slot, 0),
-        blockTime: asNumber(item?.blockTime, 0) ? new Date(asNumber(item.blockTime, 0) * 1000).toISOString() : "",
-        confirmationStatus: String(item?.confirmationStatus || "").trim() || "confirmed",
-        ok: !item?.err,
-        err: item?.err || null,
-        memo: String(item?.memo || "").trim(),
-        netLamports: 0,
-        netSol: 0,
+        address: walletAddress,
+        chain: "solana",
+        lamports,
+        balanceSol: solFromLamports(lamports),
+        fetchedAt: new Date().toISOString(),
+        rpcSource: candidate,
+        recentTransactions: detailed.filter(Boolean),
       }
-    }),
-  )
-
-  return {
-    address: walletAddress,
-    chain: "solana",
-    lamports,
-    balanceSol: solFromLamports(lamports),
-    fetchedAt: new Date().toISOString(),
-    rpcSource: rpcUrl,
-    recentTransactions: detailed.filter(Boolean),
+    } catch (err) {
+      lastError = err
+    }
   }
+
+  throw (lastError instanceof Error ? lastError : new Error("Wallet refresh failed"))
 }
