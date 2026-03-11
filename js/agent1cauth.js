@@ -729,9 +729,14 @@ export async function getCloudAuthIdentity(){
     const hintData = (identityHint && typeof identityHint.identity_data === "object" && identityHint.identity_data)
       ? identityHint.identity_data
       : {}
+    const customClaims = (user?.user_metadata?.custom_claims && typeof user.user_metadata.custom_claims === "object")
+      ? user.user_metadata.custom_claims
+      : {}
     const chainHint = String(
       hintData?.chain
       || hintData?.network
+      || customClaims?.chain
+      || customClaims?.network
       || user?.user_metadata?.chain
       || user?.user_metadata?.network
       || ""
@@ -766,16 +771,21 @@ export async function getCloudAuthIdentity(){
       || idData?.account
       || idData?.account_address
       || (isLikelySolanaAddress(idData?.sub) ? idData?.sub : "")
+      || customClaims?.address
+      || customClaims?.wallet_address
+      || customClaims?.public_key
+      || customClaims?.publicKey
+      || (typeof customClaims?.sub === "string" ? customClaims.sub.split(":").at(-1) : "")
       || user?.user_metadata?.wallet_address
       || user?.user_metadata?.address
       || user?.user_metadata?.public_key
       || user?.user_metadata?.publicKey
-      || (isLikelySolanaAddress(user?.user_metadata?.sub) ? user?.user_metadata?.sub : "")
+      || (typeof user?.user_metadata?.sub === "string" ? user.user_metadata.sub.split(":").at(-1) : "")
       || user?.app_metadata?.wallet_address
       || user?.app_metadata?.address
       || user?.app_metadata?.public_key
       || user?.app_metadata?.publicKey
-      || (isLikelySolanaAddress(user?.app_metadata?.sub) ? user?.app_metadata?.sub : "")
+      || (typeof user?.app_metadata?.sub === "string" ? user.app_metadata.sub.split(":").at(-1) : "")
       || (isLikelySolanaAddress(identity?.provider_id) ? identity?.provider_id : "")
       || (isLikelySolanaAddress(identity?.id) ? identity?.id : "")
       || ""
