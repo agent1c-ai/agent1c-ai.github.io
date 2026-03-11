@@ -145,6 +145,18 @@ const appState = {
     torRelayTimeoutMs: RELAY_DEFAULTS.timeoutMs,
     experimentalWebProxyEnabled: true,
   },
+  wallet: {
+    address: "",
+    chain: "",
+    provider: "",
+    balanceSol: null,
+    lamports: null,
+    recentTransactions: [],
+    lastFetchedAt: "",
+    rpcSource: "",
+    refreshInFlight: false,
+    lastError: "",
+  },
   agent: {
     soulMd: DEFAULT_SOUL,
     toolsMd: DEFAULT_TOOLS,
@@ -158,6 +170,23 @@ const appState = {
     telegramLastUpdateId: undefined,
   },
   events: [],
+}
+
+function applyCloudIdentityToWalletState(identity){
+  const provider = String(identity?.provider || "").trim().toLowerCase()
+  const walletAddress = String(identity?.walletAddress || "").trim()
+  appState.wallet.provider = provider
+  appState.wallet.chain = (provider === "solana" && walletAddress) ? "solana" : ""
+  appState.wallet.address = walletAddress
+  if (!walletAddress) {
+    appState.wallet.balanceSol = null
+    appState.wallet.lamports = null
+    appState.wallet.recentTransactions = []
+    appState.wallet.lastFetchedAt = ""
+    appState.wallet.rpcSource = ""
+    appState.wallet.refreshInFlight = false
+    appState.wallet.lastError = ""
+  }
 }
 const SOUL_REANCHOR_EVERY_USER_TURNS = 5
 const GOP_CORPUS_BOOTSTRAP_FILES = [
@@ -947,6 +976,7 @@ const xaiChat = makeXaiChat({
 })
 
 function applyCloudIdentityToUi(identity){
+  applyCloudIdentityToWalletState(identity)
   if (!els.creditsAccount) return
   const provider = String(identity?.provider || "").toLowerCase()
   const handle = String(identity?.handle || "").trim()
