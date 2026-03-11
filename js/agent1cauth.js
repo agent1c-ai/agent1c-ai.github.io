@@ -1,4 +1,4 @@
-import { getAgent1cInstanceProfile } from "./agent1c-instance-profiles.js?v=20260311sol2"
+import { getAgent1cInstanceProfile } from "./agent1c-instance-profiles.js?v=20260311sol3"
 
 const INSTANCE = getAgent1cInstanceProfile()
 
@@ -169,15 +169,13 @@ function authWindowHtml(){
   return `
     <div class="agent-stack agent-auth">
       <div class="agent-auth-head">
-        <div class="agent-auth-badge">Agent1c Cloud Access</div>
-        <div class="agent-auth-title">Welcome to Agent1c.ai</div>
+        <div class="agent-intro-title agent-auth-brand">Agent<span class="agent-intro-one">1</span>c.ai</div>
         <div class="agent-intro-kicker">Agentic Desktop OS</div>
         <div class="agent-intro-sub">${safe(INSTANCE.introHeroSub || "An agentic OS in your browser tab where Hitomi your hedgehog AI runs, controlling her own windows, tools, and apps.")}</div>
         <div class="agent-intro-signals agent-auth-signals">
           <span class="agent-intro-signal">Web Based OS</span>
           <span class="agent-intro-signal">Fully Agentic</span>
         </div>
-        <div class="agent-auth-sub">Sign in to continue your hosted Agent1c OS setup.</div>
       </div>
       <div class="agent-auth-actions">
         <button id="authGoogleBtn" class="btn agent-auth-btn agent-auth-btn-google" type="button">
@@ -276,7 +274,7 @@ function sizeAuthWindowToContent(){
   const winEl = authWin.win
   const panel = authWin.panelRoot
   const titlebar = winEl.querySelector(".titlebar")
-  const { h = window.innerHeight || 768 } = getViewport ? getViewport() : {}
+  const { w = window.innerWidth || 1024, h = window.innerHeight || 768 } = getViewport ? getViewport() : {}
   const base = titlebar?.offsetHeight || 22
   const contentEl = panel.querySelector(".agent-auth") || panel
   const contentBox = contentEl.getBoundingClientRect()
@@ -284,9 +282,10 @@ function sizeAuthWindowToContent(){
   const padding = 12
   const minHeight = 214
   const target = Math.max(minHeight, Math.min(h - 12, base + content + padding))
+  const width = parseFloat(winEl.style.width) || winEl.offsetWidth || 430
   winEl.style.height = `${target}px`
-  const top = parseFloat(winEl.style.top) || 0
-  winEl.style.top = `${Math.max(0, Math.min(top, Math.max(0, h - target)))}px`
+  winEl.style.left = `${Math.max(0, Math.round((w - width) / 2))}px`
+  winEl.style.top = `${Math.max(0, Math.round((h - target) / 2))}px`
 }
 
 function updateAuthStatus(text, isError = false){

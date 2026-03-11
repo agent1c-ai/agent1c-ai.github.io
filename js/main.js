@@ -1,12 +1,12 @@
-import { createSaveDialog } from "./save-dialog.js?v=20260311sol2";
-import { createAppsMenu } from "./apps-menu.js?v=20260311sol2";
-import { createWindowManager } from "./wm.js?v=20260311sol2";
-import { initMenuDropdowns, initMenuActions } from "./menubar.js?v=20260311sol2";
-import { saveUpload, hasWrappedKey, setPassphrase, unlockWithPassphrase } from "./filesystem.js?v=20260311sol2";
-import { initThemeToggle, initThemeState, applyTheme, getTheme, applyWallpaper, getWallpaperName, clearWallpaper } from "./theme.js?v=20260311sol2";
-import { createHud } from "./hud.js?v=20260311sol2";
-import { initAgent1C } from "./agent1c.js?v=20260311sol2";
-import { createVoiceSttController } from "./voice-stt.js?v=20260311sol2";
+import { createSaveDialog } from "./save-dialog.js?v=20260311sol3";
+import { createAppsMenu } from "./apps-menu.js?v=20260311sol3";
+import { createWindowManager } from "./wm.js?v=20260311sol3";
+import { initMenuDropdowns, initMenuActions } from "./menubar.js?v=20260311sol3";
+import { saveUpload, hasWrappedKey, setPassphrase, unlockWithPassphrase } from "./filesystem.js?v=20260311sol3";
+import { initThemeToggle, initThemeState, applyTheme, getTheme, applyWallpaper, getWallpaperName, clearWallpaper } from "./theme.js?v=20260311sol3";
+import { createHud } from "./hud.js?v=20260311sol3";
+import { initAgent1C } from "./agent1c.js?v=20260311sol3";
+import { createVoiceSttController } from "./voice-stt.js?v=20260311sol3";
 
 const menubar = document.getElementById("menubar");
 const desktop = document.getElementById("desktop");

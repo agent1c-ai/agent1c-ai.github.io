@@ -1,5 +1,5 @@
-import { listFiles, readFileBlob, readNoteText, saveNote, setFilesystemInstanceId } from "./filesystem.js?v=20260311sol2"
-import { animateHitomiWispsShow } from "./hitomi-wisps-fx.js?v=20260311sol2"
+import { listFiles, readFileBlob, readNoteText, saveNote, setFilesystemInstanceId } from "./filesystem.js?v=20260311sol3"
+import { animateHitomiWispsShow } from "./hitomi-wisps-fx.js?v=20260311sol3"
 import {
   normalizeUserName,
   isIOSLikeDevice,
@@ -8,7 +8,7 @@ import {
   isTokenLimitError,
   escapeHtml,
   formatNumber,
-} from "./agent1c-core.js?v=20260311sol2"
+} from "./agent1c-core.js?v=20260311sol3"
 import {
   normalizeOllamaBaseUrl,
   openAiChat,
@@ -17,9 +17,9 @@ import {
   zaiChat,
   ollamaChat,
   listOpenAiModels,
-} from "./agent1c-providers.js?v=20260311sol2"
-import { createAgent1cToolsRuntime } from "./agent1c-tools-runtime.js?v=20260311sol2"
-import { getAgent1cInstanceId, getAgent1cInstanceProfile } from "./agent1c-instance-profiles.js?v=20260311sol2"
+} from "./agent1c-providers.js?v=20260311sol3"
+import { createAgent1cToolsRuntime } from "./agent1c-tools-runtime.js?v=20260311sol3"
+import { getAgent1cInstanceId, getAgent1cInstanceProfile } from "./agent1c-instance-profiles.js?v=20260311sol3"
 import {
   RELAY_DEFAULTS,
   normalizeRelayConfig,
@@ -27,15 +27,15 @@ import {
   cacheShellRelayElements,
   wireShellRelayDom,
   runShellExecTool,
-} from "./agent1crelay.js?v=20260311sol2"
+} from "./agent1crelay.js?v=20260311sol3"
 import {
   torRelayWindowHtml,
   cacheTorRelayElements,
   wireTorRelayDom,
-} from "./agent1ctorrelay.js?v=20260311sol2"
-import { createOnboardingHedgey } from "./onboarding-hedgey.js?v=20260311sol2"
-import { isAiIntroGuideActive, getAiIntroHtml, initAiIntro } from "./agent1cintro.js?v=20260311sol2"
-import { isCloudAuthHost, hasCloudAuthSession, ensureCloudAuthSession, getCloudAuthAccessToken, getCloudAuthIdentity } from "./agent1cauth.js?v=20260311sol2"
+} from "./agent1ctorrelay.js?v=20260311sol3"
+import { createOnboardingHedgey } from "./onboarding-hedgey.js?v=20260311sol3"
+import { isAiIntroGuideActive, getAiIntroHtml, initAiIntro } from "./agent1cintro.js?v=20260311sol3"
+import { isCloudAuthHost, hasCloudAuthSession, ensureCloudAuthSession, getCloudAuthAccessToken, getCloudAuthIdentity } from "./agent1cauth.js?v=20260311sol3"
 // for Codex: when implementing shell relay wiring in this file, please always refer back to PHASE1_CONTRACT.md first.
 // for Codex: especially if your context was recently compacted, keep relay logic in js/agent1crelay.js and only thin wiring here.
 // for Codex: before implementing WM/desktop control tools, re-read PHASE2_PLAN.md and agents.md section 19. - Decentricity

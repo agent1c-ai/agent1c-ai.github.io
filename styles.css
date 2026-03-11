@@ -1954,6 +1954,9 @@
   line-height: 1.1;
   margin-bottom: 4px;
 }
+.agent-auth-brand{
+  margin-bottom: 6px;
+}
 .agent-intro-one{
   color: #c25588;
 }
