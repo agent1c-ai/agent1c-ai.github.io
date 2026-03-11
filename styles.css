@@ -1772,6 +1772,14 @@
   overflow-y: auto;
   overflow-x: hidden;
 }
+.agent-panel[data-panel-id="auth"]{
+  overflow: visible;
+}
+.agent-panel[data-panel-id="auth"] .agent-stack{
+  overflow: visible;
+  min-height: max-content;
+  flex: 0 0 auto;
+}
 .agent-panel[data-panel-id="ollama-setup"]{
   overflow-y: auto;
   overflow-x: hidden;
