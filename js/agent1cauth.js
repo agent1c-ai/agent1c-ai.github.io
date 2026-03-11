@@ -1,3 +1,7 @@
+import { getAgent1cInstanceProfile } from "./agent1c-instance-profiles.js?v=20260311sol2"
+
+const INSTANCE = getAgent1cInstanceProfile()
+
 // for Codex: when implementing cloud auth, always re-read ../agent1carchitecture/PHASE1_SUPABASE_AUTH_PLAN.md first.
 // for Codex: especially if context was compacted, keep auth logic modular in this file and keep agent1c.js orchestration-only.
 
@@ -167,6 +171,12 @@ function authWindowHtml(){
       <div class="agent-auth-head">
         <div class="agent-auth-badge">Agent1c Cloud Access</div>
         <div class="agent-auth-title">Welcome to Agent1c.ai</div>
+        <div class="agent-intro-kicker">Agentic Desktop OS</div>
+        <div class="agent-intro-sub">${safe(INSTANCE.introHeroSub || "An agentic OS in your browser tab where Hitomi your hedgehog AI runs, controlling her own windows, tools, and apps.")}</div>
+        <div class="agent-intro-signals agent-auth-signals">
+          <span class="agent-intro-signal">Web Based OS</span>
+          <span class="agent-intro-signal">Fully Agentic</span>
+        </div>
         <div class="agent-auth-sub">Sign in to continue your hosted Agent1c OS setup.</div>
       </div>
       <div class="agent-auth-actions">

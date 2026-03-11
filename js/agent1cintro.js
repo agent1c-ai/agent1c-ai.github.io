@@ -21,20 +21,7 @@ function isAgenticAiHost(){
 }
 
 function shouldShowAiIntroGate(){
-  const host = String(window.location?.hostname || "").toLowerCase()
-  if (!isAgenticAiHost()) return false
-  if (host === "app.agent1c.ai") return false
-  const params = new URLSearchParams(window.location.search || "")
-  if (params.get("android_auth") === "1") return false
-  const isAuthCallback =
-    params.has("code")
-    || params.has("state")
-    || params.has("error")
-    || params.has("error_description")
-    || params.has("access_token")
-    || params.has("refresh_token")
-  if (isAuthCallback) return false
-  return true
+  return false
 }
 
 export function isAiIntroGuideActive(){
