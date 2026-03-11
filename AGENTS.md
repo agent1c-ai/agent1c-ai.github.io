@@ -1,6 +1,9 @@
 For implementation details, architecture plans, and working notes, see:
 `../agent1carchitecture/`
 
+For the current Solana integration plan and recovery notes, see:
+`SOLANA.md`
+
 Supabase auth/xAI operational guard checklist:
 `supabase/OPERATIONS_CHECKLIST.md`
 
