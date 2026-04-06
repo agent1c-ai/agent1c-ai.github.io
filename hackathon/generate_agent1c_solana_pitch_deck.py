@@ -17,8 +17,8 @@ def rgb(value):
     return RGBColor(int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16))
 
 
-BG_DARK = rgb("0B1020")
-BG_DARK_2 = rgb("121B31")
+BG_DARK = rgb("091120")
+BG_DARK_2 = rgb("10243C")
 BG_LIGHT = rgb("F7F3EA")
 BG_SOFT = rgb("EAF2F5")
 INK_LIGHT = rgb("F7F4EE")
@@ -29,7 +29,7 @@ SKY = rgb("69CFFF")
 CORAL = rgb("FF7A59")
 GOLD = rgb("FFC857")
 GREEN = rgb("5ED27A")
-PANEL_DARK = rgb("17243D")
+PANEL_DARK = rgb("16243C")
 PANEL_LIGHT = rgb("FFFFFF")
 PANEL_SOFT = rgb("EEF4F7")
 
@@ -96,7 +96,7 @@ def add_text(
     return box
 
 
-def add_bullets(slide, items, x, y, w, h, *, size=18, color=INK_DARK, leading=1.15):
+def add_bullets(slide, items, x, y, w, h, *, size=18, color=INK_DARK, leading=1.12):
     box = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
     frame = box.text_frame
     frame.clear()
@@ -118,7 +118,7 @@ def add_bullets(slide, items, x, y, w, h, *, size=18, color=INK_DARK, leading=1.
     return box
 
 
-def add_kicker(slide, text, x, y, w=2.25, h=0.38, fill=MINT, text_color=BG_DARK):
+def add_kicker(slide, text, x, y, w=2.5, h=0.38, fill=MINT, text_color=BG_DARK):
     add_rect(slide, x, y, w, h, fill, radius=True)
     add_text(
         slide,
@@ -130,40 +130,20 @@ def add_kicker(slide, text, x, y, w=2.25, h=0.38, fill=MINT, text_color=BG_DARK)
         size=11,
         color=text_color,
         bold=True,
-        font=BODY_FONT,
     )
 
 
 def add_footer(slide, page, *, appendix=False, dark=False):
     color = INK_LIGHT if dark else INK_MUTED
     label = "Appendix" if appendix else "Pitch Deck"
-    add_text(
-        slide,
-        f"Agent1c.ai  |  Solana Hackathon  |  {label}",
-        0.7,
-        7.05,
-        5.0,
-        0.22,
-        size=10,
-        color=color,
-    )
-    add_text(
-        slide,
-        str(page),
-        12.15,
-        7.02,
-        0.4,
-        0.24,
-        size=10,
-        color=color,
-        align=PP_ALIGN.RIGHT,
-    )
+    add_text(slide, f"Agent1c.ai  |  Solana Hackathon  |  {label}", 0.7, 7.03, 5.0, 0.22, size=10, color=color)
+    add_text(slide, str(page), 12.1, 7.01, 0.45, 0.24, size=10, color=color, align=PP_ALIGN.RIGHT)
 
 
 def decorate_dark(slide):
     add_rect(slide, 0, 0, 13.333, 7.5, BG_DARK)
-    add_oval(slide, 10.4, -1.1, 4.2, 4.2, BG_DARK_2)
-    add_oval(slide, -0.9, 5.65, 2.4, 2.4, rgb("16223A"))
+    add_oval(slide, 10.35, -1.2, 4.3, 4.3, BG_DARK_2)
+    add_oval(slide, -0.95, 5.75, 2.5, 2.5, rgb("15233B"))
     add_rect(slide, 0.7, 0.58, 0.65, 0.08, MINT)
     add_rect(slide, 1.42, 0.58, 0.46, 0.08, CORAL)
     add_rect(slide, 1.94, 0.58, 0.36, 0.08, GOLD)
@@ -172,80 +152,76 @@ def decorate_dark(slide):
 def decorate_light(slide, alt=False):
     add_rect(slide, 0, 0, 13.333, 7.5, BG_SOFT if alt else BG_LIGHT)
     add_rect(slide, 0, 0, 13.333, 0.18, MINT if alt else CORAL)
-    add_oval(slide, 11.25, -0.65, 2.4, 2.4, rgb("E4ECEE") if alt else rgb("EFE6DB"))
-    add_oval(slide, -0.55, 6.18, 1.8, 1.8, rgb("DDEBED") if alt else rgb("F0E0D1"))
+    add_oval(slide, 11.2, -0.65, 2.45, 2.45, rgb("DEEDEF") if alt else rgb("F1E6D8"))
+    add_oval(slide, -0.55, 6.15, 1.8, 1.8, rgb("DCEBEE") if alt else rgb("F0E0D1"))
 
 
 def add_title_block(slide, title, subtitle, *, dark=False):
     title_color = INK_LIGHT if dark else INK_DARK
-    sub_color = rgb("B9C8DB") if dark else INK_MUTED
-    add_text(slide, title, 0.7, 1.0, 7.0, 1.2, size=30, color=title_color, bold=True, font=TITLE_FONT)
-    add_text(slide, subtitle, 0.7, 1.95, 6.2, 0.9, size=14, color=sub_color)
+    sub_color = rgb("C5D2E2") if dark else INK_MUTED
+    add_text(slide, title, 0.7, 1.02, 7.1, 1.1, size=30, color=title_color, bold=True, font=TITLE_FONT)
+    add_text(slide, subtitle, 0.7, 1.9, 6.3, 0.75, size=14, color=sub_color)
 
 
 def add_card(slide, x, y, w, h, title, body, *, fill=PANEL_LIGHT, title_color=INK_DARK, body_color=INK_MUTED):
     add_rect(slide, x, y, w, h, fill, radius=True)
     add_text(slide, title, x + 0.18, y + 0.16, w - 0.36, 0.38, size=14, color=title_color, bold=True)
-    add_text(slide, body, x + 0.18, y + 0.58, w - 0.36, h - 0.74, size=12, color=body_color)
+    add_text(slide, body, x + 0.18, y + 0.56, w - 0.36, h - 0.72, size=12, color=body_color)
 
 
 def add_number_card(slide, num, title, body, x, y, w, h, *, fill=PANEL_DARK, accent=MINT):
     add_rect(slide, x, y, w, h, fill, radius=True)
     add_oval(slide, x + 0.18, y + 0.18, 0.52, 0.52, accent)
-    add_text(slide, str(num), x + 0.18, y + 0.22, 0.52, 0.32, size=14, color=BG_DARK, bold=True, align=PP_ALIGN.CENTER)
-    add_text(slide, title, x + 0.82, y + 0.18, w - 1.0, 0.34, size=14, color=INK_LIGHT, bold=True)
-    add_text(slide, body, x + 0.18, y + 0.78, w - 0.36, h - 0.95, size=12, color=rgb("C8D3E2"))
+    add_text(slide, str(num), x + 0.18, y + 0.22, 0.52, 0.3, size=14, color=BG_DARK, bold=True, align=PP_ALIGN.CENTER)
+    add_text(slide, title, x + 0.82, y + 0.17, w - 1.0, 0.34, size=14, color=INK_LIGHT, bold=True)
+    add_text(slide, body, x + 0.18, y + 0.74, w - 0.36, h - 0.9, size=12, color=rgb("C9D5E3"))
 
 
 def slide_cover(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     decorate_dark(slide)
     add_kicker(slide, "SOLANA HACKATHON 2026", 0.7, 0.78, w=2.55, fill=GOLD)
-    add_text(slide, "Agent1c.ai", 0.7, 1.45, 5.4, 0.9, size=32, color=INK_LIGHT, bold=True, font=TITLE_FONT)
+    add_text(slide, "Agent1c.ai", 0.7, 1.38, 5.2, 0.7, size=32, color=INK_LIGHT, bold=True, font=TITLE_FONT)
     add_text(
         slide,
-        "The browser-native agentic desktop for wallet-native work.",
+        "The Solana DeFi + DePIN OS",
         0.7,
-        2.2,
-        6.2,
-        0.6,
-        size=22,
+        2.08,
+        6.7,
+        0.65,
+        size=26,
         color=MINT,
         bold=True,
         font=TITLE_FONT,
     )
     add_text(
         slide,
-        "Hitomi lives inside a real workspace, authenticates with Solana, and explains live wallet state in plain English instead of making users bounce between tabs, explorers, and dashboards.",
+        "A cloud-accessible operating system for your entire onchain life.\nOne wallet-native desktop. One agentic layer. One landing page for the Solana ecosystem.",
         0.7,
-        3.0,
-        5.6,
-        1.25,
-        size=16,
-        color=rgb("C6D0DE"),
+        2.95,
+        6.0,
+        1.15,
+        size=17,
+        color=rgb("C8D3E2"),
     )
-    add_rect(slide, 0.7, 5.15, 5.75, 1.2, PANEL_DARK, radius=True)
-    for idx, label in enumerate([
-        "Wallet-native identity",
-        "Persistent AI workspace",
-        "Read-only on-chain context",
-    ]):
-        chip_x = 0.95 + (idx * 1.84)
-        add_rect(slide, chip_x, 5.48, 1.55, 0.45, BG_DARK_2, line=MINT, radius=True)
-        add_text(slide, label, chip_x + 0.1, 5.61, 1.35, 0.2, size=10, color=INK_LIGHT, align=PP_ALIGN.CENTER)
-    add_oval(slide, 8.55, 1.25, 3.35, 3.35, rgb("113A45"))
-    add_oval(slide, 8.9, 1.6, 2.65, 2.65, rgb("1B4A55"))
+    add_rect(slide, 0.7, 5.1, 6.05, 1.15, PANEL_DARK, radius=True)
+    for idx, label in enumerate(["DeFi workspace", "DePIN control plane", "Agentic dapp OS"]):
+        chip_x = 0.95 + idx * 1.95
+        add_rect(slide, chip_x, 5.43, 1.65, 0.45, BG_DARK_2, line=MINT, radius=True)
+        add_text(slide, label, chip_x + 0.1, 5.56, 1.45, 0.2, size=10, color=INK_LIGHT, align=PP_ALIGN.CENTER)
+    add_oval(slide, 8.55, 1.15, 3.4, 3.4, rgb("113A45"))
+    add_oval(slide, 8.92, 1.52, 2.66, 2.66, rgb("1B4A55"))
     if HEDGEHOG_IMAGE.exists():
-        slide.shapes.add_picture(str(HEDGEHOG_IMAGE), Inches(8.95), Inches(1.45), width=Inches(2.6))
+        slide.shapes.add_picture(str(HEDGEHOG_IMAGE), Inches(8.96), Inches(1.37), width=Inches(2.62))
     add_text(
         slide,
-        "Pitch deck grounded in the shipped repo state, with a technical appendix for deeper judge follow-up.",
-        7.15,
-        5.45,
-        4.7,
-        0.7,
-        size=13,
-        color=rgb("C6D0DE"),
+        "The future homepage of the Solana ecosystem should feel less like a dashboard\nand more like an operating system.",
+        7.22,
+        5.18,
+        4.75,
+        0.8,
+        size=14,
+        color=rgb("C8D3E2"),
     )
     add_footer(slide, 1, dark=True)
 
@@ -254,405 +230,446 @@ def slide_problem(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     decorate_light(slide)
     add_kicker(slide, "PROBLEM", 0.7, 0.62, fill=CORAL, text_color=INK_LIGHT)
-    add_text(slide, "AI still lives beside the workflow.\nWeb3 still lives across too many surfaces.", 0.7, 1.05, 6.0, 1.4, size=28, color=INK_DARK, bold=True, font=TITLE_FONT)
+    add_text(
+        slide,
+        "Onchain life is fragmented.\nDeFi and DePIN make that fragmentation worse.",
+        0.7,
+        1.02,
+        6.3,
+        1.1,
+        size=29,
+        color=INK_DARK,
+        bold=True,
+        font=TITLE_FONT,
+    )
     add_bullets(
         slide,
         [
-            "Chatbots open in a separate tab and rarely understand the user's real environment.",
-            "Wallet context is trapped in browser extensions, explorers, dashboards, and DMs.",
-            "Even simple questions like \"what hit my wallet?\" require manual context switching and interpretation.",
+            "Users bounce across wallets, dapps, explorers, dashboards, Discord, Telegram, spreadsheets, and browser tabs.",
+            "Every surface knows one tiny slice of the user's state, but none understands the full onchain workflow.",
+            "DeFi adds portfolio complexity. DePIN adds devices, uptime, rewards, maps, and operations.",
         ],
         0.7,
-        2.75,
-        5.4,
-        2.4,
+        2.58,
+        5.55,
+        2.7,
         size=17,
-        color=INK_DARK,
     )
-    add_rect(slide, 7.0, 1.25, 5.2, 4.95, PANEL_LIGHT, line=rgb("E4DDD2"), radius=True)
-    add_card(slide, 7.35, 1.65, 4.5, 0.88, "Today", "Chat tab, wallet extension, block explorer, notes, and Telegram all hold different slices of state.", fill=PANEL_SOFT)
-    add_card(slide, 7.35, 2.75, 4.5, 0.88, "What breaks", "Context does not accumulate, identity does not travel cleanly, and users become the manual orchestrator.", fill=PANEL_SOFT)
-    add_card(slide, 7.35, 3.85, 4.5, 0.88, "What users want", "One place where the assistant, files, browser, and wallet context already know each other.", fill=PANEL_SOFT)
-    add_rect(slide, 0.7, 6.1, 11.45, 0.62, INK_DARK, radius=True)
+    add_rect(slide, 7.0, 1.34, 5.2, 4.85, PANEL_LIGHT, line=rgb("E5DDD1"), radius=True)
+    add_card(slide, 7.34, 1.72, 4.55, 0.88, "Wallet", "Good for signing, weak at context.", fill=PANEL_SOFT)
+    add_card(slide, 7.34, 2.84, 4.55, 0.88, "Single dapp", "Powerful inside one silo.", fill=PANEL_SOFT)
+    add_card(slide, 7.34, 3.96, 4.55, 0.88, "Dashboard", "Observes state, rarely operates it.", fill=PANEL_SOFT)
+    add_card(slide, 7.34, 5.08, 4.55, 0.88, "Assistant tab", "Talks separately from the actual workflow.", fill=PANEL_SOFT)
+    add_rect(slide, 0.7, 6.2, 11.45, 0.56, INK_DARK, radius=True)
     add_text(
         slide,
-        "The missing product is not another chat box or another dashboard. It is a persistent agent workspace.",
-        1.0,
-        6.27,
-        10.9,
-        0.26,
-        size=15,
+        "Solana has network-level composability, but the user experience is still app-by-app, tab-by-tab, and task-by-task.",
+        0.92,
+        6.37,
+        10.95,
+        0.22,
+        size=14,
         color=INK_LIGHT,
-        align=PP_ALIGN.CENTER,
         bold=True,
+        align=PP_ALIGN.CENTER,
     )
     add_footer(slide, 2)
 
 
-def slide_need(prs):
+def slide_failure(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     decorate_dark(slide)
-    add_kicker(slide, "WHAT USERS ACTUALLY NEED", 0.7, 0.72, w=3.1, fill=MINT)
-    add_text(slide, "A workspace-native agent, not a disposable conversation.", 0.7, 1.15, 7.0, 0.7, size=28, color=INK_LIGHT, bold=True, font=TITLE_FONT)
-    add_text(slide, "Agent1c is built around four product truths that normal copilots skip.", 0.7, 1.92, 6.0, 0.45, size=14, color=rgb("C7D3E2"))
+    add_kicker(slide, "WHY CURRENT PRODUCTS STOP SHORT", 0.7, 0.72, w=3.4, fill=MINT)
+    add_title_block(
+        slide,
+        "Wallets are not operating systems.\nDashboards are not copilots.",
+        "The core failure is architectural: users still have to be the orchestrator.",
+        dark=True,
+    )
     cards = [
-        ("Persistent context", "The agent lives inside the desktop, so windows, docs, threads, and state stay in the same room."),
-        ("Wallet-native identity", "The wallet becomes authenticated workspace context instead of staying stuck in a wallet popup."),
-        ("Visible tool use", "The user can see and direct the workspace instead of trusting hidden background magic."),
-        ("Safe first step", "Read-only wallet understanding is the right wedge before any signing or execution surface."),
+        ("Wallet-first UX", "Great for approval flows, but poor at planning, memory, and multi-step work."),
+        ("Dapp-first UX", "Each app optimizes for itself, not for the user's total onchain workflow."),
+        ("Chat-first UX", "An AI tab without native control of the workspace becomes another place to copy and paste."),
+        ("Read-only analytics", "Insight alone does not simplify the work of navigating an ecosystem."),
     ]
-    positions = [(0.7, 2.65), (6.8, 2.65), (0.7, 4.55), (6.8, 4.55)]
+    positions = [(0.7, 2.62), (6.8, 2.62), (0.7, 4.52), (6.8, 4.52)]
     for (title, body), (x, y) in zip(cards, positions):
-        add_card(slide, x, y, 5.85, 1.48, title, body, fill=PANEL_DARK, title_color=INK_LIGHT, body_color=rgb("C7D3E2"))
+        add_card(slide, x, y, 5.8, 1.46, title, body, fill=PANEL_DARK, title_color=INK_LIGHT, body_color=rgb("C8D3E2"))
     add_footer(slide, 3, dark=True)
 
 
-def slide_solution(prs):
+def slide_vision(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     decorate_light(slide, alt=True)
-    add_kicker(slide, "SOLUTION", 0.7, 0.62, fill=MINT)
+    add_kicker(slide, "VISION", 0.7, 0.62, fill=MINT)
     add_title_block(
         slide,
-        "Agent1c.ai is a hosted agentic desktop OS.",
-        "It runs as a static web desktop with Hitomi, draggable windows, browser/file surfaces, editable runtime docs, and cloud-authenticated AI orchestration.",
+        "Imagine an operating system for your onchain life.",
+        "That framing changes everything: the problem, the product, the distribution, and the role of the agent.",
     )
     add_bullets(
         slide,
         [
-            "Frontend is a static GitHub Pages app with vanilla JS modules and no build pipeline for the core runtime.",
-            "Hitomi operates inside the workspace instead of being limited to one chat panel.",
-            "The same runtime can combine chat, files, browser actions, notes, and authenticated wallet context.",
+            "Your wallet is identity, not just a signing popup.",
+            "Your dapps are windows and apps inside one coherent desktop.",
+            "Your history, notes, alerts, tools, and decisions persist in one place.",
+            "Your AI is not beside the OS. Your AI is part of the OS.",
         ],
         0.7,
-        2.75,
-        5.2,
-        2.1,
-        size=16,
+        2.56,
+        5.3,
+        2.55,
+        size=18,
     )
-    add_rect(slide, 6.4, 1.45, 5.65, 4.85, PANEL_LIGHT, line=rgb("DDE5E8"), radius=True)
-    add_card(slide, 6.72, 1.8, 1.35, 1.0, "User", "asks in plain English", fill=rgb("FFF7EA"), title_color=INK_DARK, body_color=INK_MUTED)
-    add_card(slide, 8.35, 1.8, 1.6, 1.0, "Hitomi", "agent runtime", fill=rgb("EFF9F6"), title_color=INK_DARK, body_color=INK_MUTED)
-    add_card(slide, 10.2, 1.8, 1.45, 1.0, "Tools", "wallet, browser, files", fill=rgb("EEF5FF"), title_color=INK_DARK, body_color=INK_MUTED)
-    add_text(slide, "→", 7.98, 2.1, 0.25, 0.2, size=20, color=CORAL, bold=True, align=PP_ALIGN.CENTER)
-    add_text(slide, "→", 9.93, 2.1, 0.25, 0.2, size=20, color=CORAL, bold=True, align=PP_ALIGN.CENTER)
-    add_card(slide, 7.1, 3.35, 4.55, 1.2, "Visible workspace", "Windows, notes, browser routing, desktop surfaces, and app state stay user-visible instead of being hidden in a backend black box.", fill=PANEL_SOFT)
-    add_card(slide, 7.1, 4.85, 4.55, 1.0, "Cloud convenience, optional privacy upgrades", "Managed cloud is default on `.ai`; relay and Tor paths already exist as adjacent surfaces.", fill=PANEL_SOFT)
+    add_rect(slide, 6.55, 1.52, 5.45, 4.9, PANEL_LIGHT, line=rgb("DCE6E8"), radius=True)
+    add_card(slide, 6.9, 1.9, 4.72, 1.0, "New category", "Not a chatbot, not a wallet, not a dashboard. A Solana-native cloud desktop.", fill=PANEL_SOFT)
+    add_card(slide, 6.9, 3.12, 4.72, 1.0, "New homepage", "A landing page for the ecosystem, where users start and end their onchain session.", fill=PANEL_SOFT)
+    add_card(slide, 6.9, 4.34, 4.72, 1.0, "New expectation", "The agent can reason across apps because the apps live inside the same workspace.", fill=PANEL_SOFT)
     add_footer(slide, 4)
+
+
+def slide_product(prs):
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    decorate_dark(slide)
+    add_kicker(slide, "PRODUCT", 0.7, 0.72, fill=GOLD)
+    add_title_block(
+        slide,
+        "Agent1c.ai is the cloud-accessible Solana DeFi + DePIN OS.",
+        "A browser-native desktop where the app launcher becomes a dapp launcher and the desktop becomes the user's persistent onchain workspace.",
+        dark=True,
+    )
+    add_card(slide, 0.7, 2.65, 3.55, 2.15, "Desktop shell", "Windows, browser, notes, files, launcher, and visible state turn the product into a place the user can actually work from.", fill=PANEL_DARK, title_color=MINT, body_color=rgb("C8D3E2"))
+    add_card(slide, 4.55, 2.65, 3.55, 2.15, "Dapp landing page", "The current app surfaces evolve into the home screen for Solana ecosystem experiences, tools, and flows.", fill=PANEL_DARK, title_color=SKY, body_color=rgb("C8D3E2"))
+    add_card(slide, 8.4, 2.65, 3.55, 2.15, "Agentic operating layer", "Hitomi helps the user navigate the ecosystem, maintain context, and eventually orchestrate multi-app workflows.", fill=PANEL_DARK, title_color=GOLD, body_color=rgb("C8D3E2"))
+    add_rect(slide, 0.7, 5.45, 11.3, 0.6, BG_DARK_2, radius=True)
+    add_text(
+        slide,
+        "The mental model is simple: Agent1c becomes the place you open when you want to do anything serious on Solana.",
+        1.0,
+        5.64,
+        10.7,
+        0.2,
+        size=15,
+        color=INK_LIGHT,
+        bold=True,
+        align=PP_ALIGN.CENTER,
+    )
+    add_footer(slide, 5, dark=True)
+
+
+def slide_agentic(prs):
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    decorate_light(slide)
+    add_kicker(slide, "AGENTIC DIFFERENCE", 0.7, 0.62, fill=CORAL, text_color=INK_LIGHT)
+    add_title_block(
+        slide,
+        "The agent is the operating model, not a decorative assistant.",
+        "Once the desktop becomes the system of engagement, the AI can finally work across the user's real environment.",
+    )
+    add_number_card(slide, 1, "See the workspace", "Apps, windows, notes, browser, and wallet context exist inside one visible environment.", 0.7, 2.52, 2.8, 1.55, fill=INK_DARK, accent=MINT)
+    add_number_card(slide, 2, "Reason across apps", "The agent is no longer trapped inside one dapp's bounded UI or one stateless conversation.", 3.62, 2.52, 2.8, 1.55, fill=INK_DARK, accent=SKY)
+    add_number_card(slide, 3, "Coordinate workflows", "Multi-step onchain tasks become a native OS behavior instead of a user chore.", 6.54, 2.52, 2.8, 1.55, fill=INK_DARK, accent=CORAL)
+    add_number_card(slide, 4, "Keep continuity", "The user's onchain life becomes a continuous workspace, not a sequence of disconnected sessions.", 9.46, 2.52, 2.8, 1.55, fill=INK_DARK, accent=GOLD)
+    add_rect(slide, 0.7, 4.7, 11.55, 1.3, PANEL_LIGHT, line=rgb("E2DACE"), radius=True)
+    add_text(slide, "Big idea", 1.0, 4.95, 1.0, 0.24, size=14, color=CORAL, bold=True)
+    add_text(
+        slide,
+        "Every dapp is smarter when it is part of a larger workspace with memory, notes, routing, alerts, and an agent that can see across surfaces.",
+        1.0,
+        5.3,
+        10.8,
+        0.38,
+        size=15,
+        color=INK_DARK,
+    )
+    add_footer(slide, 6)
+
+
+def slide_defi(prs):
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    decorate_dark(slide)
+    add_kicker(slide, "DEFI OS", 0.7, 0.72, fill=MINT)
+    add_title_block(
+        slide,
+        "For DeFi, Agent1c becomes the user's command center.",
+        "The future product is not one more DeFi app. It is the workspace where DeFi activity is monitored, understood, and executed.",
+        dark=True,
+    )
+    cards = [
+        ("Portfolio context", "Wallets, positions, watchlists, notes, and recent decisions stay in one environment."),
+        ("Research + action", "The browser, the agent, and the dapp surfaces live together instead of in separate tabs."),
+        ("Cross-dapp orchestration", "The system can help route the user across lending, LPs, staking, governance, and treasury flows."),
+        ("Persistent memory", "The OS remembers what the user was doing, what changed, and what requires attention."),
+    ]
+    positions = [(0.7, 2.62), (6.8, 2.62), (0.7, 4.52), (6.8, 4.52)]
+    for (title, body), (x, y) in zip(cards, positions):
+        add_card(slide, x, y, 5.8, 1.46, title, body, fill=PANEL_DARK, title_color=MINT if x < 1 else SKY, body_color=rgb("C8D3E2"))
+    add_footer(slide, 7, dark=True)
+
+
+def slide_depin(prs):
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    decorate_light(slide, alt=True)
+    add_kicker(slide, "DEPIN OS", 0.7, 0.62, fill=MINT)
+    add_title_block(
+        slide,
+        "For DePIN, Agent1c becomes an operations layer.",
+        "DePIN is especially suited to an OS framing because the user is managing networks, hardware, rewards, and status over time.",
+    )
+    add_bullets(
+        slide,
+        [
+            "Track device fleets, rewards, uptime, and role-specific dashboards from one cloud workspace.",
+            "Use the agent to summarize what changed, what is underperforming, and where attention is needed.",
+            "Treat DePIN management as ongoing operations work instead of occasional visits to siloed dashboards.",
+            "Let the OS become the home surface for the long tail of ecosystem-specific tools.",
+        ],
+        0.7,
+        2.6,
+        5.45,
+        2.8,
+        size=17,
+    )
+    add_rect(slide, 6.65, 1.65, 5.35, 4.95, PANEL_LIGHT, line=rgb("DCE6E8"), radius=True)
+    add_card(slide, 7.0, 2.02, 4.65, 0.96, "What changes", "The user stops thinking in terms of \"which tab do I need?\" and starts thinking in terms of \"what does my network need?\"", fill=PANEL_SOFT)
+    add_card(slide, 7.0, 3.22, 4.65, 0.96, "Why cloud matters", "DePIN operators need access anywhere, from any browser, without requiring the same local machine every time.", fill=PANEL_SOFT)
+    add_card(slide, 7.0, 4.42, 4.65, 0.96, "Why agentic matters", "A DePIN OS should not just display state. It should help interpret and route the operator's attention.", fill=PANEL_SOFT)
+    add_footer(slide, 8)
+
+
+def slide_cloud(prs):
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    decorate_dark(slide)
+    add_kicker(slide, "CLOUD ANYWHERE", 0.7, 0.72, fill=GOLD)
+    add_title_block(
+        slide,
+        "The OS has to be accessible from anywhere.",
+        "Cloud access is not a convenience detail. It is part of the category definition.",
+        dark=True,
+    )
+    add_bullets(
+        slide,
+        [
+            "Users should be able to open their onchain workspace from any browser, on any machine.",
+            "The workspace should travel with the user, not be trapped on one laptop and one wallet extension session.",
+            "Cloud access is what turns Agent1c into a landing page for the ecosystem instead of a niche local tool.",
+        ],
+        0.7,
+        2.72,
+        5.7,
+        2.2,
+        size=17,
+        color=rgb("C8D3E2"),
+    )
+    add_card(slide, 7.05, 2.2, 4.8, 1.02, "Anywhere access", "Open the OS where you are, not where your workstation happens to be.", fill=PANEL_DARK, title_color=MINT, body_color=rgb("C8D3E2"))
+    add_card(slide, 7.05, 3.48, 4.8, 1.02, "Ecosystem entry point", "Dapps become reachable through one familiar home surface instead of hundreds of bookmarks.", fill=PANEL_DARK, title_color=SKY, body_color=rgb("C8D3E2"))
+    add_card(slide, 7.05, 4.76, 4.8, 1.02, "Agent continuity", "The assistant retains context because the workspace itself is persistent.", fill=PANEL_DARK, title_color=GOLD, body_color=rgb("C8D3E2"))
+    add_footer(slide, 9, dark=True)
+
+
+def slide_ecosystem(prs):
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    decorate_light(slide)
+    add_kicker(slide, "ECOSYSTEM LANDING PAGE", 0.7, 0.62, w=3.25, fill=CORAL, text_color=INK_LIGHT)
+    add_title_block(
+        slide,
+        "Today's app launcher becomes tomorrow's Solana dapp launcher.",
+        "That is the bridge from the current product surface to the future category.",
+    )
+    add_card(slide, 0.7, 2.55, 3.45, 2.15, "Current repo surface", "The product already has a desktop shell, an app launcher, browser windows, notes, and multiple app entries in `apps.json`.", fill=PANEL_LIGHT)
+    add_card(slide, 4.5, 2.55, 3.45, 2.15, "Future reinterpretation", "Those app slots become curated Solana ecosystem entry points: DeFi, DePIN, infra, research, communities, and more.", fill=PANEL_LIGHT)
+    add_card(slide, 8.3, 2.55, 3.45, 2.15, "Platform effect", "Users enter through Agent1c first, then flow into the ecosystem through a workspace that keeps context.", fill=PANEL_LIGHT)
+    add_rect(slide, 0.7, 5.15, 11.0, 0.85, INK_DARK, radius=True)
+    add_text(
+        slide,
+        "This is why placeholder and self-made apps matter strategically: they prove the shell pattern that future Solana dapps can occupy.",
+        1.0,
+        5.42,
+        10.45,
+        0.24,
+        size=15,
+        color=INK_LIGHT,
+        bold=True,
+        align=PP_ALIGN.CENTER,
+    )
+    add_footer(slide, 10)
 
 
 def slide_solana(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     decorate_dark(slide)
-    add_kicker(slide, "WHY SOLANA FITS", 0.7, 0.72, fill=GOLD)
-    add_text(slide, "Solana is not a bolt-on feature here.\nIt is the identity wedge.", 0.7, 1.1, 6.5, 1.15, size=28, color=INK_LIGHT, bold=True, font=TITLE_FONT)
-    add_bullets(
-        slide,
-        [
-            "The auth UI already includes `Continue with Solana` and uses Supabase `signInWithWeb3({ chain: \"solana\" })`.",
-            "The runtime extracts the canonical wallet address from auth identity metadata instead of scraping labels.",
-            "Hitomi can refresh balance and recent transactions through explicit read-only tools and answer in plain English.",
-            "Longer term, the wallet becomes a clean anchor for encrypted continuity across devices and sessions.",
-        ],
-        0.7,
-        2.65,
-        5.85,
-        3.0,
-        size=16,
-        color=rgb("D0DBE8"),
-    )
-    add_card(slide, 7.1, 1.65, 4.65, 1.05, "1. Sign in", "Phantom / Backpack / Brave / compatible Solana wallet establishes authenticated session.", fill=PANEL_DARK, title_color=MINT, body_color=rgb("C8D3E2"))
-    add_card(slide, 7.1, 2.95, 4.65, 1.05, "2. Inspect", "Wallet state is cached in runtime and refreshed from Solana RPC with endpoint fallbacks.", fill=PANEL_DARK, title_color=SKY, body_color=rgb("C8D3E2"))
-    add_card(slide, 7.1, 4.25, 4.65, 1.05, "3. Explain", "Hitomi answers questions like \"what's my balance?\" or \"what hit my wallet recently?\" safely and read-only.", fill=PANEL_DARK, title_color=GOLD, body_color=rgb("C8D3E2"))
-    add_footer(slide, 5, dark=True)
-
-
-def slide_walkthrough(prs):
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
-    decorate_light(slide)
-    add_kicker(slide, "PRODUCT FLOW", 0.7, 0.62, fill=CORAL, text_color=INK_LIGHT)
+    add_kicker(slide, "WHY SOLANA", 0.7, 0.72, fill=MINT)
     add_title_block(
         slide,
-        "What a judge or user experiences in the product",
-        "The story is simple enough for a pitch demo, but it sits on top of real runtime plumbing already in the repo.",
+        "Solana is the right ecosystem for an operating-system thesis.",
+        "The network already has the density, speed, and user behavior that make a unified onchain workspace compelling.",
+        dark=True,
     )
-    add_number_card(slide, 1, "Connect wallet", "Use Solana sign-in from the auth window and land in an authenticated cloud workspace.", 0.7, 2.45, 2.8, 1.55, fill=INK_DARK, accent=MINT)
-    add_number_card(slide, 2, "Open the desktop", "Hitomi, notes, docs, credits, browser, and other panels all exist in the same visible workspace.", 3.62, 2.45, 2.8, 1.55, fill=INK_DARK, accent=SKY)
-    add_number_card(slide, 3, "Ask naturally", "Questions like \"what's my balance?\" or \"show recent transactions\" stay in plain English.", 6.54, 2.45, 2.8, 1.55, fill=INK_DARK, accent=CORAL)
-    add_number_card(slide, 4, "Get live context", "Hitomi calls the wallet overview or refresh tool, then answers from current wallet state.", 9.46, 2.45, 2.8, 1.55, fill=INK_DARK, accent=GOLD)
-    add_rect(slide, 0.7, 4.55, 11.55, 1.35, PANEL_LIGHT, line=rgb("E3DACE"), radius=True)
+    cards = [
+        ("Composability", "An OS layer matters most where users naturally move between many protocols and surfaces."),
+        ("Real-time usage", "Fast networks create more reasons to stay in an always-on workspace instead of a one-off web page."),
+        ("Wallet-native culture", "Solana users already understand wallet-driven identity, which makes the OS login model legible."),
+        ("DeFi + DePIN breadth", "Few ecosystems make the DeFi + DePIN combined category vision feel this native."),
+    ]
+    positions = [(0.7, 2.6), (6.8, 2.6), (0.7, 4.48), (6.8, 4.48)]
+    for idx, ((title, body), (x, y)) in enumerate(zip(cards, positions)):
+        accent = [MINT, SKY, CORAL, GOLD][idx]
+        add_card(slide, x, y, 5.8, 1.42, title, body, fill=PANEL_DARK, title_color=accent, body_color=rgb("C8D3E2"))
+    add_footer(slide, 11, dark=True)
+
+
+def slide_rollout(prs):
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    decorate_light(slide, alt=True)
+    add_kicker(slide, "BUILD PATH", 0.7, 0.62, fill=MINT)
+    add_title_block(
+        slide,
+        "The path to the full vision is already visible.",
+        "The category pitch is future-facing, but the build path can be explained step by step.",
+    )
+    add_number_card(slide, 1, "Today", "Cloud desktop shell, app launcher, browser, Solana sign-in, and read-only wallet context exist as the starting wedge.", 0.7, 2.58, 2.85, 1.7, fill=INK_DARK, accent=MINT)
+    add_number_card(slide, 2, "Next", "Turn launcher surfaces into ecosystem-native dapp entry points and deepen Solana-specific context.", 3.67, 2.58, 2.85, 1.7, fill=INK_DARK, accent=SKY)
+    add_number_card(slide, 3, "Then", "Let Hitomi coordinate richer cross-app DeFi and DePIN workflows across the workspace.", 6.64, 2.58, 2.85, 1.7, fill=INK_DARK, accent=CORAL)
+    add_number_card(slide, 4, "Later", "Agent1c becomes the default browser home for serious onchain users and teams.", 9.61, 2.58, 2.85, 1.7, fill=INK_DARK, accent=GOLD)
+    add_rect(slide, 0.7, 4.85, 11.65, 1.1, PANEL_LIGHT, line=rgb("DCE6E8"), radius=True)
+    add_text(slide, "Important", 1.0, 5.12, 1.2, 0.22, size=14, color=CORAL, bold=True)
     add_text(
         slide,
-        "Important detail: the Solana scope is intentionally read-only today.",
+        "The wedge does not need to be the full OS on day one. It only needs to make the OS feel inevitable.",
         1.0,
-        4.82,
-        4.8,
-        0.26,
+        5.48,
+        10.9,
+        0.24,
         size=15,
         color=INK_DARK,
         bold=True,
     )
-    add_text(
-        slide,
-        "That makes the demo safer, easier to trust, and easier to explain: Agent1c understands the wallet before it ever asks the user to approve anything.",
-        1.0,
-        5.18,
-        10.7,
-        0.42,
-        size=14,
-        color=INK_MUTED,
-    )
-    add_footer(slide, 6)
+    add_footer(slide, 12)
 
 
-def slide_shipped(prs):
+def slide_platform(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     decorate_dark(slide)
-    add_kicker(slide, "PROOF IT EXISTS", 0.7, 0.72, fill=MINT)
-    add_text(slide, "This is already in the repo and in `origin/master`.", 0.7, 1.08, 6.8, 0.72, size=28, color=INK_LIGHT, bold=True, font=TITLE_FONT)
-    add_text(slide, "We are not asking the judges to fund a mockup. The core Solana path is already wired.", 0.7, 1.88, 6.2, 0.4, size=14, color=rgb("C7D3E2"))
-    cards = [
-        ("`js/agent1cauth.js`", "Wallet detection plus Supabase `signInWithWeb3` for Solana login."),
-        ("`js/solana-wallet.js`", "Live RPC balance reads, recent signatures, and parsed transaction summaries."),
-        ("`js/agent1c.js`", "Canonical wallet state bucket plus post-auth refresh orchestration."),
-        ("`js/agent1c-tools-runtime.js`", "`solana_wallet_overview` and `solana_wallet_refresh` for Hitomi."),
-        ("`js/agent1c-instance-profiles.js`", "Shipped runtime instructions that keep wallet behavior safe and read-only."),
-    ]
-    positions = [(0.7, 2.6), (6.6, 2.6), (0.7, 4.15), (6.6, 4.15), (3.65, 5.7)]
-    widths = [5.2, 5.2, 5.2, 5.2, 5.95]
-    for (title, body), (x, y), width in zip(cards, positions, widths):
-        add_card(slide, x, y, width, 1.18, title, body, fill=PANEL_DARK, title_color=MINT, body_color=rgb("C8D3E2"))
-    add_footer(slide, 7, dark=True)
-
-
-def slide_moat(prs):
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
-    decorate_light(slide, alt=True)
-    add_kicker(slide, "WHY IT WINS", 0.7, 0.62, fill=MINT)
+    add_kicker(slide, "PLATFORM THESIS", 0.7, 0.72, fill=GOLD)
     add_title_block(
         slide,
-        "Agent1c is not another chatbot and not another wallet dashboard.",
-        "The product edge comes from combining workspace-native AI, user-visible tools, and wallet-native context in one surface.",
+        "If Agent1c wins, it becomes more than an app.",
+        "It becomes distribution, workspace, context layer, and agentic shell for the Solana ecosystem.",
+        dark=True,
     )
-    moat_cards = [
-        ("Workspace-native", "The agent lives inside a desktop shell with windows, notes, files, browser, and panel state."),
-        ("Wallet-aware", "Identity and wallet context can enter the workspace through authenticated Solana login."),
-        ("Tool-using", "Hitomi does not have to guess. She can call explicit wallet tools and other runtime tools."),
-        ("Privacy-flexible", "Cloud first on `.ai`, with relay and Tor surfaces already present for privacy upgrades."),
-        ("Safe by default", "Current chain scope is read-only, which keeps claims and trust boundaries crisp."),
-    ]
-    y = 2.5
-    for idx, (title, body) in enumerate(moat_cards):
-        add_card(slide, 0.7 + (idx % 2) * 6.1, y + (idx // 2) * 1.35, 5.45, 1.08, title, body, fill=PANEL_LIGHT)
-    add_rect(slide, 0.7, 6.28, 11.7, 0.52, INK_DARK, radius=True)
-    add_text(
-        slide,
-        "The wedge is simple: turn wallet identity into working context for an always-available AI teammate.",
-        0.95,
-        6.42,
-        11.2,
-        0.2,
-        size=14,
-        color=INK_LIGHT,
-        align=PP_ALIGN.CENTER,
-        bold=True,
-    )
-    add_footer(slide, 8)
-
-
-def slide_architecture(prs):
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
-    decorate_dark(slide)
-    add_kicker(slide, "ARCHITECTURE", 0.7, 0.72, fill=GOLD)
-    add_text(slide, "A simple product story on top of a modular runtime.", 0.7, 1.08, 6.8, 0.7, size=28, color=INK_LIGHT, bold=True, font=TITLE_FONT)
-    add_card(slide, 0.7, 2.1, 3.2, 1.55, "Frontend shell", "Static GitHub Pages app, HedgeyOS desktop shell, no npm build step for the core web app.", fill=PANEL_DARK, title_color=MINT, body_color=rgb("C8D3E2"))
-    add_card(slide, 4.2, 2.1, 4.0, 1.55, "Agent runtime", "`js/agent1c.js` plus tool/runtime modules manage Hitomi, threads, docs, events, and wallet state.", fill=PANEL_DARK, title_color=SKY, body_color=rgb("C8D3E2"))
-    add_card(slide, 8.55, 2.1, 3.95, 1.55, "Cloud services", "Supabase Auth + Edge Function `xai-chat` provide authentication and managed model access.", fill=PANEL_DARK, title_color=GOLD, body_color=rgb("C8D3E2"))
-    add_text(slide, "↓", 2.15, 3.8, 0.3, 0.2, size=20, color=MINT, align=PP_ALIGN.CENTER, bold=True)
-    add_text(slide, "↓", 6.0, 3.8, 0.3, 0.2, size=20, color=SKY, align=PP_ALIGN.CENTER, bold=True)
-    add_text(slide, "↓", 10.35, 3.8, 0.3, 0.2, size=20, color=GOLD, align=PP_ALIGN.CENTER, bold=True)
-    add_card(slide, 0.95, 4.3, 3.3, 1.45, "Solana RPC read layer", "`js/solana-wallet.js` calls `getBalance`, `getSignaturesForAddress`, and `getTransaction` with RPC fallbacks.", fill=PANEL_DARK, title_color=MINT, body_color=rgb("C8D3E2"))
-    add_card(slide, 4.55, 4.3, 3.3, 1.45, "Prompt + tools contract", "Shipped `SOUL`, `TOOLS`, and heartbeat templates tell Hitomi how to handle wallet state safely.", fill=PANEL_DARK, title_color=SKY, body_color=rgb("C8D3E2"))
-    add_card(slide, 8.15, 4.3, 3.3, 1.45, "Relay surfaces", "Shell relay, Tor relay, and proxy browsing broaden what the desktop can do beyond wallet reads.", fill=PANEL_DARK, title_color=GOLD, body_color=rgb("C8D3E2"))
-    add_footer(slide, 9, dark=True)
-
-
-def slide_trust(prs):
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
-    decorate_light(slide)
-    add_kicker(slide, "TRUST MODEL", 0.7, 0.62, fill=CORAL, text_color=INK_LIGHT)
-    add_title_block(
-        slide,
-        "What the Solana feature does, and what it very intentionally does not do.",
-        "This slide matters because trust boundaries are part of the product, not just part of compliance.",
-    )
-    add_card(slide, 0.7, 2.4, 5.65, 3.5, "Does today", "", fill=PANEL_LIGHT)
     add_bullets(
         slide,
         [
-            "Uses the authenticated wallet address as the canonical source of wallet identity.",
-            "Fetches SOL balance and recent transactions through explicit read-only tool calls.",
-            "Lets Hitomi answer wallet questions from refreshed runtime state instead of guessing.",
-            "Keeps user-visible workspace surfaces in front of the user while the agent works.",
+            "Users start from Agent1c instead of starting from a bookmark folder.",
+            "Protocols gain a richer home surface inside a context-preserving workspace.",
+            "The OS becomes the place where ecosystem discovery, operations, and execution all converge.",
+            "That gives Agent1c a chance to become the persistent front door to Solana.",
         ],
-        1.0,
-        2.95,
-        5.05,
-        2.6,
-        size=15,
+        0.7,
+        2.75,
+        5.85,
+        2.75,
+        size=17,
+        color=rgb("C8D3E2"),
     )
-    add_card(slide, 6.95, 2.4, 5.35, 3.5, "Does not do today", "", fill=PANEL_LIGHT)
-    add_bullets(
-        slide,
-        [
-            "No signing, sending, approving, swapping, or custody claims.",
-            "No label scraping as primary production logic for wallet identity.",
-            "No aggressive background polling loop pretending to keep wallet state magically fresh.",
-            "No claim that Agent1c controls private keys or can move funds.",
-        ],
-        7.25,
-        2.95,
-        4.7,
-        2.6,
-        size=15,
-    )
-    add_footer(slide, 10)
-
-
-def slide_roadmap(prs):
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
-    decorate_dark(slide)
-    add_kicker(slide, "ROADMAP", 0.7, 0.72, fill=MINT)
-    add_text(slide, "The wedge is read-only wallet understanding.\nThe platform ambition is much bigger.", 0.7, 1.08, 7.0, 1.0, size=28, color=INK_LIGHT, bold=True, font=TITLE_FONT)
-    phases = [
-        ("Now", "Shipped", "Solana login, wallet identity extraction, balance + recent transaction answers."),
-        ("Next", "Hackathon polish", "Tighter demo flow, better wallet summary surfaces, richer narrative for judges."),
-        ("Then", "Product expansion", "SPL token views, deeper transaction explanations, wallet summary window."),
-        ("Later", "Platform payoff", "Wallet-anchored encrypted sync and carefully approved action-taking surfaces."),
-    ]
-    for idx, (when, title, body) in enumerate(phases):
-        x = 0.7 + idx * 3.1
-        accent = [MINT, SKY, CORAL, GOLD][idx]
-        add_rect(slide, x, 2.65, 2.75, 2.65, PANEL_DARK, radius=True)
-        add_rect(slide, x, 2.65, 2.75, 0.16, accent)
-        add_text(slide, when, x + 0.18, 2.95, 1.0, 0.24, size=12, color=accent, bold=True)
-        add_text(slide, title, x + 0.18, 3.28, 2.35, 0.34, size=15, color=INK_LIGHT, bold=True)
-        add_text(slide, body, x + 0.18, 3.78, 2.35, 1.2, size=12, color=rgb("C8D3E2"))
-    add_footer(slide, 11, dark=True)
+    add_card(slide, 7.05, 2.25, 4.85, 1.05, "User value", "Less fragmentation. More continuity. Better operating leverage.", fill=PANEL_DARK, title_color=MINT, body_color=rgb("C8D3E2"))
+    add_card(slide, 7.05, 3.55, 4.85, 1.05, "Protocol value", "A richer, agent-friendly environment than a standalone browser tab.", fill=PANEL_DARK, title_color=SKY, body_color=rgb("C8D3E2"))
+    add_card(slide, 7.05, 4.85, 4.85, 1.05, "Category value", "A real answer to the question: what does an onchain operating system actually look like?", fill=PANEL_DARK, title_color=GOLD, body_color=rgb("C8D3E2"))
+    add_footer(slide, 13, dark=True)
 
 
 def slide_close(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-    decorate_light(slide, alt=True)
-    add_kicker(slide, "CLOSING", 0.7, 0.62, fill=MINT)
-    add_text(slide, "Wallets should anchor AI workspaces,\nnot just transactions.", 0.7, 1.12, 6.7, 1.2, size=30, color=INK_DARK, bold=True, font=TITLE_FONT)
+    decorate_light(slide)
+    add_kicker(slide, "CLOSING", 0.7, 0.62, fill=CORAL, text_color=INK_LIGHT)
+    add_text(
+        slide,
+        "The future of onchain UX is not\nmore tabs.\nIt is an operating system.",
+        0.7,
+        1.05,
+        6.7,
+        1.7,
+        size=30,
+        color=INK_DARK,
+        bold=True,
+        font=TITLE_FONT,
+    )
     add_bullets(
         slide,
         [
-            "Agent1c makes Solana identity useful inside a living browser workspace.",
-            "The repo already proves the core wallet-aware experience is real, not hypothetical.",
-            "This hackathon is the right stage to turn that wedge into a memorable product demo.",
+            "Agent1c.ai is that OS thesis for Solana.",
+            "DeFi and DePIN are where the need is sharpest.",
+            "The agentic layer is what makes the OS worth opening every day.",
         ],
         0.7,
-        2.85,
-        5.7,
-        2.2,
+        3.15,
+        5.8,
+        1.9,
         size=18,
     )
-    add_rect(slide, 7.2, 1.4, 4.6, 4.8, PANEL_LIGHT, line=rgb("DDE5E8"), radius=True)
-    add_text(slide, "Agent1c.ai", 7.7, 1.95, 3.6, 0.45, size=24, color=INK_DARK, bold=True, font=TITLE_FONT, align=PP_ALIGN.CENTER)
-    add_text(slide, "Hosted agentic desktop OS", 7.7, 2.45, 3.6, 0.25, size=14, color=INK_MUTED, align=PP_ALIGN.CENTER)
-    add_rect(slide, 8.1, 3.0, 2.8, 0.55, INK_DARK, radius=True)
-    add_text(slide, "Solana login + live wallet context", 8.22, 3.18, 2.56, 0.2, size=12, color=INK_LIGHT, align=PP_ALIGN.CENTER)
-    add_rect(slide, 8.1, 3.75, 2.8, 0.55, INK_DARK, radius=True)
-    add_text(slide, "Hitomi answers from tools, not guesses", 8.22, 3.93, 2.56, 0.2, size=12, color=INK_LIGHT, align=PP_ALIGN.CENTER)
-    add_rect(slide, 8.1, 4.5, 2.8, 0.55, INK_DARK, radius=True)
-    add_text(slide, "Built for a bigger workspace future", 8.22, 4.68, 2.56, 0.2, size=12, color=INK_LIGHT, align=PP_ALIGN.CENTER)
+    add_rect(slide, 7.25, 1.42, 4.7, 4.8, PANEL_LIGHT, line=rgb("DCE6E8"), radius=True)
+    add_text(slide, "Agent1c.ai", 7.82, 1.95, 3.6, 0.4, size=24, color=INK_DARK, bold=True, font=TITLE_FONT, align=PP_ALIGN.CENTER)
+    add_text(slide, "The Solana DeFi + DePIN OS", 7.72, 2.42, 3.8, 0.25, size=14, color=INK_MUTED, align=PP_ALIGN.CENTER)
+    for idx, label in enumerate(["Cloud-accessible", "Wallet-native", "Agentic by design"]):
+        y = 3.02 + idx * 0.72
+        add_rect(slide, 8.23, y, 2.76, 0.5, INK_DARK, radius=True)
+        add_text(slide, label, 8.34, y + 0.16, 2.54, 0.18, size=12, color=INK_LIGHT, align=PP_ALIGN.CENTER)
     if HEDGEHOG_IMAGE.exists():
-        slide.shapes.add_picture(str(HEDGEHOG_IMAGE), Inches(9.0), Inches(5.15), width=Inches(1.1))
-    add_footer(slide, 12)
+        slide.shapes.add_picture(str(HEDGEHOG_IMAGE), Inches(9.02), Inches(5.18), width=Inches(1.1))
+    add_footer(slide, 14)
 
 
-def slide_appendix_stack(prs):
+def slide_appendix_current(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     decorate_dark(slide)
     add_kicker(slide, "APPENDIX", 0.7, 0.72, fill=SKY, text_color=BG_DARK)
-    add_text(slide, "Technical stack snapshot", 0.7, 1.08, 5.4, 0.6, size=28, color=INK_LIGHT, bold=True, font=TITLE_FONT)
-    stack_cards = [
-        ("Frontend", "Static GitHub Pages app\nVanilla JS modules\nHedgeyOS desktop shell\nNo build step for core app"),
-        ("Core runtime", "`js/main.js`\n`js/wm.js`\n`js/agent1c.js`\n`js/agent1cauth.js`\n`js/agent1c-tools-runtime.js`"),
-        ("Cloud layer", "Supabase project `gkfhxhrleuauhnuewfmw`\nSupabase Auth\nEdge Function `xai-chat`\nManaged usage/quota path"),
-        ("Solana read layer", "`js/solana-wallet.js`\nRPC fallbacks\nBalance + signatures + tx parsing\nRead-only by design"),
-    ]
-    positions = [(0.7, 2.2), (3.95, 2.2), (7.2, 2.2), (10.45, 2.2)]
-    for (title, body), (x, y) in zip(stack_cards, positions):
-        add_card(slide, x, y, 2.55, 3.05, title, body, fill=PANEL_DARK, title_color=MINT, body_color=rgb("C8D3E2"))
-    add_footer(slide, 13, appendix=True, dark=True)
-
-
-def slide_appendix_auth(prs):
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
-    decorate_light(slide)
-    add_kicker(slide, "APPENDIX", 0.7, 0.62, fill=SKY)
     add_title_block(
         slide,
-        "Solana auth pipeline",
-        "This is the exact shape the repo describes and implements today.",
+        "What already exists in the repo today",
+        "The vision is future-state, but it is being built on real product surfaces that already exist.",
+        dark=True,
     )
-    nodes = [
-        ("Wallet provider", "Phantom / Backpack / Brave / compatible wallet"),
-        ("`detectSolanaWallet()`", "Auth UI finds a connected provider in the browser"),
-        ("Supabase `signInWithWeb3`", "Authenticated cloud session established with `chain: \"solana\"`"),
-        ("Identity parser", "Wallet address normalized from identity metadata and custom claims"),
-        ("Runtime state", "`applyCloudIdentityToWalletState()` stores canonical wallet context"),
+    cards = [
+        ("Desktop shell", "Static web desktop, window manager, browser, notes, launcher, and cloud runtime."),
+        ("Cloud path", "Hosted `.ai` flow with cloud auth and managed AI runtime."),
+        ("App launcher", "`apps.json` already defines launcher surfaces that can evolve into dapp surfaces."),
+        ("Solana wedge", "Solana sign-in, wallet identity parsing, and read-only wallet tools are already implemented."),
     ]
-    x_positions = [0.7, 3.05, 5.4, 7.9, 10.35]
-    for idx, ((title, body), x) in enumerate(zip(nodes, x_positions)):
-        fill = [PANEL_SOFT, PANEL_LIGHT, PANEL_SOFT, PANEL_LIGHT, PANEL_SOFT][idx]
-        add_card(slide, x, 2.95, 2.1, 2.0, title, body, fill=fill)
-        if idx < len(nodes) - 1:
-            add_text(slide, "→", x + 2.12, 3.7, 0.18, 0.2, size=20, color=CORAL, bold=True, align=PP_ALIGN.CENTER)
-    add_footer(slide, 14, appendix=True)
-
-
-def slide_appendix_wallet(prs):
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
-    decorate_dark(slide)
-    add_kicker(slide, "APPENDIX", 0.7, 0.72, fill=SKY, text_color=BG_DARK)
-    add_text(slide, "How a wallet question becomes an answer", 0.7, 1.08, 7.2, 0.65, size=28, color=INK_LIGHT, bold=True, font=TITLE_FONT)
-    steps = [
-        ("1. User asks", "Example: \"What's in my wallet?\""),
-        ("2. Prompt context", "Wallet address is inserted into runtime context if authenticated"),
-        ("3. Tool call", "`solana_wallet_overview` or `solana_wallet_refresh`"),
-        ("4. Runtime refresh", "`refreshConnectedWalletState()` updates wallet cache"),
-        ("5. RPC reads", "`getBalance`, `getSignaturesForAddress`, `getTransaction`"),
-        ("6. Plain-English answer", "Hitomi responds from tool output, not from guessing"),
-    ]
-    y = 2.15
-    for idx, (title, body) in enumerate(steps):
-        x = 0.7 + (idx % 3) * 4.1
-        row = idx // 3
-        add_card(slide, x, y + row * 1.75, 3.55, 1.25, title, body, fill=PANEL_DARK, title_color=GOLD if row == 0 else MINT, body_color=rgb("C8D3E2"))
+    positions = [(0.7, 2.42), (3.95, 2.42), (7.2, 2.42), (10.45, 2.42)]
+    for (title, body), (x, y) in zip(cards, positions):
+        add_card(slide, x, y, 2.55, 3.05, title, body, fill=PANEL_DARK, title_color=MINT, body_color=rgb("C8D3E2"))
     add_footer(slide, 15, appendix=True, dark=True)
 
 
-def slide_appendix_breadth(prs):
+def slide_appendix_arch(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     decorate_light(slide, alt=True)
     add_kicker(slide, "APPENDIX", 0.7, 0.62, fill=SKY)
     add_title_block(
         slide,
-        "The Solana wedge sits inside a broader platform",
-        "These adjacent surfaces matter because they show Agent1c is a workspace product, not a one-feature wallet demo.",
+        "Future system architecture at a glance",
+        "A simple way to explain how the end-state product hangs together.",
     )
-    cards = [
-        ("Browser + relay", "The repo already includes shell relay, Tor relay, and proxy browsing surfaces."),
-        ("Telegram cloud relay", "Agent1c can bridge Telegram into the runtime while keeping tab-online constraints explicit."),
-        ("Editable runtime docs", "`SOUL.md`, `TOOLS.md`, and heartbeat are first-class windows that shape behavior."),
-        ("Managed cloud quotas", "Per-user usage is enforced in Supabase, not by trusting provider-global usage."),
-    ]
-    positions = [(0.7, 2.55), (6.65, 2.55), (0.7, 4.2), (6.65, 4.2)]
-    for (title, body), (x, y) in zip(cards, positions):
-        add_card(slide, x, y, 5.0, 1.28, title, body, fill=PANEL_LIGHT)
+    add_card(slide, 0.7, 2.7, 2.7, 2.1, "Wallet identity", "The wallet anchors the user's onchain identity, continuity, and permissions.", fill=PANEL_LIGHT)
+    add_card(slide, 3.65, 2.7, 2.7, 2.1, "Agentic desktop", "One cloud workspace with windows, memory, browser, notes, and launcher surfaces.", fill=PANEL_LIGHT)
+    add_card(slide, 6.6, 2.7, 2.7, 2.1, "Dapp surfaces", "The launcher opens ecosystem-native DeFi and DePIN app experiences inside the OS.", fill=PANEL_LIGHT)
+    add_card(slide, 9.55, 2.7, 2.7, 2.1, "Agent orchestration", "Hitomi reasons across the workspace and helps users navigate multi-app tasks.", fill=PANEL_LIGHT)
+    add_text(slide, "→", 3.4, 3.55, 0.18, 0.2, size=20, color=CORAL, bold=True, align=PP_ALIGN.CENTER)
+    add_text(slide, "→", 6.35, 3.55, 0.18, 0.2, size=20, color=CORAL, bold=True, align=PP_ALIGN.CENTER)
+    add_text(slide, "→", 9.3, 3.55, 0.18, 0.2, size=20, color=CORAL, bold=True, align=PP_ALIGN.CENTER)
+    add_rect(slide, 0.7, 5.45, 11.55, 0.78, INK_DARK, radius=True)
+    add_text(
+        slide,
+        "That is the category claim in one line: a wallet-native cloud desktop that becomes the operating system for the Solana ecosystem.",
+        1.0,
+        5.7,
+        10.95,
+        0.22,
+        size=14,
+        color=INK_LIGHT,
+        bold=True,
+        align=PP_ALIGN.CENTER,
+    )
     add_footer(slide, 16, appendix=True)
 
 
@@ -660,15 +677,19 @@ def slide_appendix_placeholders(prs):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     decorate_dark(slide)
     add_kicker(slide, "APPENDIX", 0.7, 0.72, fill=SKY, text_color=BG_DARK)
-    add_text(slide, "Reserved blocks to fill before finals", 0.7, 1.08, 6.8, 0.62, size=28, color=INK_LIGHT, bold=True, font=TITLE_FONT)
-    add_text(slide, "These are intentionally structured into the deck now so we can add external research later without redesigning the narrative.", 0.7, 1.82, 7.2, 0.4, size=14, color=rgb("C7D3E2"))
+    add_title_block(
+        slide,
+        "Reserved research blocks for the final hackathon version",
+        "These are intentionally structured now so we can layer in external validation without rewriting the whole narrative.",
+        dark=True,
+    )
     placeholders = [
-        ("Market size", "TAM / SAM / SOM or the specific market lens we want to use."),
-        ("ICP + wedge", "Which user segment we pitch first: power users, traders, teams, or creators."),
-        ("Traction + proof", "Usage stats, qualitative demos, retention, waitlist, or judge-relevant proof points."),
-        ("Competition", "How we position Agent1c against copilots, wallet dashboards, and browser assistants."),
+        ("Market sizing", "TAM / SAM / SOM or whichever ecosystem framing we want judges to see."),
+        ("Competitive map", "Wallets, dashboards, agent products, browser extensions, and adjacent OS-like tools."),
+        ("Traction proof", "Metrics, demos, user quotes, ecosystem partner interest, or usage evidence."),
+        ("Go-to-market", "Who adopts first: DeFi power users, DePIN operators, onchain teams, or ecosystem-native creators."),
     ]
-    positions = [(0.7, 2.65), (6.6, 2.65), (0.7, 4.45), (6.6, 4.45)]
+    positions = [(0.7, 2.55), (6.6, 2.55), (0.7, 4.38), (6.6, 4.38)]
     for (title, body), (x, y) in zip(placeholders, positions):
         add_card(slide, x, y, 5.1, 1.35, title, body, fill=PANEL_DARK, title_color=SKY, body_color=rgb("C8D3E2"))
     add_footer(slide, 17, appendix=True, dark=True)
@@ -680,20 +701,20 @@ def build_deck():
     prs.slide_height = Inches(7.5)
     slide_cover(prs)
     slide_problem(prs)
-    slide_need(prs)
-    slide_solution(prs)
+    slide_failure(prs)
+    slide_vision(prs)
+    slide_product(prs)
+    slide_agentic(prs)
+    slide_defi(prs)
+    slide_depin(prs)
+    slide_cloud(prs)
+    slide_ecosystem(prs)
     slide_solana(prs)
-    slide_walkthrough(prs)
-    slide_shipped(prs)
-    slide_moat(prs)
-    slide_architecture(prs)
-    slide_trust(prs)
-    slide_roadmap(prs)
+    slide_rollout(prs)
+    slide_platform(prs)
     slide_close(prs)
-    slide_appendix_stack(prs)
-    slide_appendix_auth(prs)
-    slide_appendix_wallet(prs)
-    slide_appendix_breadth(prs)
+    slide_appendix_current(prs)
+    slide_appendix_arch(prs)
     slide_appendix_placeholders(prs)
     prs.save(str(OUT_PATH))
 
