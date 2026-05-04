@@ -110,6 +110,7 @@ export function createAppsMenu({ savedAppsList, appsList, appsConfig }){
 
     const categories = [
       { key: "system", title: "System" },
+      { key: "solana", title: "Solana" },
       { key: "utilities", title: "Utilities" },
       { key: "games", title: "Games" },
     ];

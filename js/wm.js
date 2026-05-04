@@ -97,6 +97,8 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
             title: st.title || "",
             url: st.url || "",
             notesFileId: st.notesFileId || "",
+            glyph: st.glyph || "",
+            iconImage: st.iconImage || "",
           },
         });
       }
@@ -156,7 +158,11 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
         else if (spawn.type === "themes") id = createThemesWindow({ disableOpenFx: true });
         else if (spawn.type === "terminal") id = createTerminalWindow({ disableOpenFx: true });
         else if (spawn.type === "notes") id = createNotesWindow(spawn.notesFileId ? { fileId: spawn.notesFileId } : null, { disableOpenFx: true });
-        else if (spawn.type === "app" && spawn.url) id = createAppWindow(spawn.title || "App", spawn.url, { disableOpenFx: true });
+        else if (spawn.type === "app" && spawn.url) id = createAppWindow(spawn.title || "App", spawn.url, {
+          disableOpenFx: true,
+          glyph: spawn.glyph || "",
+          iconImage: spawn.iconImage || "",
+        });
         if (!id) continue;
         applyLayoutToWindow(id, rec);
       }
@@ -252,7 +258,12 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     const order = Array.from(state.entries())
       .sort((a,b) => a[1].createdAt - b[1].createdAt)
       .map(([id, st]) => {
-        metaById.set(id, { title: st.title, kind: st.kind });
+        metaById.set(id, {
+          title: st.title,
+          kind: st.kind,
+          glyph: st.glyph || "",
+          iconImage: st.iconImage || "",
+        });
         return id;
       });
 
@@ -1979,6 +1990,8 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
       url: extra?.url || "",
       notesFileId: extra?.notesOpts?.fileId ? String(extra.notesOpts.fileId) : "",
       panelId: extra?.panelId || "",
+      glyph: extra?.glyph || "",
+      iconImage: extra?.iconImage || "",
       createdAt: Date.now() + idSeq
     };
     state.set(id, st);
@@ -2035,7 +2048,15 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
   }
 
   function createAppWindow(title, url, runtimeOpts = {}){
-    return spawn(appTpl, title, { kind: "app", url, restoreType: "app", disableOpenFx: !!runtimeOpts.disableOpenFx });
+    const appMeta = findAppMetaForWindow(title, url);
+    return spawn(appTpl, title, {
+      kind: "app",
+      url,
+      restoreType: "app",
+      glyph: runtimeOpts.glyph || appMeta?.glyph || "",
+      iconImage: runtimeOpts.iconImage || appMeta?.iconImage || "",
+      disableOpenFx: !!runtimeOpts.disableOpenFx,
+    });
   }
 
   function createNotesWindow(notesOpts, runtimeOpts = {}){
@@ -2177,6 +2198,16 @@ export function createWindowManager({ desktop, iconLayer, templates, openWindows
     const exact = wins.find(w => String(w.title || "").trim().toLowerCase() === needle);
     if (exact) return exact;
     return wins.find(w => String(w.title || "").toLowerCase().includes(needle)) || null;
+  }
+
+  function findAppMetaForWindow(title, url){
+    const targetUrl = String(url || "").trim();
+    const targetTitle = String(title || "").trim().toLowerCase();
+    const entries = Object.entries(appsMap || {});
+    const byUrl = entries.find(([, app]) => targetUrl && String(app?.url || "").trim() === targetUrl);
+    if (byUrl) return byUrl[1];
+    const byTitle = entries.find(([, app]) => targetTitle && String(app?.title || "").trim().toLowerCase() === targetTitle);
+    return byTitle?.[1] || null;
   }
 
   function openAppById(appId){

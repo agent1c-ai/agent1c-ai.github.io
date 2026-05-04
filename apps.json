@@ -5,6 +5,13 @@
     { "id": "browser", "title": "Browser", "section": "system", "category": "top" },
     { "id": "notes", "title": "Notes", "section": "system", "category": "utilities" },
 
+    { "id": "magicEdenSolana", "title": "Magic Eden", "url": "https://magiceden.io/solana", "section": "apps", "category": "solana", "desktop": true, "desktopOrder": 120, "iconImage": "assets/app-icons/magic-eden.png" },
+    { "id": "saveFinance", "title": "Save Finance", "url": "https://save.finance/", "section": "apps", "category": "solana", "desktop": true, "desktopOrder": 121, "iconImage": "assets/app-icons/save-finance.png" },
+    { "id": "geckoTerminalSolana", "title": "GeckoTerminal", "url": "https://www.geckoterminal.com/solana/pools", "section": "apps", "category": "solana", "desktop": true, "desktopOrder": 122, "iconImage": "assets/app-icons/geckoterminal.png" },
+    { "id": "heliumGeek", "title": "HeliumGeek", "url": "https://app.heliumgeek.com/", "section": "apps", "category": "solana", "desktop": true, "desktopOrder": 123, "iconImage": "assets/app-icons/heliumgeek.png" },
+    { "id": "depinScan", "title": "DePINscan", "url": "https://depinscan.io/en/map-view", "section": "apps", "category": "solana", "desktop": true, "desktopOrder": 124, "iconImage": "assets/app-icons/depinscan.ico" },
+    { "id": "dialect", "title": "Dialect", "url": "https://www.dialect.to/", "section": "apps", "category": "solana", "desktop": true, "desktopOrder": 125, "iconImage": "assets/app-icons/dialect.png" },
+
     { "id": "flipsideClassic", "title": "Flipside classic", "url": "https://flipside.ink", "section": "apps", "category": "games" },
     { "id": "flipside3d", "title": "Flipside 3D", "url": "https://cubewalker.berrry.app", "section": "apps", "category": "games" },
     { "id": "unconnectedChat", "title": "Unconnected AI Chat", "url": "https://chat.unconnected.ai", "section": "apps", "category": "utilities" },

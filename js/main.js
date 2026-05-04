@@ -30,9 +30,29 @@ function toAppsMap(appsConfig){
   const map = {};
   for (const app of appsConfig.apps || []){
     if (!app || !app.id) continue;
-    map[app.id] = { title: app.title || app.id, url: app.url || "" };
+    map[app.id] = {
+      title: app.title || app.id,
+      url: app.url || "",
+      iconImage: app.iconImage || "",
+      glyph: app.glyph || "",
+      category: app.category || "",
+    };
   }
   return map;
+}
+
+function registerDesktopAppShortcuts(wm, appsConfig){
+  for (const app of appsConfig.apps || []){
+    if (!app?.desktop || !app.id || !app.url) continue;
+    wm.registerDesktopShortcut?.(`app:${app.id}`, {
+      title: app.title || app.id,
+      kind: "app",
+      glyph: app.glyph || "",
+      iconImage: app.iconImage || "",
+      order: Number.isFinite(Number(app.desktopOrder)) ? Number(app.desktopOrder) : 500,
+      onClick: () => wm.openAppById?.(app.id),
+    });
+  }
 }
 
 async function boot(){
@@ -70,6 +90,8 @@ async function boot(){
     appsMap,
     theme: { applyTheme, getTheme, applyWallpaper, getWallpaperName, clearWallpaper },
   });
+
+  registerDesktopAppShortcuts(wm, appsConfig);
 
   const hud = createHud({
     video: document.getElementById("hudFeed"),
