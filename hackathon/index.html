@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent1c.ai | Colosseum Solana Hackathon</title>
+  <meta name="description" content="Agent1c.ai is a web-based Solana OS with dapp panels, read-only wallet context, and Hitomi, an AI agent inside the workspace.">
+  <link rel="canonical" href="https://agent1c.ai/hackathon/">
+  <meta property="og:title" content="Agent1c.ai | Colosseum Solana Hackathon">
+  <meta property="og:description" content="A web-based Solana OS with dapp panels, wallet context, and an AI agent inside.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://agent1c.ai/hackathon/">
+  <meta property="og:image" content="https://agent1c.ai/hackathon/agent1c-desktop-solana-dapps.png">
+  <style>
+    :root{
+      color-scheme: light;
+      --ink:#102033;
+      --muted:#4b6478;
+      --paper:#f7f1e8;
+      --soft:#e8f2f1;
+      --panel:#ffffff;
+      --line:#d4dee1;
+      --dark:#08111f;
+      --dark-panel:#14263f;
+      --mint:#2fe6c8;
+      --sky:#55bff7;
+      --pink:#ff4fb8;
+      --coral:#ff7a59;
+      --gold:#ffc857;
+      --shadow:0 18px 42px rgba(16,32,51,.14);
+      font-family:"Trebuchet MS",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      letter-spacing:0;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      color:var(--ink);
+      background:var(--paper);
+      font-size:16px;
+      line-height:1.45;
+      overflow-x:hidden;
+    }
+    a{color:inherit}
+    .topbar{
+      position:fixed;
+      z-index:10;
+      inset:0 0 auto 0;
+      height:54px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 24px;
+      background:rgba(247,241,232,.94);
+      border-bottom:1px solid rgba(16,32,51,.16);
+      backdrop-filter:saturate(1.25) blur(10px);
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-weight:800;
+      text-decoration:none;
+    }
+    .brand img{width:28px;height:28px;object-fit:contain}
+    .nav{
+      display:flex;
+      align-items:center;
+      gap:18px;
+      font-size:14px;
+      font-weight:700;
+      color:var(--muted);
+    }
+    .nav a{text-decoration:none}
+    .nav a:hover{color:var(--ink)}
+    .hero{
+      position:relative;
+      min-height:76svh;
+      display:grid;
+      align-items:center;
+      padding:92px 24px 46px;
+      overflow:hidden;
+      color:#f8f6f0;
+      background:#4b4b4b url("./agent1c-desktop-solana-dapps.png") center bottom / cover no-repeat;
+    }
+    .hero::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:rgba(8,17,31,.72);
+    }
+    .hero-inner{
+      position:relative;
+      width:min(1180px,100%);
+      margin:0 auto;
+      min-width:0;
+    }
+    .eyebrow{
+      display:inline-flex;
+      align-items:center;
+      min-height:30px;
+      padding:6px 12px;
+      border-radius:8px;
+      background:var(--gold);
+      color:var(--dark);
+      font-size:12px;
+      font-weight:900;
+      text-transform:uppercase;
+    }
+    h1{
+      margin:22px 0 0;
+      max-width:720px;
+      font-size:clamp(46px,8vw,86px);
+      line-height:.9;
+      letter-spacing:0;
+      overflow-wrap:anywhere;
+    }
+    .hero-copy{
+      max-width:720px;
+      margin:24px 0 0;
+      font-size:clamp(18px,2.1vw,27px);
+      line-height:1.12;
+      font-weight:800;
+      color:var(--mint);
+      overflow-wrap:anywhere;
+    }
+    .hero-subcopy{
+      max-width:660px;
+      margin:18px 0 0;
+      font-size:18px;
+      color:#d5e1ec;
+      overflow-wrap:anywhere;
+    }
+    .actions{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      margin-top:30px;
+    }
+    .button{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      min-height:44px;
+      padding:0 18px;
+      border:2px solid transparent;
+      border-radius:8px;
+      font-size:15px;
+      font-weight:900;
+      text-decoration:none;
+      white-space:nowrap;
+    }
+    .button.primary{background:var(--mint);color:var(--dark)}
+    .button.secondary{background:#f8f6f0;color:var(--dark)}
+    .button.ghost{border-color:rgba(248,246,240,.7);color:#f8f6f0}
+    .hero-hedgey{
+      position:absolute;
+      right:4%;
+      bottom:-18px;
+      width:min(190px,28vw);
+      filter:drop-shadow(0 20px 20px rgba(0,0,0,.32));
+    }
+    .band{padding:72px 24px}
+    .band.soft{background:var(--soft)}
+    .band.dark{background:var(--dark);color:#f8f6f0}
+    .wrap{
+      width:min(1180px,100%);
+      margin:0 auto;
+    }
+    .section-head{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) minmax(260px,420px);
+      gap:34px;
+      align-items:end;
+      margin-bottom:28px;
+    }
+    .kicker{
+      display:inline-flex;
+      align-items:center;
+      min-height:28px;
+      padding:5px 10px;
+      border-radius:8px;
+      background:var(--coral);
+      color:#fff;
+      font-size:12px;
+      font-weight:900;
+      text-transform:uppercase;
+    }
+    .band.dark .kicker{background:var(--mint);color:var(--dark)}
+    h2{
+      margin:14px 0 0;
+      font-size:clamp(31px,4vw,48px);
+      line-height:1;
+      letter-spacing:0;
+      overflow-wrap:anywhere;
+    }
+    .section-copy{
+      margin:0;
+      color:var(--muted);
+      font-size:17px;
+    }
+    .band.dark .section-copy{color:#c8d5e2}
+    .grid{
+      display:grid;
+      gap:16px;
+    }
+    .grid.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .grid.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .card{
+      min-height:154px;
+      padding:22px;
+      border:1px solid var(--line);
+      border-radius:8px;
+      background:var(--panel);
+      box-shadow:var(--shadow);
+    }
+    .band.dark .card{
+      background:var(--dark-panel);
+      border-color:rgba(85,191,247,.24);
+      box-shadow:none;
+    }
+    .card h3{
+      margin:0 0 10px;
+      font-size:18px;
+      line-height:1.12;
+      letter-spacing:0;
+    }
+    .card p{
+      margin:0;
+      color:var(--muted);
+      font-size:15px;
+    }
+    .band.dark .card p{color:#c8d5e2}
+    .metric{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:36px;
+      height:36px;
+      margin-bottom:16px;
+      border-radius:8px;
+      background:var(--mint);
+      color:var(--dark);
+      font-weight:900;
+    }
+    .demo{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) minmax(300px,430px);
+      gap:22px;
+      align-items:start;
+    }
+    .script{
+      margin:0;
+      padding:0;
+      list-style:none;
+      counter-reset:step;
+    }
+    .script li{
+      counter-increment:step;
+      display:grid;
+      grid-template-columns:42px minmax(0,1fr);
+      gap:14px;
+      padding:18px 0;
+      border-bottom:1px solid var(--line);
+    }
+    .script li::before{
+      content:counter(step);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      width:34px;
+      height:34px;
+      border-radius:8px;
+      background:var(--ink);
+      color:#fff;
+      font-weight:900;
+    }
+    .script strong{display:block;margin-bottom:4px}
+    .script span{color:var(--muted)}
+    .screenshot{
+      width:100%;
+      border:1px solid rgba(16,32,51,.22);
+      border-radius:8px;
+      box-shadow:var(--shadow);
+      background:#b8b8b8;
+    }
+    .icon-grid{
+      display:grid;
+      grid-template-columns:repeat(6,minmax(0,1fr));
+      gap:16px;
+    }
+    .app-icon{
+      min-height:138px;
+      padding:20px 12px 16px;
+      text-align:center;
+      border:1px solid var(--line);
+      border-radius:8px;
+      background:var(--panel);
+    }
+    .app-icon img{
+      width:54px;
+      height:54px;
+      object-fit:contain;
+      margin-bottom:14px;
+    }
+    .app-icon span{
+      display:block;
+      font-size:14px;
+      font-weight:900;
+    }
+    .callout{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:20px;
+      align-items:center;
+      padding:26px;
+      border-radius:8px;
+      background:var(--ink);
+      color:#f8f6f0;
+    }
+    .callout p{margin:8px 0 0;color:#d5e1ec}
+    .callout img{width:112px;height:auto}
+    .fineprint{
+      margin-top:18px;
+      padding:14px 16px;
+      border-left:5px solid var(--gold);
+      background:#fff8dd;
+      color:#49380d;
+      font-size:14px;
+      border-radius:0 8px 8px 0;
+    }
+    .footer{
+      padding:34px 24px;
+      background:#07101c;
+      color:#c8d5e2;
+      font-size:14px;
+    }
+    .footer .wrap{
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      flex-wrap:wrap;
+    }
+    .footer a{color:#fff;font-weight:800}
+    @media (max-width:900px){
+      .nav{display:none}
+      .hero{min-height:82svh;padding-top:84px}
+      .hero-hedgey{display:none}
+      .section-head,.demo,.callout{grid-template-columns:1fr}
+      .grid.cols-3,.grid.cols-4,.grid.cols-2{grid-template-columns:1fr}
+      .icon-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    }
+    @media (max-width:520px){
+      .topbar{padding:0 14px}
+      .hero,.band{padding-left:16px;padding-right:16px}
+      .hero-inner,.wrap{width:min(100%,358px);margin-left:0;margin-right:auto}
+      .hero-copy{max-width:21ch}
+      .hero-subcopy{max-width:31ch}
+      .actions{gap:10px}
+      .button{width:100%}
+      .icon-grid{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="https://agent1c.ai/" aria-label="Open Agent1c.ai">
+      <img src="../assets/hedgey1.png" alt="">
+      <span>Agent1c.ai</span>
+    </a>
+    <nav class="nav" aria-label="Hackathon sections">
+      <a href="#demo">Demo</a>
+      <a href="#solana">Solana</a>
+      <a href="#status">Status</a>
+      <a href="#staking">Staking</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-inner">
+        <span class="eyebrow">Colosseum Solana Frontier Hackathon</span>
+        <h1>Agent1c.ai</h1>
+        <p class="hero-copy">A web-based Solana OS with an AI agent inside.</p>
+        <p class="hero-subcopy">Launch dapps as desktop panels, keep wallet context in one workspace, and let Hitomi help users understand what is happening across their Solana session.</p>
+        <div class="actions" aria-label="Primary links">
+          <a class="button primary" href="https://agent1c.ai/">Open live app</a>
+          <a class="button secondary" href="./agent1c-colosseum-hackathon-pitch-deck.pptx">Download pitch deck</a>
+          <a class="button ghost" href="https://github.com/agent1c-ai/agent1c-ai.github.io">View GitHub repo</a>
+        </div>
+        <img class="hero-hedgey" src="../assets/hedgey-clippy.png" alt="Hitomi, the Agent1c hedgehog assistant">
+      </div>
+    </section>
+
+    <section id="demo" class="band">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="kicker">Judge fast path</span>
+            <h2>Five-minute demo script</h2>
+          </div>
+          <p class="section-copy">This page is intentionally separate from the main product. Judges can use it as the submission map, then open the live desktop when ready.</p>
+        </div>
+        <div class="demo">
+          <ol class="script">
+            <li><div><strong>Open the live app.</strong><span>Start at agent1c.ai and land inside the web desktop with Hitomi visible.</span></div></li>
+            <li><div><strong>Review the Solana app icons.</strong><span>Magic Eden, Save Finance, GeckoTerminal, HeliumGeek, DePINscan, and Dialect are first-class desktop apps.</span></div></li>
+            <li><div><strong>Launch a dapp panel.</strong><span>Open Magic Eden or GeckoTerminal and see the app run as a HedgeyOS iframe window.</span></div></li>
+            <li><div><strong>Ask Hitomi about wallet context.</strong><span>The Solana wallet integration is read-only and designed for summaries, balance checks, and recent activity.</span></div></li>
+            <li><div><strong>Review the business path.</strong><span>If we win, Agent1c launches token-staked AI compute access as a utility model.</span></div></li>
+          </ol>
+          <img class="screenshot" src="./agent1c-desktop-solana-dapps.png" alt="Agent1c desktop showing Hitomi and Solana dapp icons">
+        </div>
+      </div>
+    </section>
+
+    <section id="solana" class="band soft">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="kicker">Solana surface</span>
+            <h2>Dapps as native desktop apps</h2>
+          </div>
+          <p class="section-copy">The wedge is practical: iframe-friendly Solana products become launchable app panels inside the Agent1c desktop today.</p>
+        </div>
+        <div class="icon-grid" aria-label="Solana dapps available in Agent1c">
+          <div class="app-icon"><img src="../assets/app-icons/magic-eden.png" alt=""><span>Magic Eden</span></div>
+          <div class="app-icon"><img src="../assets/app-icons/save-finance.png" alt=""><span>Save Finance</span></div>
+          <div class="app-icon"><img src="../assets/app-icons/geckoterminal.png" alt=""><span>GeckoTerminal</span></div>
+          <div class="app-icon"><img src="../assets/app-icons/heliumgeek.png" alt=""><span>HeliumGeek</span></div>
+          <div class="app-icon"><img src="../assets/app-icons/depinscan.ico" alt=""><span>DePINscan</span></div>
+          <div class="app-icon"><img src="../assets/app-icons/dialect.png" alt=""><span>Dialect</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="status" class="band dark">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="kicker">What works today</span>
+            <h2>Hackathon-ready, not hand-wavy</h2>
+          </div>
+          <p class="section-copy">The current build is deliberately scoped around a judge-safe demo: visible OS surface, Solana dapp panels, and read-only wallet context.</p>
+        </div>
+        <div class="grid cols-4">
+          <article class="card"><span class="metric">1</span><h3>Web desktop</h3><p>Windows, app launcher, notes, browser, persistent layout, and Hitomi running in the workspace.</p></article>
+          <article class="card"><span class="metric">2</span><h3>Solana login path</h3><p>Wallet detection and Web3 auth path are present in the codebase for Solana identity.</p></article>
+          <article class="card"><span class="metric">3</span><h3>Wallet reads</h3><p>Read-only RPC balance, recent signatures, and parsed transaction summaries are the intended wallet surface.</p></article>
+          <article class="card"><span class="metric">4</span><h3>Dapp launcher</h3><p>Six Solana apps are registered with real icons and open as HedgeyOS app windows.</p></article>
+        </div>
+        <div class="fineprint">Read-only demo boundary: Agent1c does not sign, send, approve, swap, custody funds, or access private keys in the current build.</div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="kicker">Why it matters</span>
+            <h2>A home surface for serious Solana sessions</h2>
+          </div>
+          <p class="section-copy">Colosseum judges evaluate functionality, impact, novelty, UX, open-source composability, and business plan. Agent1c is designed to speak to all six.</p>
+        </div>
+        <div class="grid cols-3">
+          <article class="card"><h3>Impact</h3><p>Solana users do not need another tab. They need a persistent place to run DeFi, DePIN, notes, analytics, and AI context together.</p></article>
+          <article class="card"><h3>Novelty</h3><p>The product is positioned as a browser-native operating system for onchain work, not a single dapp or generic assistant.</p></article>
+          <article class="card"><h3>Composability</h3><p>The app registry makes more ecosystem products easy to add as panels, with each dapp keeping its own native product surface.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="staking" class="band soft">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="kicker">If we win</span>
+            <h2>Token-staked AI compute access</h2>
+          </div>
+          <p class="section-copy">Winning the hackathon unlocks the next public milestone: a Solana-native payment model for Hitomi and Agent1c compute.</p>
+        </div>
+        <div class="callout">
+          <div>
+            <h3>Stake Agent1c utility tokens to unlock free AI compute allowance.</h3>
+            <p>Users lock tokens for a chosen period and receive an AI compute allowance while the stake remains locked. The allowance can be spent on Hitomi, tools, and premium workspace actions.</p>
+          </div>
+          <img src="../assets/hedgey-clippy.png" alt="Hitomi">
+        </div>
+        <div class="fineprint">Utility framing: no APY promise, no passive-income claim, no investment-return guarantee. Final token mechanics are subject to legal and compliance review.</div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="kicker">Submission links</span>
+            <h2>Everything judges need</h2>
+          </div>
+          <p class="section-copy">The canonical hackathon URL is this page: <strong>agent1c.ai/hackathon/</strong></p>
+        </div>
+        <div class="grid cols-3">
+          <article class="card"><h3>Live product</h3><p><a href="https://agent1c.ai/">agent1c.ai</a><br>Use the app directly in a browser.</p></article>
+          <article class="card"><h3>Pitch deck</h3><p><a href="./agent1c-colosseum-hackathon-pitch-deck.pptx">agent1c-colosseum-hackathon-pitch-deck.pptx</a><br>Fourteen-slide PPTX deck.</p></article>
+          <article class="card"><h3>Open source repo</h3><p><a href="https://github.com/agent1c-ai/agent1c-ai.github.io">github.com/agent1c-ai/agent1c-ai.github.io</a><br>Static web app and hackathon materials.</p></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <span>Agent1c.ai | Colosseum Solana Frontier Hackathon</span>
+      <span><a href="https://agent1c.ai/">Open app</a> · <a href="https://github.com/agent1c-ai/agent1c-ai.github.io">GitHub</a></span>
+    </div>
+  </footer>
+</body>
+</html>
