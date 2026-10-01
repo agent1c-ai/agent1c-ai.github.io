@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Agent1c Manifestopaper</title>
+  <meta name="description" content="A manifesto for personal AI environments on hardware you control. Hitomi, Agent1c, HedgeyOS and HedgeyTTY converge through a client-as-server philosophy.">
+  <meta property="og:title" content="The Agent1c Manifestopaper">
+  <meta property="og:description" content="Keep the agent's home close. A browser workspace, a floating companion, Linux in an APK, and a desktop for the headless machine.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://agent1c.ai/manifesto/">
+  <meta property="og:image" content="https://agent1c.ai/manifesto/hitomi-google-play.jpg">
+  <link rel="canonical" href="https://agent1c.ai/manifesto/">
+  <link rel="icon" href="../assets/hedgey-clippy.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip" href="#paper">Skip to the paper</a>
+  <header class="site-header">
+    <a class="brand" href="https://agent1c.ai/">Agent1c<span class="brand-dot">.</span></a>
+    <nav aria-label="Paper navigation"><a href="#platform">The platform</a><a href="#expansion">Expansion</a><a href="#sources">Sources</a></nav>
+  </header>
+  <main id="paper">
+    <header class="paper-header">
+      <p class="eyebrow">Product manifesto · October 2026</p>
+      <h1>The Agent1c<br>Manifestopaper</h1>
+      <p class="standfirst">Personal AI environments on hardware you control.</p>
+      <p class="opening">Putting your AI’s operating system on a corporation’s servers puts its home under someone else’s control. A computer in the cloud is still someone else’s computer.</p>
+    </header>
+    <section aria-labelledby="ownership">
+      <h2 id="ownership">The agent’s home matters</h2>
+      <p>An agent needs more than a model. It needs files, tools, working memory, and a place to run. As it takes on more of your life and work, that environment becomes something worth owning. If the whole environment lives behind a provider account, access to your assistant also depends on access to that provider’s infrastructure.</p>
+      <p>Grok Bot and ChatGPT Dots make the cloud-computer approach concrete. Their agents have working computers hosted by the provider and can continue while your device is offline. Dots can also connect to your own computer, but its primary home remains in the cloud.<sup><a href="#ref-cloud">1</a></sup> That is a useful service. It also leaves the provider in charge of the environment your agent inhabits.</p>
+      <p>We are building Agent1c around a different starting point: <strong>the client can be the server.</strong> The device you already own can host the workspace, retain its state, and perform the work it is capable of doing. External services can supply additional intelligence without taking ownership of the agent’s entire computer.</p>
+    </section>
+    <section aria-labelledby="browser">
+      <p class="section-label">01 · The browser</p>
+      <h2 id="browser">Keep processing and storage close</h2>
+      <p>agent1c.ai and agent1c.me share a browser desktop foundation. The window manager, local tools, and agent orchestration run on the client. Their filesystem encrypts file contents in the browser and stores them locally. This is a deliberate design choice: the browser should be a working environment, rather than a screen showing a remote machine.</p>
+      <p>The two editions offer different routes into that environment. <strong>agent1c.me</strong> is the local-first, bring-your-own-key path, including an encrypted credential vault and user-selected model connections. <strong>agent1c.ai</strong> adds managed login and model services for a simpler start. Its current managed model path uses a cloud proxy; that does not turn the browser desktop into a cloud desktop.<sup><a href="#ref-browser">2</a></sup></p>
+      <p>Our direction is to keep as much processing and private state on the client as possible. Where a remote model is selected, the information included in its request leaves the device. A fully local configuration requires a local model as well. Encryption applies to the file store and configured vaults; it should never be mistaken for a promise that every setting or every network interaction is private.</p>
+      <p>Sovereignty starts with knowing those boundaries and being able to choose them. The user should be able to keep the agent’s home close, then decide which services deserve a window into it.</p>
+      <div class="gallery browsers">
+        <figure><a href="agent1c-ai.jpg"><img src="agent1c-ai.jpg" width="1363" height="936" alt="Agent1c.ai browser desktop with its managed sign-in window and Hitomi companion" loading="lazy"></a><figcaption>agent1c.ai · Live browser desktop at the managed sign-in step. Captured 1 October 2026.</figcaption></figure>
+        <figure><a href="agent1c-me.jpg"><img src="agent1c-me.jpg" width="1363" height="936" alt="Agent1c.me browser desktop with local Files and Notes windows and the Hitomi companion" loading="lazy"></a><figcaption>agent1c.me · Live Files and Notes windows, opened without connecting a model. Captured 1 October 2026.</figcaption></figure>
+      </div>
+    </section>
+    <section aria-labelledby="hitomi">
+      <p class="section-label">02 · The companion</p>
+      <h2 id="hitomi">Hitomi gives AI a local home</h2>
+      <p>Hitomi is the simple entry point: a small floating AI agent that stays beside the apps you already use. She can open her own browser pane and, when you enable the Termux bridge, work through a Linux environment on your Android device. Local commands run on the phone. Their results can be inspected there.</p>
+      <p>A Grok Bot or ChatGPT Dot gets a computer in a provider’s cloud. Hitomi’s enabled Termux environment is in your hand. A cloud model can help decide what to do while the working computer stays local; Open Hitomi also supports Ollama-compatible endpoints for a local model route.<sup><a href="#ref-hitomi">3</a></sup> The environment and the intelligence provider are separate choices.</p>
+      <p>The small, familiar companion is also a product advantage. People can meet Hitomi in the middle of an ordinary task, learn what she can do, and discover a larger workspace when they need it.</p>
+      <div class="gallery phones">
+        <figure><a href="hitomi-android.jpg"><img src="hitomi-android.jpg" alt="Open Hitomi floating above an Android home screen with its chat bubble open" loading="lazy" width="1071" height="1032"></a><figcaption>Open Hitomi · Existing Android capture published in the application README.</figcaption></figure>
+        <figure><a href="hitomi-termux.jpg"><img src="hitomi-termux.jpg" alt="Hitomi demonstrating local file creation through the Termux terminal bridge" loading="lazy" width="824" height="1648"></a><figcaption>Hitomi with Termux · Existing action capture from hitomi.love.</figcaption></figure>
+      </div>
+      <h3>Distribution is already real</h3>
+      <p>Hitomi has an existing Google Play distribution channel, and Open Hitomi is available through F-Droid. On 1 October 2026, the Google Play listing displayed <strong>1K+ downloads</strong>. That is evidence of distribution and downloads, not an active-user count. F-Droid provides a separate open-source installation route and lists local Ollama support.</p>
+      <div class="gallery listings">
+        <figure><a href="hitomi-google-play.jpg"><img src="hitomi-google-play.jpg" width="1348" height="926" alt="Hitomi Google Play listing displaying 1K plus downloads and an Install button" loading="lazy"></a><figcaption><a href="https://play.google.com/store/apps/details?id=ai.agent1c.hitomi">Google Play</a> · Hitomi’s listing with its 1K+ download badge. Captured 1 October 2026.</figcaption></figure>
+        <figure><a href="open-hitomi-fdroid.jpg"><img src="open-hitomi-fdroid.jpg" width="1348" height="926" alt="Open Hitomi F-Droid listing describing local Ollama and optional Termux support" loading="lazy"></a><figcaption><a href="https://f-droid.org/packages/ai.agent1c.hitomi.open/">F-Droid</a> · Open Hitomi’s listing and local model support. Captured 1 October 2026.</figcaption></figure>
+      </div>
+    </section>
+    <section aria-labelledby="linux">
+      <p class="section-label">03 · The pocket computer</p>
+      <h2 id="linux">HedgeyOS puts Linux inside an APK</h2>
+      <p>HedgeyOS is the mobile culmination of client-as-server: a complete Linux working environment carried inside an Android app. The current alpha packages Debian 13, XFCE, and an embedded X11 server together. It does not require a separate Termux or VNC companion installation.</p>
+      <p>This gives the device a general computing environment for editors, development tools, scripts, and local services. The agent can grow into a fuller computer without requiring the user to rent its home from a cloud provider. The working system travels with the phone.</p>
+      <p>HedgeyOS currently runs Linux user space through unprivileged PRoot on Android’s kernel. It is an alpha release, with the compatibility and hardware limits that follow from that architecture.<sup><a href="#ref-linux">4</a></sup> Its place in Agent1c is clear: a deeper local environment behind the same approachable Hitomi touchpoint.</p>
+      <figure class="portrait"><a href="hedgeyos-desktop.jpg"><img src="hedgeyos-desktop.jpg" alt="HedgeyOS alpha 6 XFCE desktop on Android with its Linux application dock and hedgehog controls" loading="lazy" width="1116" height="2484"></a><figcaption>HedgeyOS · Existing alpha.6 desktop capture published with the APK release and linked from its README.</figcaption></figure>
+    </section>
+    <section aria-labelledby="tty">
+      <p class="section-label">04 · The minimal machine</p>
+      <h2 id="tty">HedgeyTTY gives headless systems a desktop</h2>
+      <p>HedgeyTTY is a small desktop environment under development for machines that begin with a text console. Built as a fork of Twin, it brings windows, menus, an application dock, and Hitomi’s presence into a terminal environment. A text-only host can offer a visible, usable desktop without first becoming a conventional graphical workstation.</p>
+      <p>The goal is to make these minimal environments ready for agents while leaving more resources available for useful work, particularly local AI and GPU workloads. The console path works without a conventional X desktop. Actual memory savings and GPU headroom remain implementation- and hardware-dependent; we are not claiming a measured performance advantage.<sup><a href="#ref-tty">5</a></sup></p>
+      <figure id="tty-capture"><a href="hedgeytty-source.jpg"><img src="hedgeytty-source.jpg" alt="HedgeyTTY repository documentation showing the current fork’s Hitomi desktop, application dock, and terminal features" loading="lazy" width="1348" height="926"></a><figcaption>HedgeyTTY · Current fork’s development documentation, including Hitomi desktop and terminal features. Source capture, not a running desktop.</figcaption></figure>
+    </section>
+    <section aria-labelledby="platform">
+      <p class="section-label">05 · The platform</p>
+      <h2 id="platform">One Agent1c platform</h2>
+      <p>Agent1c brings these environments together around one relationship: the user, their companion, and a computer they control. The products supply different amounts of computing power and different ways to reach it.</p>
+      <div class="table-scroll"><table><caption>The roles of the Agent1c products</caption><thead><tr><th scope="col">Product</th><th scope="col">Environment</th><th scope="col">Role</th></tr></thead><tbody>
+        <tr><th scope="row">agent1c.ai</th><td>Browser desktop</td><td>A convenient entry with managed login and model services</td></tr>
+        <tr><th scope="row">agent1c.me</th><td>Browser desktop</td><td>Local-first workspace with user-selected providers and an encrypted credential vault</td></tr>
+        <tr><th scope="row">Hitomi and Open Hitomi</th><td>Android overlay and optional Termux bridge</td><td>The companion and entry point to local tools and the wider platform</td></tr>
+        <tr><th scope="row">HedgeyOS</th><td>Linux inside an Android APK</td><td>A fuller local computer for Linux applications and services</td></tr>
+        <tr><th scope="row">HedgeyTTY</th><td>Text console or terminal</td><td>A small desktop for minimal hosts, under development</td></tr>
+      </tbody></table></div>
+      <p>The convergence is a product direction. The applications exist at different stages; the complete journey between them is still being built. A shared companion gives that integration a clear point of entry.</p>
+    </section>
+    <section aria-labelledby="expansion">
+      <p class="section-label">06 · Expansion</p>
+      <h2 id="expansion">Expand through every Hitomi touchpoint</h2>
+      <p><strong>Every Hitomi touchpoint should become a door into every Agent1c environment.</strong> We intend to expand the platform through the places where people already encounter Hitomi: the Android overlay, the browser companion, the Linux desktop hedgehog, and the terminal desktop.</p>
+      <p>This is the platform’s expansion and colonization strategy: establish a useful companion on a computing surface, then let the rest of the applications grow through that relationship. A Hitomi user should be able to open the agent1c.ai or agent1c.me workspace. A browser-workspace user should be able to discover HedgeyOS when they need Linux on Android. A Linux user should be able to reach HedgeyTTY for a smaller headless environment. Each application contributes another useful place for Hitomi to live.</p>
+      <div class="touchpoints" aria-label="Planned expansion routes through Hitomi">
+        <p class="touchpoint-core">Hitomi touchpoints<span>Android overlay · Browser companion · Linux desktop · Terminal desktop</span></p>
+        <ul><li><strong>Open a workspace</strong><span>agent1c.ai or agent1c.me</span></li><li><strong>Add a Linux computer</strong><span>HedgeyOS on Android</span></li><li><strong>Use a minimal desktop</strong><span>HedgeyTTY on a headless host</span></li></ul>
+        <p class="diagram-caption">Planned product connections, not a claim that unified handoff has already shipped.</p>
+      </div>
+      <p>All the apps participate in this expansion. Their entry points, guides, and launch actions should lead back through Hitomi into the wider platform. A useful new application can strengthen the existing companion relationship instead of starting a separate onboarding journey. The expansion remains a choice made by the user: open another environment, install another capability, or stay with the small assistant.</p>
+      <p>We want personal AI to grow with its owner. Start with a companion. Give her a workspace. Add the computing environment the work needs. Keep the agent’s home on hardware you control.</p>
+    </section>
+    <section class="sources" aria-labelledby="sources">
+      <h2 id="sources">Sources and current status</h2>
+      <p>The product direction described here combines existing applications with planned integration. Repository documentation and public distribution listings were checked on 1 October 2026.</p>
+      <ol>
+        <li id="ref-cloud"><a href="https://x.ai/news/introducing-grok-bot">Grok Bot announcement</a> and <a href="https://openai.com/index/introducing-dots/">ChatGPT Dots announcement</a> describe provider-hosted working computers.</li>
+        <li id="ref-browser"><a href="https://github.com/agent1c-ai/agent1c-ai.github.io">agent1c.ai source</a> and <a href="https://github.com/agent1c-me/agent1c-me.github.io">agent1c.me source</a> document the browser runtime, managed and local paths, and storage architecture.</li>
+        <li id="ref-hitomi"><a href="https://hitomi.love/">Hitomi</a>, <a href="https://github.com/Decentricity/hitomi-android">Open Hitomi source</a>, <a href="https://f-droid.org/packages/ai.agent1c.hitomi.open/">F-Droid listing</a>, and <a href="https://termux.dev/en/">Termux</a>.</li>
+        <li id="ref-linux"><a href="https://github.com/hedgeyos/hedgeyos">HedgeyOS source and alpha release documentation</a>.</li>
+        <li id="ref-tty"><a href="https://github.com/agent1c-ai/hedgeytty">HedgeyTTY source and development status</a>.</li>
+      </ol>
+      <p><a href="manifesto.md">Read the plain-text manifestopaper</a> · <a href="SCREENSHOTS.md">Screenshot sources and capture details</a></p>
+    </section>
+  </main>
+  <footer><a href="https://hitomi.love/">Meet Hitomi</a><a href="https://agent1c.me/">Open the local-first workspace</a><a href="https://github.com/agent1c-ai/agent1c-ai.github.io/tree/master/manifesto">Source on GitHub</a></footer>
+</body>
+</html>
