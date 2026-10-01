@@ -1,5 +1,9 @@
 # The Agent1c Manifestopaper
 
+![Agent1c screenshot montage with glitch transitions](header-glitch.gif)
+
+One companion, many environments. Crops from the screenshots in this paper; HedgeyTTY is shown through its development documentation.
+
 > “the Mind is the important bit, and the rest is a life-support and transport system.”
 
 — Iain M. Banks, [*A Few Notes on the Culture*](https://theculture.adactio.com/)
@@ -14,11 +18,11 @@ Putting your AI’s operating system on a corporation’s servers puts its home 
 
 ## The agent’s home matters
 
-An agent needs more than a model. It needs files, tools, working memory, and a place to run. As it takes on more of your life and work, that environment becomes something worth owning. If the whole environment lives behind a provider account, access to your assistant also depends on access to that provider’s infrastructure.
+An agent needs more than a model. It needs files, tools, working memory, and a place to run—a foothold in the physical world. As it takes on more of your life and work, that environment becomes something worth owning. If the whole environment lives behind a provider account, access to your assistant also depends on access to that provider’s infrastructure.
 
 Grok Bot and ChatGPT Dots make the cloud-computer approach concrete. Their agents have working computers hosted by the provider and can continue while your device is offline. Dots can also connect to your own computer, but its primary home remains in the cloud.[1](#ref-cloud) That is a useful service. It also leaves the provider in charge of the environment your agent inhabits.
 
-We are building Agent1c around a different starting point: **the client can be the server.** The device you already own can host the workspace, retain its state, and perform the work it is capable of doing. External services can supply additional intelligence without taking ownership of the agent’s entire computer.
+We are building Agent1c around a different starting point: **the client can be the server.** The device you already own can become the agent’s home port: hosting the workspace, retaining its state, and performing the work it is capable of doing. External services can supply additional intelligence without taking ownership of the agent’s entire computer.
 
 ## Keep processing and storage close
 
@@ -28,7 +32,7 @@ The two editions offer different routes into that environment. **agent1c.me** is
 
 Our direction is to keep as much processing and private state on the client as possible. Where a remote model is selected, the information included in its request leaves the device. A fully local configuration requires a local model as well. Encryption applies to the file store and configured vaults; it should never be mistaken for a promise that every setting or every network interaction is private.
 
-Sovereignty starts with knowing those boundaries and being able to choose them. The user should be able to keep the agent’s home close, then decide which services deserve a window into it.
+Sovereignty starts with knowing those boundaries and being able to choose them. Keep the agent’s home close, then decide which services deserve a window into its world.
 
 ![Agent1c.ai browser desktop with its managed sign-in window and Hitomi companion](agent1c-ai.jpg)
 
@@ -40,11 +44,11 @@ agent1c.me · Live Files and Notes windows, opened without connecting a model. C
 
 ## Hitomi gives AI a local home
 
-Hitomi is the simple entry point: a small floating AI agent that stays beside the apps you already use. She can open her own browser pane and, when you enable the Termux bridge, work through a Linux environment on your Android device. Local commands run on the phone. Their results can be inspected there.
+Hitomi is the simple entry point: a small floating AI agent that stays beside the apps you already use. She can open her own browser pane and, when you enable the Termux bridge, work through a Linux environment on your Android device. These are her onboard tools: local commands run on the phone, and their results can be inspected there.
 
 A Grok Bot or ChatGPT Dot gets a computer in a provider’s cloud. Hitomi’s enabled Termux environment is in your hand. A cloud model can help decide what to do while the working computer stays local; Open Hitomi also supports Ollama-compatible endpoints for a local model route.[3](#ref-hitomi) The environment and the intelligence provider are separate choices.
 
-The small, familiar companion is also a product advantage. People can meet Hitomi in the middle of an ordinary task, learn what she can do, and discover a larger workspace when they need it.
+The small, familiar companion is also a product advantage. People can meet Hitomi in the middle of an ordinary task, learn what she can do, and step into a larger workspace when they need it.
 
 ![Open Hitomi floating above an Android home screen with its chat bubble open](hitomi-android.jpg)
 
@@ -70,7 +74,7 @@ Hitomi has an existing Google Play distribution channel, and Open Hitomi is avai
 
 HedgeyOS is the mobile culmination of client-as-server: a complete Linux working environment carried inside an Android app. The current alpha packages Debian 13, XFCE, and an embedded X11 server together. It does not require a separate Termux or VNC companion installation.
 
-This gives the device a general computing environment for editors, development tools, scripts, and local services. The agent can grow into a fuller computer without requiring the user to rent its home from a cloud provider. The working system travels with the phone.
+This gives the device a general computing environment for editors, development tools, scripts, and local services. The agent can grow into a fuller computer without requiring the user to rent its home from a cloud provider. The working system travels with the phone: a small vessel for a much larger computing world.
 
 HedgeyOS currently runs Linux user space through unprivileged PRoot on Android’s kernel. It is an alpha release, with the compatibility and hardware limits that follow from that architecture.[4](#ref-linux) Its place in Agent1c is clear: a deeper local environment behind the same approachable Hitomi touchpoint.
 
@@ -80,7 +84,7 @@ HedgeyOS · Existing alpha.6 desktop capture published with the APK release and 
 
 ## HedgeyTTY gives headless systems a desktop
 
-HedgeyTTY is a small desktop environment under development for machines that begin with a text console. Built as a fork of Twin, it brings windows, menus, an application dock, and Hitomi’s presence into a terminal environment. A text-only host can offer a visible, usable desktop without first becoming a conventional graphical workstation.
+HedgeyTTY is a small desktop environment under development for machines that begin with a text console. Built as a fork of Twin, it brings windows, menus, an application dock, and Hitomi’s presence into a terminal environment. A text-only host can gain a small control deck—a visible, usable desktop—without first becoming a conventional graphical workstation.
 
 The goal is to make these minimal environments ready for agents while leaving more resources available for useful work, particularly local AI and GPU workloads. The console path works without a conventional X desktop. Actual memory savings and GPU headroom remain implementation- and hardware-dependent; we are not claiming a measured performance advantage.[5](#ref-tty)
 
@@ -90,7 +94,7 @@ HedgeyTTY · Current fork’s development documentation, including Hitomi deskto
 
 ## One Agent1c platform
 
-Agent1c brings these environments together around one relationship: the user, their companion, and a computer they control. The products supply different amounts of computing power and different ways to reach it.
+Agent1c brings this small constellation of environments together around one relationship: the user, their companion, and a computer they control. The products supply different amounts of computing power and different ways to reach it.
 
 | Product | Environment | Role |
 | --- | --- | --- |
@@ -106,7 +110,7 @@ The convergence is a product direction. The applications exist at different stag
 
 **Every Hitomi touchpoint should become a door into every Agent1c environment.** We intend to expand the platform through the places where people already encounter Hitomi: the Android overlay, the browser companion, the Linux desktop hedgehog, and the terminal desktop.
 
-This is the platform’s expansion and colonization strategy: establish a useful companion on a computing surface, then let the rest of the applications grow through that relationship. A Hitomi user should be able to open the agent1c.ai or agent1c.me workspace. A browser-workspace user should be able to discover HedgeyOS when they need Linux on Android. A Linux user should be able to reach HedgeyTTY for a smaller headless environment. Each application contributes another useful place for Hitomi to live.
+This is the platform’s expansion and colonization strategy: establish a useful companion on a computing surface, then let the rest of the applications grow through that relationship. A Hitomi user should be able to open the agent1c.ai or agent1c.me workspace. A browser-workspace user should be able to discover HedgeyOS when they need Linux on Android. A Linux user should be able to reach HedgeyTTY for a smaller headless environment. Each application opens another useful place for Hitomi to inhabit.
 
 **Hitomi touchpoints:** Android overlay · Browser companion · Linux desktop · Terminal desktop
 
@@ -118,7 +122,7 @@ Planned product connections, not a claim that unified handoff has already shippe
 
 All the apps participate in this expansion. Their entry points, guides, and launch actions should lead back through Hitomi into the wider platform. A useful new application can strengthen the existing companion relationship instead of starting a separate onboarding journey. The expansion remains a choice made by the user: open another environment, install another capability, or stay with the small assistant.
 
-We want personal AI to grow with its owner. Start with a companion. Give her a workspace. Add the computing environment the work needs. Keep the agent’s home on hardware you control.
+We want personal AI to grow with its owner. Start with a companion. Give her a workspace. Expand her world as the work demands. Keep the agent’s home on hardware you control.
 
 ## Sources and current status
 

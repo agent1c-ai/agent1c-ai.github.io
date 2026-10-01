@@ -18,3 +18,9 @@ These images are copied into this directory so the paper does not depend on an e
 The current fork at commit `72e702fb0f6a3d29df674e3ed4f891573b4dfa2f` was built successfully for this paper. Its runtime could not start in the capture environment because local Unix socket creation was denied, and an elevated run was rejected by the execution policy. The paper therefore uses a labelled source capture. The historical upstream Twin screenshot in the repository was not presented as the current HedgeyTTY interface.
 
 Existing screenshots demonstrate the captured versions, not a promise that every planned platform integration has shipped. Screenshot captions distinguish existing release images, live app captures, distribution listings, and development documentation.
+
+## Animated header
+
+`header-glitch.gif` cycles through cropped views of all eight screenshots listed above. Each image holds for 2.1 seconds, followed by three 90 ms glitch frames made from horizontal offsets, colour-channel displacement, and scan lines; the complete loop lasts 18.96 seconds. Labels distinguish application interfaces, distribution listings, and HedgeyTTY development documentation.
+
+`header-still.jpg` is an eight-image montage used when the browser requests reduced motion. The standalone source screenshots remain available unaltered below their corresponding sections. To rebuild the header with Pillow, run `python manifesto/build_header.py` from the repository root.
