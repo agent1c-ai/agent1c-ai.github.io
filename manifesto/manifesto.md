@@ -1,6 +1,14 @@
 # The Agent1c Manifestopaper
 
-Personal AI environments on hardware you control.
+> “the Mind is the important bit, and the rest is a life-support and transport system.”
+
+— Iain M. Banks, [*A Few Notes on the Culture*](https://theculture.adactio.com/)
+
+> “Without a body you’re helpless; without a ship or something similar, so is a Mind.”
+
+— Iain Banks, [*A Few Questions About the Culture*](https://strangehorizons.com/wordpress/non-fiction/articles/a-few-questions-about-the-culture-an-interview-with-iain-banks/), interview by Jude Roberts
+
+Your superintelligent agent needs to be sovereign.
 
 Putting your AI’s operating system on a corporation’s servers puts its home under someone else’s control. A computer in the cloud is still someone else’s computer.
 
